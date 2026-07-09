@@ -21,6 +21,3 @@ Desktop.ini
 
 # Claude Code (개인별 지침 파일)
 CLAUDE.md
-
-#Docker
-docker-compose.local.yml
