@@ -1,0 +1,22 @@
+# 상위 폴더(deundeun) .gitignore에서 OS / IDE(.idea) / .env / *.log / docker-compose.yml은 이미 처리됨
+# 여기는 backend(Gradle) 전용 규칙만 관리
+
+### Gradle ###
+.gradle/
+build/
+out/
+
+### Java ###
+*.class
+hs_err_pid*
+replay_pid*
+
+# Package Files
+*.jar
+*.war
+!gradle/wrapper/gradle-wrapper.jar
+
+# Backend secret configs
+src/main/resources/application-local.yaml
+src/main/resources/application-prod.yaml
+src/test/resources/application.yaml
