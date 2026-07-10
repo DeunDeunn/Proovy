@@ -1,12 +1,14 @@
 package com.deundeun.notification.domain;
 
+import com.deundeun.notification.dto.NotificationCreateCommand;
+import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class Notification {
 
     private Long id;
@@ -21,16 +23,17 @@ public class Notification {
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
 
-    public static Notification create(Long userId, NotificationType type, String title, String content,
-                                       TargetType targetType, Long targetId, String eventKey) {
-        Notification notification = new Notification();
-        notification.setUserId(userId);
-        notification.setType(type);
-        notification.setTitle(title);
-        notification.setContent(content);
-        notification.setTargetType(targetType);
-        notification.setTargetId(targetId);
-        notification.setEventKey(eventKey);
-        return notification;
+    private Notification(NotificationCreateCommand command) {
+        this.userId = command.userId();
+        this.type = command.type();
+        this.title = command.title();
+        this.content = command.content();
+        this.targetType = command.targetType();
+        this.targetId = command.targetId();
+        this.eventKey = command.eventKey();
+    }
+
+    public static Notification create(NotificationCreateCommand command) {
+        return new Notification(command);
     }
 }
