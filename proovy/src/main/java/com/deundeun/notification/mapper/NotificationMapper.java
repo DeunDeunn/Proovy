@@ -18,6 +18,8 @@ public interface NotificationMapper {
 
     int countUnread(@Param("userId") Long userId);
 
+    int countByUserId(@Param("userId") Long userId);
+
     void markAsRead(@Param("id") Long id, @Param("userId") Long userId);
 
     void markAllAsRead(@Param("userId") Long userId);
