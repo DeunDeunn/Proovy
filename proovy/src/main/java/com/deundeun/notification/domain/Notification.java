@@ -1,11 +1,12 @@
 package com.deundeun.notification.domain;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 @Getter
+@Setter
 public class Notification {
 
     private Long id;
@@ -20,27 +21,16 @@ public class Notification {
     private LocalDateTime deletedAt;
     private LocalDateTime createdAt;
 
-    private Notification(Long userId, NotificationType type, String title, String content,
-                         TargetType targetType, Long targetId, String eventKey) {
-        this.userId = Objects.requireNonNull(userId, "userId must not be null");
-        this.type = Objects.requireNonNull(type, "type must not be null");
-        this.title = requireNonBlank(title, "title");
-        this.content = requireNonBlank(content, "content");
-        this.eventKey = requireNonBlank(eventKey, "eventKey");
-        this.targetType = targetType;
-        this.targetId = targetId;
-        this.createdAt = LocalDateTime.now();
-    }
-
     public static Notification create(Long userId, NotificationType type, String title, String content,
-                                      TargetType targetType, Long targetId, String eventKey) {
-        return new Notification(userId, type, title, content, targetType, targetId, eventKey);
-    }
-
-    private static String requireNonBlank(String value, String field) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return value;
+                                       TargetType targetType, Long targetId, String eventKey) {
+        Notification notification = new Notification();
+        notification.setUserId(userId);
+        notification.setType(type);
+        notification.setTitle(title);
+        notification.setContent(content);
+        notification.setTargetType(targetType);
+        notification.setTargetId(targetId);
+        notification.setEventKey(eventKey);
+        return notification;
     }
 }
