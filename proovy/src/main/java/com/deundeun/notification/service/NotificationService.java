@@ -10,6 +10,7 @@ import com.deundeun.notification.domain.Notification;
 import com.deundeun.notification.dto.NotificationCreateCommand;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
 import com.deundeun.notification.dto.response.NotificationResponse;
+import com.deundeun.notification.dto.response.UnreadCountResponse;
 import com.deundeun.notification.mapper.NotificationMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -46,5 +47,13 @@ public class NotificationService {
         long totalElements = notificationMapper.countByUserId(userId);
 
         return NotificationPageResponse.of(content, page, size, totalElements);
+    }
+
+    @Transactional(readOnly = true)
+    public UnreadCountResponse getUnreadCount(Long userId) {
+        log.info("[Notification] 안 읽은 개수 조회: userId={}", userId);
+        int unreadCount = notificationMapper.countUnread(userId);
+
+        return new UnreadCountResponse(unreadCount);
     }
 }

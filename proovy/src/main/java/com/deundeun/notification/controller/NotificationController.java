@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
+import com.deundeun.notification.dto.response.UnreadCountResponse;
 import com.deundeun.notification.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
@@ -25,5 +26,13 @@ public class NotificationController {
         NotificationPageResponse notifications = notificationService.getNotifications(userId, page, size);
 
         return ApiResponse.success(notifications);
+    }
+
+    @GetMapping("/api/notifications/unread-count")
+    public ApiResponse<UnreadCountResponse> getUnreadCount(@RequestParam Long userId) {
+        //TODO 인증 붙으면 로그인 사용자 ID로 대체
+        UnreadCountResponse response = notificationService.getUnreadCount(userId);
+
+        return ApiResponse.success(response);
     }
 }

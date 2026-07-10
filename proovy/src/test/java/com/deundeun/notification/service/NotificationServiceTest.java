@@ -18,6 +18,7 @@ import com.deundeun.notification.domain.NotificationType;
 import com.deundeun.notification.domain.TargetType;
 import com.deundeun.notification.dto.NotificationCreateCommand;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
+import com.deundeun.notification.dto.response.UnreadCountResponse;
 import com.deundeun.notification.mapper.NotificationMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -102,5 +103,16 @@ class NotificationServiceTest {
 
         assertThat(result.totalPages()).isEqualTo(2);
         assertThat(result.hasNext()).isFalse();
+    }
+
+    @Test
+    void getUnreadCount_returnsCountFromMapper() {
+        Long userId = 1L;
+        when(notificationMapper.countUnread(userId)).thenReturn(5);
+
+        UnreadCountResponse result = notificationService.getUnreadCount(userId);
+
+        assertThat(result.unreadCount()).isEqualTo(5);
+        verify(notificationMapper).countUnread(userId);
     }
 }
