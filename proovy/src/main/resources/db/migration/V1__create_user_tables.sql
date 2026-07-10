@@ -43,7 +43,7 @@ CREATE UNIQUE INDEX uq_user_verifications_pending
 
 CREATE TABLE user_warnings (
                                id                     BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                               user_id                BIGINT       NOT NULL,
+                               user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
                                reason                 VARCHAR(30)  NOT NULL
                                    CHECK (reason IN ('AUTO_APPROVAL')),
                                challenge_id           BIGINT,

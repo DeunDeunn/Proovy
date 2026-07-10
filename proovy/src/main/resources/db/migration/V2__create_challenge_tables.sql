@@ -15,19 +15,20 @@ CREATE TABLE challenges (
                             title                  VARCHAR(100) NOT NULL,
                             description            TEXT,
                             category_id            BIGINT       NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
-                            entry_fee              BIGINT       NOT NULL DEFAULT 0,
+                            entry_fee              BIGINT       NOT NULL CHECK (entry_fee > 0),
                             verification_method    TEXT         NOT NULL,
                             cert_frequency         VARCHAR(20)  NOT NULL DEFAULT 'DAILY',
-                            daily_cert_limit       INT          NOT NULL DEFAULT 1,
-                            success_criteria_rate  INT          NOT NULL DEFAULT 80,
+                            daily_cert_limit       INT          NOT NULL DEFAULT 1 CHECK (daily_cert_limit > 0),
+                            success_criteria_rate  INT          NOT NULL DEFAULT 80 CHECK (success_criteria_rate = 80),
                             ai_review_enabled      BOOLEAN      NOT NULL DEFAULT false,
                             start_date             DATE         NOT NULL,
                             end_date               DATE         NOT NULL,
-                            max_participants       INT          NOT NULL,
+                            max_participants       INT          NOT NULL CHECK (max_participants > 0),
                             status                 VARCHAR(20)  NOT NULL DEFAULT 'RECRUITING'
                                 CHECK (status IN ('RECRUITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
                             created_at             TIMESTAMP    NOT NULL DEFAULT now(),
-                            updated_at             TIMESTAMP    NOT NULL DEFAULT now()
+                            updated_at             TIMESTAMP    NOT NULL DEFAULT now(),
+                            CONSTRAINT chk_challenges_dates CHECK (end_date >= start_date)
 );
 
 COMMENT ON COLUMN challenges.success_criteria_rate IS '고정값 80%, 애플리케이션에서 강제 (단위: %)';

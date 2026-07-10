@@ -5,8 +5,8 @@
 CREATE TABLE ai_ticket_plans (
                                  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                                  name          VARCHAR(50)  NOT NULL,
-                                 duration_days INT          NOT NULL,
-                                 price         INT          NOT NULL,
+                                 duration_days INT          NOT NULL CHECK (duration_days > 0),
+                                 price         INT          NOT NULL CHECK (price > 0),
                                  description   VARCHAR(255),
                                  active        BOOLEAN      NOT NULL DEFAULT true,
                                  created_at    TIMESTAMP    NOT NULL DEFAULT now(),
@@ -22,12 +22,13 @@ CREATE TABLE ai_ticket_subscriptions (
                                          id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                                          host_id     BIGINT      NOT NULL, -- users.id (도메인 밖)
                                          plan_id     BIGINT      NOT NULL REFERENCES ai_ticket_plans(id) ON DELETE RESTRICT,
-                                         paid_price  INT      NOT NULL,
+                                         paid_price  INT      NOT NULL CHECK (paid_price > 0),
                                          started_at  TIMESTAMP   NOT NULL,
                                          expired_at  TIMESTAMP   NOT NULL,
                                          status      VARCHAR(20) NOT NULL CHECK (status IN ('ACTIVE', 'CANCELLED', 'EXPIRED', 'REFUNDED')),
                                          created_at  TIMESTAMP   NOT NULL DEFAULT now(),
-                                         updated_at  TIMESTAMP   NOT NULL DEFAULT now()
+                                         updated_at  TIMESTAMP   NOT NULL DEFAULT now(),
+                                         CONSTRAINT chk_ai_ticket_subscriptions_dates CHECK (expired_at > started_at)
 );
 
 CREATE INDEX idx_ai_ticket_subscriptions_host_id ON ai_ticket_subscriptions(host_id);
@@ -58,7 +59,7 @@ CREATE TABLE ai_review_results (
                                    verification_post_id   BIGINT       NOT NULL, -- certification_posts.id (도메인 밖)
                                    review_mode            VARCHAR(20)  NOT NULL,
                                    decision                VARCHAR(20)  CHECK (decision IS NULL OR decision IN ('APPROVED', 'REJECTED', 'NEEDS_REVIEW')),
-                                   confidence             NUMERIC(4,3),
+                                   confidence             NUMERIC(4,3) CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
                                    reason                 TEXT,
                                    raw_response           JSONB,
                                    status                 VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
