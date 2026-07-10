@@ -8,8 +8,6 @@ Desktop.ini
 # IDE / Editor
 .idea/
 .vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
 *.iml
 
 # Env
