@@ -16,6 +16,13 @@
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM notifications
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+    </select>
+
     <select id="countUnread" resultType="int">
         SELECT COUNT(*)
         FROM notifications
