@@ -28,6 +28,7 @@
         UPDATE notifications
         SET read_at = now()
         WHERE id = #{id}
+          AND user_id = #{userId}
           AND read_at IS NULL
     </update>
 
@@ -43,6 +44,7 @@
         UPDATE notifications
         SET deleted_at = now()
         WHERE id = #{id}
+          AND user_id = #{userId}
           AND deleted_at IS NULL
     </update>
 
