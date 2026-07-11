@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.notification.mapper.NotificationMapper">
+    
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notifications (user_id, type, title, content, target_type, target_id, event_key)
+        VALUES (#{userId}, #{type}, #{title}, #{content}, #{targetType}, #{targetId}, #{eventKey})
+    </insert>
+
+    <select id="findByUserId" resultType="com.deundeun.notification.domain.Notification">
+        SELECT id, user_id, type, title, content, target_type, target_id, event_key, read_at, deleted_at, created_at
+        FROM notifications
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM notifications
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="countUnread" resultType="int">
+        SELECT COUNT(*)
+        FROM notifications
+        WHERE user_id = #{userId}
+          AND read_at IS NULL
+          AND deleted_at IS NULL
+    </select>
+
+    <update id="markAsRead">
+        UPDATE notifications
+        SET read_at = now()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND read_at IS NULL
+    </update>
+
+    <update id="markAllAsRead">
+        UPDATE notifications
+        SET read_at = now()
+        WHERE user_id = #{userId}
+          AND read_at IS NULL
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE notifications
+        SET deleted_at = now()
+        WHERE id = #{id}
+          AND user_id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+</mapper>
