@@ -24,11 +24,11 @@ public interface NotificationMapper {
 
     int countByUserId(@Param("userId") Long userId);
 
-    void markAsRead(@Param("id") Long id, @Param("userId") Long userId, LocalDateTime readAt);
+    void markAsRead(@Param("id") Long id, @Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
 
-    int markAllAsRead(@Param("userId") Long userId, LocalDateTime readAt);
+    int markAllAsRead(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
 
-    void delete(@Param("id") Long id, @Param("userId") Long userId, LocalDateTime deletedAt);
+    void delete(@Param("id") Long id, @Param("userId") Long userId, @Param("deletedAt") LocalDateTime deletedAt);
 
-    int deleteAll(@Param("userId") Long userId, LocalDateTime deletedAt);
+    int deleteAll(@Param("userId") Long userId, @Param("deletedAt") LocalDateTime deletedAt);
 }
