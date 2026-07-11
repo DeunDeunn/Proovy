@@ -71,6 +71,7 @@ class NotificationServiceTest {
         assertThat(saved.getTargetType()).isEqualTo(command.targetType());
         assertThat(saved.getTargetId()).isEqualTo(command.targetId());
         assertThat(saved.getEventKey()).isEqualTo(command.eventKey());
+        assertThat(saved.getCreatedAt()).isNotNull();
     }
 
     @Test
