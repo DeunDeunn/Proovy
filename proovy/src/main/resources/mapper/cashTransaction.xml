@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.pay.mapper.CashTransactionMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO cash_transactions (wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id)
+        VALUES (#{walletId}, #{type}, #{amount}, #{balanceAfter}, #{pgTransactionId}, #{status}, #{referenceId})
+    </insert>
+
+    <select id="selectById" resultType="com.deundeun.pay.domain.CashTransaction">
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        FROM cash_transactions
+        WHERE id = #{id}
+    </select>
+
+    <update id="completeCharge">
+        UPDATE cash_transactions
+        SET status = 'COMPLETED',
+            pg_transaction_id = #{pgTransactionId},
+            balance_after = #{balanceAfter}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE cash_transactions
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <select id="selectByWalletId" resultType="com.deundeun.pay.domain.CashTransaction">
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        FROM cash_transactions
+        WHERE wallet_id = #{walletId}
+        <if test="type != null">
+            AND type = #{type}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByWalletId" resultType="long">
+        SELECT COUNT(*)
+        FROM cash_transactions
+        WHERE wallet_id = #{walletId}
+        <if test="type != null">
+            AND type = #{type}
+        </if>
+    </select>
+
+</mapper>
