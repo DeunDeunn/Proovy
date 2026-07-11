@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.pay.mapper.WalletMapper">
+
+    <select id="selectByUserId" resultType="com.deundeun.pay.domain.Wallet">
+        SELECT id, user_id, charged_balance, reward_balance, locked_balance, created_at, updated_at
+        FROM wallets
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectByUserIdForUpdate" resultType="com.deundeun.pay.domain.Wallet">
+        SELECT id, user_id, charged_balance, reward_balance, locked_balance, created_at, updated_at
+        FROM wallets
+        WHERE user_id = #{userId}
+        FOR UPDATE
+    </select>
+
+    <select id="selectByIdForUpdate" resultType="com.deundeun.pay.domain.Wallet">
+        SELECT id, user_id, charged_balance, reward_balance, locked_balance, created_at, updated_at
+        FROM wallets
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <!-- 동시에 여러 요청이 최초 지갑 생성을 시도해도 uq_wallets_user_id로 안전하게 무시됨 -->
+    <insert id="insertIfAbsent">
+        INSERT INTO wallets (user_id)
+        VALUES (#{userId})
+        ON CONFLICT (user_id) DO NOTHING
+    </insert>
+
+    <update id="updateChargedBalance">
+        UPDATE wallets
+        SET charged_balance = #{chargedBalance}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

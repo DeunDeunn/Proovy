@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.pay.mapper.ChargeLotMapper">
+
+    <!-- withdrawable_at은 GENERATED ALWAYS 컬럼이라 INSERT 대상에서 제외 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO charge_lots (wallet_id, amount, remaining_amount)
+        VALUES (#{walletId}, #{amount}, #{remainingAmount})
+    </insert>
+
+</mapper>
