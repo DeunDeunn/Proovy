@@ -3,6 +3,9 @@ package com.deundeun.notification.sse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -87,5 +90,28 @@ class SseEmitterRepositoryTest {
         repository.remove(userId1, emitter1);
 
         assertThat(repository.findAllByUserId(userId2)).containsExactly(emitter2);
+    }
+
+    @Test
+    @DisplayName("findAll은 등록된 모든 유저의 emitter를 반환한다")
+    void findAll_returnsEmittersForEveryUser() {
+        Long userId1 = 1L;
+        Long userId2 = 2L;
+        SseEmitter emitter1 = new SseEmitter();
+        SseEmitter emitter2 = new SseEmitter();
+        repository.save(userId1, emitter1);
+        repository.save(userId2, emitter2);
+
+        Map<Long, List<SseEmitter>> all = repository.findAll();
+
+        assertThat(all).containsOnlyKeys(userId1, userId2);
+        assertThat(all.get(userId1)).containsExactly(emitter1);
+        assertThat(all.get(userId2)).containsExactly(emitter2);
+    }
+
+    @Test
+    @DisplayName("등록된 emitter가 없으면 findAll은 빈 맵을 반환한다")
+    void findAll_returnsEmptyMap_whenNothingSaved() {
+        assertThat(repository.findAll()).isEmpty();
     }
 }

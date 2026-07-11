@@ -32,6 +32,10 @@ public class SseEmitterRepository {
         return emitters.getOrDefault(userId, List.of());
     }
 
+    public Map<Long, List<SseEmitter>> findAll() {
+        return Map.copyOf(emitters);
+    }
+
     public void remove(Long userId, SseEmitter emitter) {
         emitters.computeIfPresent(userId, (key, list) -> {
             list.remove(emitter);

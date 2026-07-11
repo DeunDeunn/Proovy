@@ -3,22 +3,32 @@ package com.deundeun.notification.sse;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.notification.dto.response.NotificationResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SseEmitterService {
 
     private static final Long DEFAULT_TIMEOUT = TimeUnit.HOURS.toMillis(1);
     private final SseEmitterRepository sseEmitterRepository;
+    private final Executor notificationExecutor;
+
+    public SseEmitterService(
+        SseEmitterRepository sseEmitterRepository,
+        @Qualifier("notificationExecutor") Executor notificationExecutor
+    ) {
+        this.sseEmitterRepository = sseEmitterRepository;
+        this.notificationExecutor = notificationExecutor;
+    }
 
     public SseEmitter subscribe(Long userId) {
         SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT);
@@ -43,6 +53,13 @@ public class SseEmitterService {
         }
     }
 
+    @Scheduled(fixedRate = 30_000)
+    public void sendHeartbeat() {
+        sseEmitterRepository.findAll().forEach((userId, emitterList) ->
+            emitterList.forEach(emitter ->
+                notificationExecutor.execute(() -> sendHeartbeatTo(userId, emitter))));
+    }
+
     private void registerCallbacks(SseEmitter emitter, Long userId) {
         emitter.onCompletion(() -> {
             sseEmitterRepository.remove(userId, emitter);
@@ -59,6 +76,15 @@ public class SseEmitterService {
             sseEmitterRepository.remove(userId, emitter);
             log.debug("[Notification] SSE 연결 에러: userId={}, message={}", userId, e.getMessage());
         });
+    }
+
+    private void sendHeartbeatTo(Long userId, SseEmitter emitter) {
+        try {
+            emitter.send(SseEmitter.event().name("HEARTBEAT").data(Map.of("message", "SSE 연결이 유지되고 있습니다.")));
+        } catch (IOException | IllegalStateException e) {
+            sseEmitterRepository.remove(userId, emitter);
+            log.debug("[Notification] 하트비트 실패로 emitter 제거: userId={}, message={}", userId, e.getMessage());
+        }
     }
 
     private void sendConnectEvent(SseEmitter emitter, Long userId) {
