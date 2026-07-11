@@ -53,10 +53,10 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<NotificationResponse> getNotificationsAfter(Long userId, Long lastEventId) {
-        log.debug("[Notification] 재연결 시 미수신 알림 조회: userId={}, lastEventId={}", userId, lastEventId);
+    public List<NotificationResponse> getNotificationsAfter(Long userId, Long lastEventId, int limit) {
+        log.debug("[Notification] 재연결 시 미수신 알림 조회: userId={}, lastEventId={}, limit={}", userId, lastEventId, limit);
 
-        return notificationMapper.findByUserIdAfterId(userId, lastEventId).stream()
+        return notificationMapper.findByUserIdAfterId(userId, lastEventId, limit).stream()
                 .map(NotificationResponse::from)
                 .toList();
     }

@@ -33,6 +33,7 @@ import com.deundeun.notification.dto.response.NotificationDeleteResponse;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
 import com.deundeun.notification.dto.response.NotificationReadAllResponse;
 import com.deundeun.notification.dto.response.NotificationReadResponse;
+import com.deundeun.notification.dto.response.NotificationResponse;
 import com.deundeun.notification.dto.response.UnreadCountResponse;
 import com.deundeun.notification.event.NotificationCreatedEvent;
 import com.deundeun.notification.mapper.NotificationMapper;
@@ -154,6 +155,22 @@ class NotificationServiceTest {
 
         assertThat(result.totalPages()).isEqualTo(2);
         assertThat(result.hasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("lastEventId 이후의 알림을 limit 개수만큼 조회해 응답으로 매핑한다")
+    void getNotificationsAfter_mapsNotificationsWithinLimit() {
+        Long userId = 1L;
+        Notification n1 = Notification.create(new NotificationCreateCommand(
+                userId, NotificationType.VERIFICATION_APPROVED, "제목1", "내용1",
+                TargetType.VERIFICATION_POST, 10L, "KEY1"));
+        when(notificationMapper.findByUserIdAfterId(userId, 3L, 100)).thenReturn(List.of(n1));
+
+        List<NotificationResponse> result = notificationService.getNotificationsAfter(userId, 3L, 100);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).title()).isEqualTo("제목1");
+        verify(notificationMapper).findByUserIdAfterId(userId, 3L, 100);
     }
 
     @Test

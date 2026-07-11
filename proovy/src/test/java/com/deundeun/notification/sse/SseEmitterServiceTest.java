@@ -2,6 +2,7 @@ package com.deundeun.notification.sse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -70,11 +71,11 @@ class SseEmitterServiceTest {
         NotificationResponse missed = new NotificationResponse(
                 5L, NotificationType.VERIFICATION_APPROVED, "제목", "내용",
                 TargetType.VERIFICATION_POST, 10L, null, LocalDateTime.now());
-        when(notificationService.getNotificationsAfter(userId, 3L)).thenReturn(List.of(missed));
+        when(notificationService.getNotificationsAfter(userId, 3L, 100)).thenReturn(List.of(missed));
 
         sseEmitterService.subscribe(userId, "3");
 
-        verify(notificationService).getNotificationsAfter(userId, 3L);
+        verify(notificationService).getNotificationsAfter(userId, 3L, 100);
     }
 
     @Test
@@ -84,7 +85,7 @@ class SseEmitterServiceTest {
 
         sseEmitterService.subscribe(userId, null);
 
-        verify(notificationService, never()).getNotificationsAfter(any(), any());
+        verify(notificationService, never()).getNotificationsAfter(any(), any(), anyInt());
     }
 
     @Test
@@ -94,7 +95,7 @@ class SseEmitterServiceTest {
 
         sseEmitterService.subscribe(userId, "not-a-number");
 
-        verify(notificationService, never()).getNotificationsAfter(any(), any());
+        verify(notificationService, never()).getNotificationsAfter(any(), any(), anyInt());
     }
 
     @Test

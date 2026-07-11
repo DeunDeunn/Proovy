@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class SseEmitterService {
 
     private static final Long DEFAULT_TIMEOUT = TimeUnit.HOURS.toMillis(1);
+    private static final int MAX_RESEND_COUNT = 100;
     private final SseEmitterRepository sseEmitterRepository;
     private final NotificationService notificationService;
     private final Executor notificationExecutor;
@@ -104,7 +105,8 @@ public class SseEmitterService {
             return;
         }
 
-        List<NotificationResponse> missed = notificationService.getNotificationsAfter(userId, parsedLastEventId);
+        List<NotificationResponse> missed =
+            notificationService.getNotificationsAfter(userId, parsedLastEventId, MAX_RESEND_COUNT);
         log.debug("[Notification] 재연결 시 미수신 알림 재전송: userId={}, lastEventId={}, count={}",
             userId, parsedLastEventId, missed.size());
 

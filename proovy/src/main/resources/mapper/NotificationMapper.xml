@@ -30,6 +30,7 @@
           AND id > #{lastEventId}
           AND deleted_at IS NULL
         ORDER BY id ASC
+        LIMIT #{limit}
     </select>
 
     <select id="countByUserId" resultType="int">
