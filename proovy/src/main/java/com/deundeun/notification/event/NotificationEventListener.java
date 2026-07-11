@@ -3,6 +3,7 @@ package com.deundeun.notification.event;
 import com.deundeun.notification.domain.TargetType;
 import com.deundeun.notification.dto.NotificationCreateCommand;
 import com.deundeun.notification.service.NotificationService;
+import com.deundeun.notification.sse.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,13 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class NotificationEventListener {
 
     private final NotificationService notificationService;
+    private final SseEmitterService sseEmitterService;
+
+    @Async("notificationExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handle(NotificationCreatedEvent event) {
+        sseEmitterService.publish(event.userId(), event.notification());
+    }
 
     @Async("notificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,7 +34,10 @@ import com.deundeun.notification.dto.response.NotificationPageResponse;
 import com.deundeun.notification.dto.response.NotificationReadAllResponse;
 import com.deundeun.notification.dto.response.NotificationReadResponse;
 import com.deundeun.notification.dto.response.UnreadCountResponse;
+import com.deundeun.notification.event.NotificationCreatedEvent;
 import com.deundeun.notification.mapper.NotificationMapper;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 
 @DisplayName("NotificationService")
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +45,9 @@ class NotificationServiceTest {
 
     @Mock
     private NotificationMapper notificationMapper;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private NotificationService notificationService;
@@ -72,6 +79,30 @@ class NotificationServiceTest {
         assertThat(saved.getTargetId()).isEqualTo(command.targetId());
         assertThat(saved.getEventKey()).isEqualTo(command.eventKey());
         assertThat(saved.getCreatedAt()).isNotNull();
+
+        ArgumentCaptor<NotificationCreatedEvent> eventCaptor = ArgumentCaptor.forClass(NotificationCreatedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().userId()).isEqualTo(command.userId());
+        assertThat(eventCaptor.getValue().notification().title()).isEqualTo(saved.getTitle());
+    }
+
+    @Test
+    @DisplayName("중복 이벤트키로 저장이 무시되면 알림 생성 이벤트를 발행하지 않는다")
+    void create_doesNotPublish_whenDuplicateEventKey() {
+        NotificationCreateCommand command = new NotificationCreateCommand(
+                1L,
+                NotificationType.VERIFICATION_APPROVED,
+                "인증이 승인되었습니다.",
+                "아침 운동 챌린지 인증이 승인되었습니다.",
+                TargetType.VERIFICATION_POST,
+                15L,
+                "VERIFICATION_APPROVED:15"
+        );
+        doThrow(DuplicateKeyException.class).when(notificationMapper).insert(any(Notification.class));
+
+        notificationService.create(command);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

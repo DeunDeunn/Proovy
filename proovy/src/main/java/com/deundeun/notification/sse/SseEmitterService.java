@@ -2,6 +2,7 @@ package com.deundeun.notification.sse;
 
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.notification.dto.response.NotificationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,19 @@ public class SseEmitterService {
         sendConnectEvent(emitter, userId);
 
         return emitter;
+    }
+
+    public void publish(Long userId, NotificationResponse notification) {
+        for (SseEmitter emitter : sseEmitterRepository.findAllByUserId(userId)) {
+            try {
+                emitter.send(SseEmitter.event()
+                    .name("NOTIFICATION_CREATED")
+                    .data(notification));
+            } catch (IOException | IllegalStateException e) {
+                sseEmitterRepository.remove(userId, emitter);
+                log.debug("[Notification] SSE push 실패: userId={}, message={}", userId, e.getMessage());
+            }
+        }
     }
 
     private void registerCallbacks(SseEmitter emitter, Long userId) {
