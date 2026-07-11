@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -21,12 +22,20 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.deundeun.notification.domain.NotificationType;
+import com.deundeun.notification.domain.TargetType;
+import com.deundeun.notification.dto.response.NotificationResponse;
+import com.deundeun.notification.service.NotificationService;
+
 @DisplayName("SseEmitterService")
 @ExtendWith(MockitoExtension.class)
 class SseEmitterServiceTest {
 
     @Mock
     private SseEmitterRepository sseEmitterRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     @Mock
     private Executor notificationExecutor;
@@ -39,7 +48,7 @@ class SseEmitterServiceTest {
     void subscribe_returnsEmitter() {
         Long userId = 1L;
 
-        SseEmitter emitter = sseEmitterService.subscribe(userId);
+        SseEmitter emitter = sseEmitterService.subscribe(userId, null);
 
         assertThat(emitter).isNotNull();
     }
@@ -49,9 +58,43 @@ class SseEmitterServiceTest {
     void subscribe_savesEmitterToRepository() {
         Long userId = 1L;
 
-        SseEmitter emitter = sseEmitterService.subscribe(userId);
+        SseEmitter emitter = sseEmitterService.subscribe(userId, null);
 
         verify(sseEmitterRepository).save(eq(userId), eq(emitter));
+    }
+
+    @Test
+    @DisplayName("Last-Event-ID가 있으면 그 이후의 미수신 알림을 재전송한다")
+    void subscribe_resendsMissedNotifications_whenLastEventIdPresent() {
+        Long userId = 1L;
+        NotificationResponse missed = new NotificationResponse(
+                5L, NotificationType.VERIFICATION_APPROVED, "제목", "내용",
+                TargetType.VERIFICATION_POST, 10L, null, LocalDateTime.now());
+        when(notificationService.getNotificationsAfter(userId, 3L)).thenReturn(List.of(missed));
+
+        sseEmitterService.subscribe(userId, "3");
+
+        verify(notificationService).getNotificationsAfter(userId, 3L);
+    }
+
+    @Test
+    @DisplayName("Last-Event-ID가 없으면 미수신 알림 조회를 하지 않는다")
+    void subscribe_doesNotQueryMissedNotifications_whenLastEventIdAbsent() {
+        Long userId = 1L;
+
+        sseEmitterService.subscribe(userId, null);
+
+        verify(notificationService, never()).getNotificationsAfter(any(), any());
+    }
+
+    @Test
+    @DisplayName("Last-Event-ID가 숫자가 아니면 미수신 알림 조회를 하지 않는다")
+    void subscribe_doesNotQueryMissedNotifications_whenLastEventIdInvalid() {
+        Long userId = 1L;
+
+        sseEmitterService.subscribe(userId, "not-a-number");
+
+        verify(notificationService, never()).getNotificationsAfter(any(), any());
     }
 
     @Test

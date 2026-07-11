@@ -24,9 +24,11 @@ public class NotificationController {
     private final SseEmitterService sseEmitterService;
 
     @GetMapping("/subscribe")
-    public SseEmitter subscribe(@RequestParam Long userId) {
-        //TODO 인증 붙으면 로그인 사용자 ID로 대체
-        return sseEmitterService.subscribe(userId);
+    public SseEmitter subscribe(
+        @RequestParam Long userId, //TODO 인증 붙으면 로그인 사용자 ID로 대체
+        @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId
+    ) {
+        return sseEmitterService.subscribe(userId, lastEventId);
     }
 
     @GetMapping

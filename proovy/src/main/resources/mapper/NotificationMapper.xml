@@ -23,6 +23,15 @@
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
+    <select id="findByUserIdAfterId" resultType="com.deundeun.notification.domain.Notification">
+        SELECT id, user_id, type, title, content, target_type, target_id, event_key, read_at, deleted_at, created_at
+        FROM notifications
+        WHERE user_id = #{userId}
+          AND id > #{lastEventId}
+          AND deleted_at IS NULL
+        ORDER BY id ASC
+    </select>
+
     <select id="countByUserId" resultType="int">
         SELECT COUNT(*)
         FROM notifications

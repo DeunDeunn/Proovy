@@ -53,6 +53,15 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
+    public List<NotificationResponse> getNotificationsAfter(Long userId, Long lastEventId) {
+        log.debug("[Notification] 재연결 시 미수신 알림 조회: userId={}, lastEventId={}", userId, lastEventId);
+
+        return notificationMapper.findByUserIdAfterId(userId, lastEventId).stream()
+                .map(NotificationResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public UnreadCountResponse countUnread(Long userId) {
         log.debug("[Notification] 안 읽은 개수 조회: userId={}", userId);
 

@@ -3,6 +3,7 @@ package com.deundeun.notification.sse;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.notification.dto.response.NotificationResponse;
+import com.deundeun.notification.service.NotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -20,36 +22,33 @@ public class SseEmitterService {
 
     private static final Long DEFAULT_TIMEOUT = TimeUnit.HOURS.toMillis(1);
     private final SseEmitterRepository sseEmitterRepository;
+    private final NotificationService notificationService;
     private final Executor notificationExecutor;
 
     public SseEmitterService(
         SseEmitterRepository sseEmitterRepository,
+        NotificationService notificationService,
         @Qualifier("notificationExecutor") Executor notificationExecutor
     ) {
         this.sseEmitterRepository = sseEmitterRepository;
+        this.notificationService = notificationService;
         this.notificationExecutor = notificationExecutor;
     }
 
-    public SseEmitter subscribe(Long userId) {
+    public SseEmitter subscribe(Long userId, String lastEventId) {
         SseEmitter emitter = new SseEmitter(DEFAULT_TIMEOUT);
 
         registerCallbacks(emitter, userId);
         sseEmitterRepository.save(userId, emitter);
         sendConnectEvent(emitter, userId);
+        resendMissedNotifications(emitter, userId, lastEventId);
 
         return emitter;
     }
 
     public void publish(Long userId, NotificationResponse notification) {
         for (SseEmitter emitter : sseEmitterRepository.findAllByUserId(userId)) {
-            try {
-                emitter.send(SseEmitter.event()
-                    .name("NOTIFICATION_CREATED")
-                    .data(notification));
-            } catch (IOException | IllegalStateException e) {
-                sseEmitterRepository.remove(userId, emitter);
-                log.debug("[Notification] SSE push 실패: userId={}, message={}", userId, e.getMessage());
-            }
+            sendNotificationEvent(userId, emitter, notification);
         }
     }
 
@@ -96,6 +95,46 @@ public class SseEmitterService {
             sseEmitterRepository.remove(userId, emitter);
             log.warn("[Notification] SSE 구독 초기화 실패: userId={}", userId, e);
             throw new ApiException(ErrorCode.NOTIFICATION_SUBSCRIBE_FAILED);
+        }
+    }
+
+    private void resendMissedNotifications(SseEmitter emitter, Long userId, String lastEventId) {
+        Long parsedLastEventId = parseLastEventId(lastEventId);
+        if (parsedLastEventId == null) {
+            return;
+        }
+
+        List<NotificationResponse> missed = notificationService.getNotificationsAfter(userId, parsedLastEventId);
+        log.debug("[Notification] 재연결 시 미수신 알림 재전송: userId={}, lastEventId={}, count={}",
+            userId, parsedLastEventId, missed.size());
+
+        for (NotificationResponse notification : missed) {
+            sendNotificationEvent(userId, emitter, notification);
+        }
+    }
+
+    private Long parseLastEventId(String lastEventId) {
+        if (lastEventId == null || lastEventId.isBlank()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(lastEventId);
+        } catch (NumberFormatException e) {
+            log.warn("[Notification] 잘못된 Last-Event-ID 무시: lastEventId={}", lastEventId);
+            return null;
+        }
+    }
+
+    private void sendNotificationEvent(Long userId, SseEmitter emitter, NotificationResponse notification) {
+        try {
+            emitter.send(SseEmitter.event()
+                .id(String.valueOf(notification.id()))
+                .name("NOTIFICATION_CREATED")
+                .data(notification));
+        } catch (IOException | IllegalStateException e) {
+            sseEmitterRepository.remove(userId, emitter);
+            log.debug("[Notification] SSE 전송 실패: userId={}, message={}", userId, e.getMessage());
         }
     }
 }
