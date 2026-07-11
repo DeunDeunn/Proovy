@@ -1,12 +1,11 @@
 package com.deundeun.notification.controller;
 
+import com.deundeun.notification.dto.response.NotificationReadResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
@@ -18,11 +17,12 @@ import lombok.RequiredArgsConstructor;
 @Validated
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/notifications")
 public class NotificationController {
 
     private final NotificationService notificationService;
 
-    @GetMapping("/api/notifications")
+    @GetMapping
     public ApiResponse<NotificationPageResponse> getNotifications(
             @RequestParam Long userId, //TODO 인증 붙으면 로그인 사용자 ID로 대체
             @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -30,14 +30,24 @@ public class NotificationController {
     ) {
         NotificationPageResponse notifications = notificationService.getNotifications(userId, page, size);
 
-        return ApiResponse.success(notifications);
+        return ApiResponse.success(notifications, "알림 목록 조회를 완료했습니다.");
     }
 
-    @GetMapping("/api/notifications/unread-count")
+    @GetMapping("/unread-count")
     public ApiResponse<UnreadCountResponse> getUnreadCount(@RequestParam Long userId) {
         //TODO 인증 붙으면 로그인 사용자 ID로 대체
-        UnreadCountResponse response = notificationService.getUnreadCount(userId);
+        UnreadCountResponse response = notificationService.countUnread(userId);
 
-        return ApiResponse.success(response);
+        return ApiResponse.success(response, "읽지 않은 알림 개수 조회를 완료했습니다.");
+    }
+
+    @PatchMapping("/{notificationId}/read")
+    public ApiResponse<NotificationReadResponse> markAsRead(
+        @RequestParam Long userId, //TODO 인증 붙으면 로그인 사용자 ID로 대체
+        @PathVariable Long notificationId
+    ) {
+        NotificationReadResponse response = notificationService.markAsRead(userId, notificationId);
+
+        return ApiResponse.success(response, "알림을 읽음 처리했습니다.");
     }
 }
