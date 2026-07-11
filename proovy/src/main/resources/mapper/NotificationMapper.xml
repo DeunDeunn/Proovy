@@ -7,6 +7,13 @@
         VALUES (#{userId}, #{type}, #{title}, #{content}, #{targetType}, #{targetId}, #{eventKey})
     </insert>
 
+    <select id="findById" resultType="com.deundeun.notification.domain.Notification">
+        SELECT id, user_id, type, title, content, target_type, target_id, event_key, read_at, deleted_at, created_at
+        FROM notifications
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </select>
+
     <select id="findByUserId" resultType="com.deundeun.notification.domain.Notification">
         SELECT id, user_id, type, title, content, target_type, target_id, event_key, read_at, deleted_at, created_at
         FROM notifications
@@ -33,25 +40,33 @@
 
     <update id="markAsRead">
         UPDATE notifications
-        SET read_at = now()
+        SET read_at = #{readAt}
         WHERE id = #{id}
           AND user_id = #{userId}
           AND read_at IS NULL
+          AND deleted_at IS NULL
     </update>
 
     <update id="markAllAsRead">
         UPDATE notifications
-        SET read_at = now()
+        SET read_at = #{readAt}
         WHERE user_id = #{userId}
           AND read_at IS NULL
           AND deleted_at IS NULL
     </update>
 
-    <update id="softDelete">
+    <update id="delete">
         UPDATE notifications
-        SET deleted_at = now()
+        SET deleted_at = #{deletedAt}
         WHERE id = #{id}
           AND user_id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
+    <update id="deleteAll">
+        UPDATE notifications
+        SET deleted_at = #{deletedAt}
+        WHERE user_id = #{userId}
           AND deleted_at IS NULL
     </update>
 
