@@ -1,5 +1,6 @@
 package com.deundeun.notification.controller;
 
+import com.deundeun.notification.dto.response.NotificationReadAllResponse;
 import com.deundeun.notification.dto.response.NotificationReadResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -49,5 +50,13 @@ public class NotificationController {
         NotificationReadResponse response = notificationService.markAsRead(userId, notificationId);
 
         return ApiResponse.success(response, "알림을 읽음 처리했습니다.");
+    }
+
+    @PatchMapping("/read-all")
+    public ApiResponse<NotificationReadAllResponse> markAllAsRead(@RequestParam Long userId) {
+        //TODO 인증 붙으면 로그인 사용자 ID로 대체
+        NotificationReadAllResponse response = notificationService.markAllAsRead(userId);
+
+        return ApiResponse.success(response, "전체 알림을 읽음 처리했습니다.");
     }
 }

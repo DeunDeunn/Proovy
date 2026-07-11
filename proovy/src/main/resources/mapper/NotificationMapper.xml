@@ -48,7 +48,7 @@
 
     <update id="markAllAsRead">
         UPDATE notifications
-        SET read_at = now()
+        SET read_at = #{readAt}
         WHERE user_id = #{userId}
           AND read_at IS NULL
           AND deleted_at IS NULL

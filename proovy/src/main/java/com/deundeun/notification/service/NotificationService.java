@@ -4,10 +4,7 @@ import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.notification.domain.Notification;
 import com.deundeun.notification.dto.NotificationCreateCommand;
-import com.deundeun.notification.dto.response.NotificationPageResponse;
-import com.deundeun.notification.dto.response.NotificationReadResponse;
-import com.deundeun.notification.dto.response.NotificationResponse;
-import com.deundeun.notification.dto.response.UnreadCountResponse;
+import com.deundeun.notification.dto.response.*;
 import com.deundeun.notification.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +37,8 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public NotificationPageResponse getNotifications(Long userId, int page, int size) {
         log.debug("[Notification] 목록 조회: userId={}, page={}, size={}", userId, page, size);
-        int offset = page * size;
 
+        int offset = page * size;
         List<NotificationResponse> content = notificationMapper.findByUserId(userId, size, offset).stream()
                 .map(NotificationResponse::from)
                 .toList();
@@ -53,8 +50,8 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public UnreadCountResponse countUnread(Long userId) {
         log.debug("[Notification] 안 읽은 개수 조회: userId={}", userId);
-        int unreadCount = notificationMapper.countUnread(userId);
 
+        int unreadCount = notificationMapper.countUnread(userId);
         return new UnreadCountResponse(unreadCount);
     }
 
@@ -73,6 +70,16 @@ public class NotificationService {
         log.info("[Notification] 읽음 처리 완료: notificationId={}, userId={}, readAt={}", notificationId, userId, readAt);
 
         return new NotificationReadResponse(notificationId, readAt);
+    }
+
+
+    @Transactional
+    public NotificationReadAllResponse markAllAsRead(Long userId) {
+        LocalDateTime readAt = LocalDateTime.now();
+        int updatedCount = notificationMapper.markAllAsRead(userId, readAt);
+        log.info("[Notification] 전체 읽음 처리 완료: userId={}, updatedCount={}, readAt={}", userId, updatedCount, readAt);
+        
+        return new NotificationReadAllResponse(updatedCount, readAt);
     }
 
     public Notification getNotification(Long notificationId) {

@@ -28,6 +28,7 @@ import com.deundeun.notification.domain.NotificationType;
 import com.deundeun.notification.domain.TargetType;
 import com.deundeun.notification.dto.NotificationCreateCommand;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
+import com.deundeun.notification.dto.response.NotificationReadAllResponse;
 import com.deundeun.notification.dto.response.NotificationReadResponse;
 import com.deundeun.notification.dto.response.UnreadCountResponse;
 import com.deundeun.notification.mapper.NotificationMapper;
@@ -200,5 +201,30 @@ class NotificationServiceTest {
                 .isEqualTo(ErrorCode.NOTIFICATION_FORBIDDEN);
 
         verify(notificationMapper, never()).markAsRead(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("안 읽은 알림을 전체 읽음 처리하고 갱신 개수를 반환한다")
+    void markAllAsRead_updatesUnreadNotificationsAndReturnsCount() {
+        Long userId = 1L;
+        when(notificationMapper.markAllAsRead(eq(userId), any(LocalDateTime.class))).thenReturn(3);
+
+        NotificationReadAllResponse result = notificationService.markAllAsRead(userId);
+
+        assertThat(result.updatedCount()).isEqualTo(3);
+        assertThat(result.readAt()).isNotNull();
+        verify(notificationMapper).markAllAsRead(eq(userId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("읽음 처리할 알림이 없으면 updatedCount 0을 반환한다")
+    void markAllAsRead_returnsZeroCount_whenNothingToUpdate() {
+        Long userId = 1L;
+        when(notificationMapper.markAllAsRead(eq(userId), any(LocalDateTime.class))).thenReturn(0);
+
+        NotificationReadAllResponse result = notificationService.markAllAsRead(userId);
+
+        assertThat(result.updatedCount()).isEqualTo(0);
+        assertThat(result.readAt()).isNotNull();
     }
 }
