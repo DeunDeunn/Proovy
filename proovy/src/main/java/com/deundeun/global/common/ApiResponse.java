@@ -18,6 +18,10 @@ public class ApiResponse<T> {
         return new ApiResponse<>(true, 200, "SUCCESS", null, data);
     }
 
+    public static <T> ApiResponse<T> success(T data, String message) {
+        return new ApiResponse<>(true, 200, "SUCCESS", message, data);
+    }
+
     public static ApiResponse<Void> fail(ApiException e) {
         ErrorCode errorCode = e.getErrorCode();
         return new ApiResponse<>(false, errorCode.getStatus().value(), errorCode.getCode(), e.getMessage(), null);
