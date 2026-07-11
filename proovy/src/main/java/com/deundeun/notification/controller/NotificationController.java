@@ -4,6 +4,9 @@ import com.deundeun.notification.dto.response.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -23,12 +26,17 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final SseEmitterService sseEmitterService;
 
-    @GetMapping("/subscribe")
-    public SseEmitter subscribe(
+    @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> subscribe(
         @RequestParam Long userId, //TODO 인증 붙으면 로그인 사용자 ID로 대체
         @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId
     ) {
-        return sseEmitterService.subscribe(userId, lastEventId);
+        SseEmitter emitter = sseEmitterService.subscribe(userId, lastEventId);
+
+        return ResponseEntity.ok()
+            .header("X-Accel-Buffering", "no")
+            .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+            .body(emitter);
     }
 
     @GetMapping
