@@ -73,7 +73,7 @@ public class SseEmitterService {
 
         emitter.onError(e -> {
             sseEmitterRepository.remove(userId, emitter);
-            log.debug("[Notification] SSE 연결 에러: userId={}, message={}", userId, e.getMessage());
+            log.warn("[Notification] SSE 연결 에러: userId={}, message={}", userId, e.getMessage());
         });
     }
 
@@ -91,7 +91,7 @@ public class SseEmitterService {
             emitter.send(SseEmitter.event()
                 .name("CONNECT")
                 .data(Map.of("message", "SSE 연결이 완료되었습니다.")));
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             sseEmitterRepository.remove(userId, emitter);
             log.warn("[Notification] SSE 구독 초기화 실패: userId={}", userId, e);
             throw new ApiException(ErrorCode.NOTIFICATION_SUBSCRIBE_FAILED);
