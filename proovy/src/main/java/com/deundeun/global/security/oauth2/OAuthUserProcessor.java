@@ -5,6 +5,7 @@ import com.deundeun.auth.mapper.UserMapper;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.global.security.jwt.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.stereotype.Component;
@@ -27,14 +28,20 @@ public class OAuthUserProcessor {
         boolean newUser = (user == null);
 
         if (newUser) {
-            user = User.builder()
+            User newUserEntity = User.builder()
                     .provider(provider)
                     .providerId(providerId)
                     .email(email)
                     .nickname(generateTempNickname())
                     .role("USER")
                     .build();
-            userMapper.insert(user);
+            try {
+                userMapper.insert(newUserEntity);
+                user = newUserEntity;
+            } catch (DataIntegrityViolationException e) {
+                user = userMapper.findByProviderAndProviderId(provider, providerId);
+                newUser = false;
+            }
         }
 
         return new CustomUserDetails(user.getId(), user.getRole(), newUser, attributes);

@@ -33,6 +33,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
 
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                          Authentication authentication) throws IOException, ServletException {
@@ -40,17 +43,22 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         Long userId = userDetails.getUserId();
         String role = userDetails.getRole();
 
-        String accessToken = jwtProvider.createAccessToken(userId, role);
-        String refreshToken = jwtProvider.createRefreshToken(userId);
+        String redirectUrl;
+        try {
+            String accessToken = jwtProvider.createAccessToken(userId, role);
+            String refreshToken = jwtProvider.createRefreshToken(userId);
 
-        refreshTokenRepository.save(new RefreshToken(userId, refreshToken, Duration.ofMillis(refreshTokenExpiration)));
+            refreshTokenRepository.save(new RefreshToken(userId, refreshToken, Duration.ofMillis(refreshTokenExpiration)));
 
-        addCookie(response, "accessToken", accessToken, accessTokenExpiration / 1000);
-        addCookie(response, "refreshToken", refreshToken, refreshTokenExpiration / 1000);
+            addCookie(response, "accessToken", accessToken, accessTokenExpiration / 1000);
+            addCookie(response, "refreshToken", refreshToken, refreshTokenExpiration / 1000);
 
-        String redirectUrl = userDetails.isNewUser()
-                ? frontendUrl + "/auth/complete-profile?success=true"
-                : frontendUrl + "/auth/callback?success=true";
+            redirectUrl = userDetails.isNewUser()
+                    ? frontendUrl + "/auth/complete-profile?success=true"
+                    : frontendUrl + "/auth/callback?success=true";
+        } catch (Exception e) {
+            redirectUrl = frontendUrl + "/auth/callback?success=false";
+        }
 
         clearAuthenticationAttributes(request);
         getRedirectStrategy().sendRedirect(request, response, redirectUrl);
@@ -59,7 +67,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private void addCookie(HttpServletResponse response, String name, String value, long maxAgeSeconds) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(maxAgeSeconds)

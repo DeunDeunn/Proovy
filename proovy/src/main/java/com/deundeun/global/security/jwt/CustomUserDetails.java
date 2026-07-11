@@ -52,7 +52,9 @@ public class CustomUserDetails implements UserDetails, OidcUser {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        return role == null
+                ? List.of()
+                : List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
     @Override

@@ -27,21 +27,39 @@ public class AuthController {
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
 
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenExpiration;
+
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<Void>> refresh(HttpServletRequest request) {
         String refreshToken = extractCookie(request, "refreshToken");
-        String newAccessToken = authService.reissueAccessToken(refreshToken);
+        AuthService.TokenPair tokens = authService.reissueTokens(refreshToken);
 
-        ResponseCookie cookie = ResponseCookie.from("accessToken", newAccessToken)
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", tokens.accessToken())
                 .httpOnly(true)
-                .secure(false)
+                .secure(cookieSecure)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(accessTokenExpiration / 1000)
                 .build();
 
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", tokens.refreshToken())
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(refreshTokenExpiration / 1000)
+                .build();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
+        headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .headers(headers)
                 .body(ApiResponse.success(null));
     }
 
