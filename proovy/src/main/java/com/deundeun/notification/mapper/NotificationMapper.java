@@ -29,4 +29,6 @@ public interface NotificationMapper {
     int markAllAsRead(@Param("userId") Long userId, LocalDateTime readAt);
 
     void delete(@Param("id") Long id, @Param("userId") Long userId, LocalDateTime deletedAt);
+
+    int deleteAll(@Param("userId") Long userId, LocalDateTime deletedAt);
 }

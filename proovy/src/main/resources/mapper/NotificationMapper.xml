@@ -62,4 +62,11 @@
           AND deleted_at IS NULL
     </update>
 
+    <update id="deleteAll">
+        UPDATE notifications
+        SET deleted_at = #{deletedAt}
+        WHERE user_id = #{userId}
+          AND deleted_at IS NULL
+    </update>
+
 </mapper>

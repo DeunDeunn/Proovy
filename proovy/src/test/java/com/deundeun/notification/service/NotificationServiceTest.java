@@ -27,6 +27,7 @@ import com.deundeun.notification.domain.Notification;
 import com.deundeun.notification.domain.NotificationType;
 import com.deundeun.notification.domain.TargetType;
 import com.deundeun.notification.dto.NotificationCreateCommand;
+import com.deundeun.notification.dto.response.NotificationDeleteAllResponse;
 import com.deundeun.notification.dto.response.NotificationDeleteResponse;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
 import com.deundeun.notification.dto.response.NotificationReadAllResponse;
@@ -276,5 +277,30 @@ class NotificationServiceTest {
                 .isEqualTo(ErrorCode.NOTIFICATION_FORBIDDEN);
 
         verify(notificationMapper, never()).delete(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("삭제되지 않은 전체 알림을 삭제하고 삭제 개수를 반환한다")
+    void deleteAll_deletesUndeletedNotificationsAndReturnsCount() {
+        Long userId = 1L;
+        when(notificationMapper.deleteAll(eq(userId), any(LocalDateTime.class))).thenReturn(4);
+
+        NotificationDeleteAllResponse result = notificationService.deleteAll(userId);
+
+        assertThat(result.deletedCount()).isEqualTo(4);
+        assertThat(result.deletedAt()).isNotNull();
+        verify(notificationMapper).deleteAll(eq(userId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("삭제할 알림이 없으면 deletedCount 0을 반환한다")
+    void deleteAll_returnsZeroCount_whenNothingToDelete() {
+        Long userId = 1L;
+        when(notificationMapper.deleteAll(eq(userId), any(LocalDateTime.class))).thenReturn(0);
+
+        NotificationDeleteAllResponse result = notificationService.deleteAll(userId);
+
+        assertThat(result.deletedCount()).isEqualTo(0);
+        assertThat(result.deletedAt()).isNotNull();
     }
 }

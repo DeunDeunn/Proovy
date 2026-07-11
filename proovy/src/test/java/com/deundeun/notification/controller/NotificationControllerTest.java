@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.deundeun.notification.dto.response.NotificationDeleteAllResponse;
 import com.deundeun.notification.dto.response.NotificationDeleteResponse;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
 import com.deundeun.notification.dto.response.NotificationReadAllResponse;
@@ -118,5 +119,19 @@ class NotificationControllerTest {
                 .andExpect(jsonPath("$.data.id").value(10));
 
         verify(notificationService).delete(1L, 10L);
+    }
+
+    @Test
+    @DisplayName("전체 삭제 시 userId를 서비스에 그대로 전달한다")
+    void deleteAll_delegatesToService() throws Exception {
+        LocalDateTime deletedAt = LocalDateTime.now();
+        when(notificationService.deleteAll(1L)).thenReturn(new NotificationDeleteAllResponse(4, deletedAt));
+
+        mockMvc.perform(delete("/api/notifications/all?userId=1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("전체 알림을 삭제했습니다."))
+                .andExpect(jsonPath("$.data.deletedCount").value(4));
+
+        verify(notificationService).deleteAll(1L);
     }
 }

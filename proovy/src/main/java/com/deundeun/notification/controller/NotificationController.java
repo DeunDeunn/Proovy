@@ -66,4 +66,13 @@ public class NotificationController {
 
         return ApiResponse.success(response, "알림을 삭제했습니다.");
     }
+
+    @DeleteMapping("/all")
+    public ApiResponse<NotificationDeleteAllResponse> deleteAll(
+        @RequestParam Long userId //TODO 인증 붙으면 로그인 사용자 ID로 대체
+    ) {
+        NotificationDeleteAllResponse response = notificationService.deleteAll(userId);
+
+        return ApiResponse.success(response, "전체 알림을 삭제했습니다.");
+    }
 }

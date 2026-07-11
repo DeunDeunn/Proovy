@@ -95,6 +95,15 @@ public class NotificationService {
         return new NotificationDeleteResponse(notificationId, deletedAt);
     }
 
+    @Transactional
+    public NotificationDeleteAllResponse deleteAll(Long userId) {
+        LocalDateTime deletedAt = LocalDateTime.now();
+        int deletedCount = notificationMapper.deleteAll(userId, deletedAt);
+        log.info("[Notification] 전체 삭제 완료: userId={}, deletedCount={}, deletedAt={}", userId, deletedCount, deletedAt);
+
+        return new NotificationDeleteAllResponse(deletedCount, deletedAt);
+    }
+
     public Notification getNotification(Long notificationId) {
         return notificationMapper.findById(notificationId)
             .orElseThrow(() -> new ApiException(ErrorCode.NOTIFICATION_NOT_FOUND));
