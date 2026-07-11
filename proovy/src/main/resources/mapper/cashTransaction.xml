@@ -13,6 +13,13 @@
         WHERE id = #{id}
     </select>
 
+    <select id="selectByIdForUpdate" resultType="com.deundeun.pay.domain.CashTransaction">
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        FROM cash_transactions
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
     <update id="completeCharge">
         UPDATE cash_transactions
         SET status = 'COMPLETED',

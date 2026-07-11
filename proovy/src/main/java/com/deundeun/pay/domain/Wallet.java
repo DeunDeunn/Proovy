@@ -23,6 +23,6 @@ public class Wallet {
     private LocalDateTime updatedAt;
 
     public long getAvailableBalance() {
-        return chargedBalance + rewardBalance;
+        return chargedBalance + rewardBalance - lockedBalance;
     }
 }

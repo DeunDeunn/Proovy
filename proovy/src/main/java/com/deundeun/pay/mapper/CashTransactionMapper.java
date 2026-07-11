@@ -15,6 +15,8 @@ public interface CashTransactionMapper {
 
     CashTransaction selectById(@Param("id") Long id);
 
+    CashTransaction selectByIdForUpdate(@Param("id") Long id);
+
     void completeCharge(@Param("id") Long id,
                          @Param("pgTransactionId") String pgTransactionId,
                          @Param("balanceAfter") long balanceAfter);

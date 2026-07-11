@@ -51,7 +51,7 @@ public class WalletService {
         walletMapper.updateChargedBalance(walletId, newChargedBalance);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public WalletResponse getWalletView(Long userId) {
         Wallet wallet = getOrCreateWallet(userId);
         return WalletResponse.builder()
@@ -62,7 +62,7 @@ public class WalletService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TransactionHistoryResponse getTransactionHistory(Long userId, CashTransactionType type, int page, int size) {
         Wallet wallet = getOrCreateWallet(userId);
 

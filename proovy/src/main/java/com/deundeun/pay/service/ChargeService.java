@@ -79,12 +79,14 @@ public class ChargeService {
      * 직접 승인을 요청해서 결과를 확인하고(클라이언트가 보낸 값은 신뢰하지 않음), 그 응답
      * 기준으로만 잔액을 반영한다. merchantPayKey는 내 거래를 먼저 찾아 이미 처리됐는지
      * 확인하는 용도로만 쓰고, 최종 확인은 네이버페이 응답의 detail.merchantPayKey로 한다.
+     * 콜백이 중복으로 들어와도(FOR UPDATE로 거래 row를 잠가) PENDING 확인과 충전 처리가
+     * 한 요청씩만 통과하도록 보장한다.
      */
     @Transactional
     public NaverPayCallbackResponse handlePaymentCompleted(NaverPayCallbackRequest callback) {
         //MerchantPayKey에서 transactionId 추출
         Long transactionId = parseTransactionId(callback.getMerchantPayKey());
-        CashTransaction transaction = cashTransactionMapper.selectById(transactionId);
+        CashTransaction transaction = cashTransactionMapper.selectByIdForUpdate(transactionId);
         if (transaction == null) {
             throw new ApiException(ErrorCode.CHARGE_TRANSACTION_NOT_FOUND);
         }
