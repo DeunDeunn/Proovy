@@ -15,6 +15,14 @@ public enum ErrorCode {
     INVALID_JSON_FORMAT(HttpStatus.BAD_REQUEST, "C003", "요청 본문의 JSON 형식이 올바르지 않습니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "C004", "로그인이 필요합니다."),
     DATABASE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "데이터베이스 처리 중 오류가 발생했습니다."),
+    
+    //회원-OAuth 로그인
+    OAUTH_INVALID_REQUEST(HttpStatus.BAD_REQUEST, "U010", "잘못된 OAuth 요청입니다."),
+    GOOGLE_PROFILE_FETCH_FAILED(HttpStatus.BAD_GATEWAY, "U011", "Google 사용자 정보를 가져올 수 없습니다."),
+    GOOGLE_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "U012", "Google 인증에 실패했습니다."),
+    KAKAO_PROFILE_FETCH_FAILED(HttpStatus.BAD_GATEWAY, "U013", "Kakao 사용자 정보를 가져올 수 없습니다."),
+    KAKAO_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "U014", "Kakao 인증에 실패했습니다."),
+    REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "U018", "리프레시 토큰이 유효하지 않습니다. 다시 로그인해주세요."),
 
     // 결제/캐시/정산
     INVALID_CHARGE_AMOUNT(HttpStatus.BAD_REQUEST, "CG001", "충전 금액은 1,000원 이상 50,000원 이하, 1,000원 단위여야 합니다."),
