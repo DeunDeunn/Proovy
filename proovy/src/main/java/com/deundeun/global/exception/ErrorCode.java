@@ -27,7 +27,8 @@ public enum ErrorCode {
     PG_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "CG008", "계좌 잔액이 부족하여 결제가 거절되었습니다."),
     PG_TIME_EXPIRED(HttpStatus.BAD_REQUEST, "CG009", "결제 유효 시간이 만료되었습니다. 다시 시도해주세요."),
     PG_OWNER_AUTH_FAIL(HttpStatus.BAD_REQUEST, "CG010", "본인 인증에 실패했습니다."),
-  
+    INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "CG011", "사용 가능한 잔액이 부족합니다."),
+
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "알림을 찾을 수 없습니다.");
