@@ -54,9 +54,9 @@
           AND deleted_at IS NULL
     </update>
 
-    <update id="softDelete">
+    <update id="delete">
         UPDATE notifications
-        SET deleted_at = now()
+        SET deleted_at = #{deletedAt}
         WHERE id = #{id}
           AND user_id = #{userId}
           AND deleted_at IS NULL

@@ -27,6 +27,7 @@ import com.deundeun.notification.domain.Notification;
 import com.deundeun.notification.domain.NotificationType;
 import com.deundeun.notification.domain.TargetType;
 import com.deundeun.notification.dto.NotificationCreateCommand;
+import com.deundeun.notification.dto.response.NotificationDeleteResponse;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
 import com.deundeun.notification.dto.response.NotificationReadAllResponse;
 import com.deundeun.notification.dto.response.NotificationReadResponse;
@@ -226,5 +227,54 @@ class NotificationServiceTest {
 
         assertThat(result.updatedCount()).isEqualTo(0);
         assertThat(result.readAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("본인 알림을 삭제하고 deletedAt을 반환한다")
+    void delete_softDeletesAndReturnsDeletedAt() {
+        Long userId = 1L;
+        Long notificationId = 10L;
+        Notification notification = mock(Notification.class);
+        when(notification.getUserId()).thenReturn(userId);
+        when(notificationMapper.findById(notificationId)).thenReturn(Optional.of(notification));
+
+        NotificationDeleteResponse result = notificationService.delete(userId, notificationId);
+
+        assertThat(result.id()).isEqualTo(notificationId);
+        assertThat(result.deletedAt()).isNotNull();
+        verify(notificationMapper).delete(eq(notificationId), eq(userId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("존재하지 않거나 이미 삭제된 알림을 삭제하면 404 예외를 던진다")
+    void delete_throwsNotFound_whenNotificationMissingOrAlreadyDeleted() {
+        Long userId = 1L;
+        Long notificationId = 99L;
+        when(notificationMapper.findById(notificationId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> notificationService.delete(userId, notificationId))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+
+        verify(notificationMapper, never()).delete(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("본인 알림이 아니면 삭제 시 403 예외를 던진다")
+    void delete_throwsForbidden_whenRequesterIsNotOwner() {
+        Long ownerUserId = 1L;
+        Long requesterUserId = 2L;
+        Long notificationId = 10L;
+        Notification notification = mock(Notification.class);
+        when(notification.getUserId()).thenReturn(ownerUserId);
+        when(notificationMapper.findById(notificationId)).thenReturn(Optional.of(notification));
+
+        assertThatThrownBy(() -> notificationService.delete(requesterUserId, notificationId))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.NOTIFICATION_FORBIDDEN);
+
+        verify(notificationMapper, never()).delete(any(), any(), any());
     }
 }

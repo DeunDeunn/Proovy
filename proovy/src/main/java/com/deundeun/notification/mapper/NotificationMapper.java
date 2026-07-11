@@ -28,5 +28,5 @@ public interface NotificationMapper {
 
     int markAllAsRead(@Param("userId") Long userId, LocalDateTime readAt);
 
-    void softDelete(@Param("id") Long id, @Param("userId") Long userId);
+    void delete(@Param("id") Long id, @Param("userId") Long userId, LocalDateTime deletedAt);
 }

@@ -78,8 +78,21 @@ public class NotificationService {
         LocalDateTime readAt = LocalDateTime.now();
         int updatedCount = notificationMapper.markAllAsRead(userId, readAt);
         log.info("[Notification] 전체 읽음 처리 완료: userId={}, updatedCount={}, readAt={}", userId, updatedCount, readAt);
-        
+
         return new NotificationReadAllResponse(updatedCount, readAt);
+    }
+
+    @Transactional
+    public NotificationDeleteResponse delete(Long userId, Long notificationId) {
+        Notification notification = getNotification(notificationId);
+
+        validateOwner(notification, userId);
+
+        LocalDateTime deletedAt = LocalDateTime.now();
+        notificationMapper.delete(notificationId, userId, deletedAt);
+        log.info("[Notification] 삭제 완료: notificationId={}, userId={}, deletedAt={}", notificationId, userId, deletedAt);
+
+        return new NotificationDeleteResponse(notificationId, deletedAt);
     }
 
     public Notification getNotification(Long notificationId) {

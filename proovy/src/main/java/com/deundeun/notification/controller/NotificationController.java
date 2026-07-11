@@ -1,7 +1,6 @@
 package com.deundeun.notification.controller;
 
-import com.deundeun.notification.dto.response.NotificationReadAllResponse;
-import com.deundeun.notification.dto.response.NotificationReadResponse;
+import com.deundeun.notification.dto.response.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
@@ -9,8 +8,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import com.deundeun.global.common.ApiResponse;
-import com.deundeun.notification.dto.response.NotificationPageResponse;
-import com.deundeun.notification.dto.response.UnreadCountResponse;
 import com.deundeun.notification.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
@@ -58,5 +55,15 @@ public class NotificationController {
         NotificationReadAllResponse response = notificationService.markAllAsRead(userId);
 
         return ApiResponse.success(response, "전체 알림을 읽음 처리했습니다.");
+    }
+
+    @DeleteMapping("/{notificationId}")
+    public ApiResponse<NotificationDeleteResponse> delete(
+        @RequestParam Long userId, //TODO 인증 붙으면 로그인 사용자 ID로 대체
+        @PathVariable Long notificationId
+    ) {
+        NotificationDeleteResponse response = notificationService.delete(userId, notificationId);
+
+        return ApiResponse.success(response, "알림을 삭제했습니다.");
     }
 }
