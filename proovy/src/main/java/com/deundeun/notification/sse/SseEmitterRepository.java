@@ -36,7 +36,7 @@ public class SseEmitterRepository {
         emitters.computeIfPresent(userId, (key, list) -> {
             list.remove(emitter);
             log.debug("[Notification] SSE Emitter 제거: userId={}, count={}", userId, list.size());
-            
+
             return list.isEmpty() ? null : list;
         });
     }

@@ -27,6 +27,7 @@ import com.deundeun.notification.dto.response.NotificationReadAllResponse;
 import com.deundeun.notification.dto.response.NotificationReadResponse;
 import com.deundeun.notification.dto.response.UnreadCountResponse;
 import com.deundeun.notification.service.NotificationService;
+import com.deundeun.notification.sse.SseEmitterService;
 
 @DisplayName("NotificationController")
 @ExtendWith(MockitoExtension.class)
@@ -35,11 +36,14 @@ class NotificationControllerTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private SseEmitterService sseEmitterService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new NotificationController(notificationService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new NotificationController(notificationService, sseEmitterService)).build();
     }
 
     @Test

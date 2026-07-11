@@ -6,9 +6,11 @@ import jakarta.validation.constraints.Min;
 
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.notification.service.NotificationService;
+import com.deundeun.notification.sse.SseEmitterService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,6 +21,13 @@ import lombok.RequiredArgsConstructor;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final SseEmitterService sseEmitterService;
+
+    @GetMapping("/subscribe")
+    public SseEmitter subscribe(@RequestParam Long userId) {
+        //TODO 인증 붙으면 로그인 사용자 ID로 대체
+        return sseEmitterService.subscribe(userId);
+    }
 
     @GetMapping
     public ApiResponse<NotificationPageResponse> getNotifications(
@@ -68,9 +77,8 @@ public class NotificationController {
     }
 
     @DeleteMapping("/all")
-    public ApiResponse<NotificationDeleteAllResponse> deleteAll(
-        @RequestParam Long userId //TODO 인증 붙으면 로그인 사용자 ID로 대체
-    ) {
+    public ApiResponse<NotificationDeleteAllResponse> deleteAll(@RequestParam Long userId) {
+        //TODO 인증 붙으면 로그인 사용자 ID로 대체
         NotificationDeleteAllResponse response = notificationService.deleteAll(userId);
 
         return ApiResponse.success(response, "전체 알림을 삭제했습니다.");
