@@ -127,6 +127,23 @@ class SseEmitterServiceTest {
     }
 
     @Test
+    @DisplayName("하트비트 전송이 실패하면 레지스트리에서 emitter를 제거한다")
+    void sendHeartbeat_removesEmitter_whenSendFails() {
+        Long userId = 1L;
+        SseEmitter emitter = new SseEmitter();
+        emitter.complete();
+        when(sseEmitterRepository.findAll()).thenReturn(Map.of(userId, List.of(emitter)));
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(notificationExecutor).execute(any(Runnable.class));
+
+        sseEmitterService.sendHeartbeat();
+
+        verify(sseEmitterRepository).remove(userId, emitter);
+    }
+
+    @Test
     @DisplayName("구독 중인 emitter가 없으면 실행기로 아무 작업도 넘기지 않는다")
     void sendHeartbeat_doesNothing_whenNoEmittersRegistered() {
         when(sseEmitterRepository.findAll()).thenReturn(Map.of());
