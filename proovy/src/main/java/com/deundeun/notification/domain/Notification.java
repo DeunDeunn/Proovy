@@ -31,6 +31,7 @@ public class Notification {
         this.targetType = command.targetType();
         this.targetId = command.targetId();
         this.eventKey = command.eventKey();
+        this.createdAt = LocalDateTime.now();
     }
 
     public static Notification create(NotificationCreateCommand command) {
