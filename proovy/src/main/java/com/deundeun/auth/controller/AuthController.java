@@ -30,7 +30,7 @@ public class AuthController {
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
 
-    @Value("${cookie.secure:false}")
+    @Value("${cookie.secure:true}")
     private boolean cookieSecure;
 
     @PostMapping("/refresh")
