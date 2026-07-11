@@ -41,9 +41,9 @@ public class NaverPayApiClient {
                 .defaultHeader("X-Naver-Client-Id", properties.clientId())
                 .defaultHeader("X-Naver-Client-Secret", properties.clientSecret());
 
-//        if (properties.chainId() != null && !properties.chainId().isBlank()) {
-//            builder.defaultHeader("X-NaverPay-Chain-Id", properties.chainId());
-//        }
+        if (properties.chainId() != null && !properties.chainId().isBlank()) {
+            builder.defaultHeader("X-NaverPay-Chain-Id", properties.chainId());
+        }
 
         this.restClient = builder.build();
     }
