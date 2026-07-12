@@ -1,6 +1,6 @@
 package com.deundeun.pay.dto;
 
-import com.deundeun.pay.domain.CashTransactionStatus;
+import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.domain.CashTransactionType;
 import lombok.Builder;
 import lombok.Getter;

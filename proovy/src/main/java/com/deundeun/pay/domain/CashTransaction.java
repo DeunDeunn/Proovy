@@ -1,5 +1,6 @@
 package com.deundeun.pay.domain;
 
+import com.deundeun.pay.enums.CashTransactionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

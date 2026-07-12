@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.pay.mapper.SettlementMapper">
+    <select id="existsByChallengeId" resultType="boolean">
+        SELECT EXISTS (
+        SELECT 1
+        FROM settlements
+        WHERE challenge_id = #{challengeId}
+        )
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO settlements (
+        challenge_id, per_person_fee, total_participant_count,
+        success_user_count, fail_user_count, failure_pool,
+        participant_share_rate, platform_fee_rate, host_fee_rate,
+        participant_share_amount, platform_fee_amount, host_fee_amount,
+        profit_per_user, rounding_remainder, is_host_disqualified,
+        status, settled_at
+        )
+        VALUES (
+        #{challengeId}, #{perPersonFee}, #{totalParticipantCount},
+        #{successUserCount}, #{failUserCount}, #{failurePool},
+        #{participantShareRate}, #{platformFeeRate}, #{hostFeeRate},
+        #{participantShareAmount}, #{platformFeeAmount}, #{hostFeeAmount},
+        #{profitPerUser}, #{roundingRemainder}, #{isHostDisqualified},
+        #{status}, #{settledAt}
+        )
+    </insert>
+</mapper>

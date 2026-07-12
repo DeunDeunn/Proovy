@@ -3,7 +3,8 @@ package com.deundeun.pay.domain;
 public enum CashTransactionType {
     CHARGE,
     CHALLENGE_HOLD,
-    CHALLENGE_PRINCIPAL_REFUND,
+    CHALLENGE_PRINCIPAL_SUCCESS,
+    CHALLENGE_PRINCIPAL_FAIL,
     CHALLENGE_PROFIT_DISTRIBUTION,
     HOST_FEE,
     WITHDRAWAL,

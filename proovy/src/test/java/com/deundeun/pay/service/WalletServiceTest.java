@@ -24,7 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
-import com.deundeun.pay.domain.CashTransactionStatus;
+import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.domain.CashTransactionType;
 import com.deundeun.pay.domain.ChargeLot;
 import com.deundeun.pay.domain.Wallet;
