@@ -29,6 +29,9 @@ import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.HostRevenue;
 import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
+import com.deundeun.pay.dto.HostRevenueHistoryResponse;
+import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.enums.HostRevenueStatus;
 import com.deundeun.pay.mapper.CashTransactionMapper;
 import com.deundeun.pay.mapper.HostRevenueMapper;
@@ -210,5 +213,59 @@ class SettlementServiceTest {
 
         long total = saved.getParticipantShareAmount() + saved.getHostFeeAmount() + saved.getPlatformFeeAmount();
         assertThat(total).isEqualTo(saved.getFailurePool());
+    }
+
+    @Test
+    void getSettlementResult_found_returnsIt() {
+        SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(response);
+
+        assertThat(settlementService.getSettlementResult(1L)).isSameAs(response);
+    }
+
+    @Test
+    void getSettlementResult_notFound_throwsSettlementNotFound() {
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> settlementService.getSettlementResult(1L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SETTLEMENT_NOT_FOUND);
+    }
+
+    @Test
+    void getHostRevenueByChallengeId_found_returnsIt() {
+        HostRevenueItem item = HostRevenueItem.builder().challengeId(1L).amount(100L).build();
+        when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(item);
+
+        assertThat(settlementService.getHostRevenueByChallengeId(1L)).isSameAs(item);
+    }
+
+    @Test
+    void getHostRevenueByChallengeId_notFound_throwsHostRevenueNotFound() {
+        when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> settlementService.getHostRevenueByChallengeId(1L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.HOST_REVENUE_NOT_FOUND);
+    }
+
+    @Test
+    void getHostRevenueHistory_returnsPageWithCorrectTotalPages() {
+        Long hostId = 99L;
+        List<HostRevenueItem> content = List.of(
+                HostRevenueItem.builder().id(2L).challengeId(20L).amount(100L).build(),
+                HostRevenueItem.builder().id(1L).challengeId(10L).amount(200L).build());
+        when(hostRevenueMapper.selectByHostId(hostId, 0, 10)).thenReturn(content);
+        when(hostRevenueMapper.countByHostId(hostId)).thenReturn(15L);
+
+        HostRevenueHistoryResponse response = settlementService.getHostRevenueHistory(hostId, 0, 10);
+
+        assertThat(response.getContent()).isEqualTo(content);
+        assertThat(response.getPage()).isZero();
+        assertThat(response.getSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(15L);
+        assertThat(response.getTotalPages()).isEqualTo(2); // ceil(15/10)
     }
 }
