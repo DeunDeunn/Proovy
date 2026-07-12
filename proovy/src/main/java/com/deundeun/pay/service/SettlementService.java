@@ -1,11 +1,15 @@
 package com.deundeun.pay.service;
 
 import com.deundeun.global.exception.ApiException;
+import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
 import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.HostRevenue;
 import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
+import com.deundeun.pay.dto.HostRevenueHistoryResponse;
+import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.HostRevenueStatus;
 import com.deundeun.pay.enums.SettlementStatus;
@@ -172,5 +176,49 @@ public class SettlementService implements WalletSettlementService {
                 .multiply(rate)                           // 비율 곱하기
                 .setScale(0, RoundingMode.FLOOR) // 소수점 버림
                 .longValueExact();
+    }
+
+    @Override
+    public SettlementResultResponse getSettlementResult(Long challengeId, Long requesterId) {
+        SettlementResultResponse result = settlementMapper.selectByChallengeId(challengeId);
+        if (result == null) {
+            throw new ApiException(ErrorCode.SETTLEMENT_NOT_FOUND);
+        }
+
+        Wallet requesterWallet = walletService.getOrCreateWallet(requesterId);
+        boolean isParticipant = cashTransactionMapper.existsSettlementParticipation(requesterWallet.getId(), challengeId);
+        boolean isHost = hostRevenueMapper.existsByChallengeIdAndHostId(challengeId, requesterId);
+        if (!isParticipant && !isHost) {
+            // 자격 박탈된 방장은 host_revenues에 기록이 없어 여기서도 걸러지는데,
+            // 자격 박탈 시 방장 몫 자체가 없으니 정산 결과를 볼 자격도 없는 게 맞아 의도된 동작이다.
+            throw new ApiException(ErrorCode.SETTLEMENT_NOT_FOUND);
+        }
+        return result;
+    }
+
+    public HostRevenueItem getHostRevenueByChallengeId(Long challengeId, Long requesterId) {
+        HostRevenueItem result = hostRevenueMapper.selectByChallengeId(challengeId);
+        if (result == null) {
+            throw new ApiException(ErrorCode.HOST_REVENUE_NOT_FOUND);
+        }
+        if (!hostRevenueMapper.existsByChallengeIdAndHostId(challengeId, requesterId)) {
+            throw new ApiException(ErrorCode.HOST_REVENUE_NOT_FOUND);
+        }
+        return result;
+    }
+
+    @Transactional
+    public HostRevenueHistoryResponse getHostRevenueHistory(Long hostId, int page, int size) {
+        List<HostRevenueItem> content = hostRevenueMapper.selectByHostId(hostId, page * size, size);
+        long totalElements = hostRevenueMapper.countByHostId(hostId);
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        return HostRevenueHistoryResponse.builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
     }
 }

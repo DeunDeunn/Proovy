@@ -29,6 +29,9 @@ import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.HostRevenue;
 import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
+import com.deundeun.pay.dto.HostRevenueHistoryResponse;
+import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.enums.HostRevenueStatus;
 import com.deundeun.pay.mapper.CashTransactionMapper;
 import com.deundeun.pay.mapper.HostRevenueMapper;
@@ -210,5 +213,109 @@ class SettlementServiceTest {
 
         long total = saved.getParticipantShareAmount() + saved.getHostFeeAmount() + saved.getPlatformFeeAmount();
         assertThat(total).isEqualTo(saved.getFailurePool());
+    }
+
+    @Test
+    void getSettlementResult_requesterIsParticipant_returnsIt() {
+        SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
+        Long requesterId = 10L;
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(response);
+        when(walletService.getOrCreateWallet(requesterId)).thenReturn(walletWith(101L, 0L, 0L, 0L));
+        when(cashTransactionMapper.existsSettlementParticipation(101L, 1L)).thenReturn(true);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, requesterId)).thenReturn(false);
+
+        assertThat(settlementService.getSettlementResult(1L, requesterId)).isSameAs(response);
+    }
+
+    @Test
+    void getSettlementResult_requesterIsHostOnly_returnsIt() {
+        SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
+        Long requesterId = 99L;
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(response);
+        when(walletService.getOrCreateWallet(requesterId)).thenReturn(walletWith(104L, 0L, 0L, 0L));
+        when(cashTransactionMapper.existsSettlementParticipation(104L, 1L)).thenReturn(false);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, requesterId)).thenReturn(true);
+
+        assertThat(settlementService.getSettlementResult(1L, requesterId)).isSameAs(response);
+    }
+
+    @Test
+    void getSettlementResult_notFound_throwsSettlementNotFound() {
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> settlementService.getSettlementResult(1L, 10L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SETTLEMENT_NOT_FOUND);
+
+        verify(walletService, never()).getOrCreateWallet(anyLong());
+    }
+
+    @Test
+    void getSettlementResult_requesterNeitherParticipantNorHost_throwsNotFound() {
+        SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
+        Long requesterId = 77L;
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(response);
+        when(walletService.getOrCreateWallet(requesterId)).thenReturn(walletWith(105L, 0L, 0L, 0L));
+        when(cashTransactionMapper.existsSettlementParticipation(105L, 1L)).thenReturn(false);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, requesterId)).thenReturn(false);
+
+        assertThatThrownBy(() -> settlementService.getSettlementResult(1L, requesterId))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SETTLEMENT_NOT_FOUND);
+    }
+
+    @Test
+    void getHostRevenueByChallengeId_requesterIsHost_returnsIt() {
+        HostRevenueItem item = HostRevenueItem.builder().challengeId(1L).amount(100L).build();
+        Long hostId = 99L;
+        when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(item);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, hostId)).thenReturn(true);
+
+        assertThat(settlementService.getHostRevenueByChallengeId(1L, hostId)).isSameAs(item);
+    }
+
+    @Test
+    void getHostRevenueByChallengeId_notFound_throwsHostRevenueNotFound() {
+        when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(null);
+
+        assertThatThrownBy(() -> settlementService.getHostRevenueByChallengeId(1L, 99L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.HOST_REVENUE_NOT_FOUND);
+
+        verify(hostRevenueMapper, never()).existsByChallengeIdAndHostId(anyLong(), anyLong());
+    }
+
+    @Test
+    void getHostRevenueByChallengeId_requesterIsNotHost_throwsHostRevenueNotFound() {
+        HostRevenueItem item = HostRevenueItem.builder().challengeId(1L).amount(100L).build();
+        Long notHostId = 77L;
+        when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(item);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, notHostId)).thenReturn(false);
+
+        assertThatThrownBy(() -> settlementService.getHostRevenueByChallengeId(1L, notHostId))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.HOST_REVENUE_NOT_FOUND);
+    }
+
+    @Test
+    void getHostRevenueHistory_returnsPageWithCorrectTotalPages() {
+        Long hostId = 99L;
+        List<HostRevenueItem> content = List.of(
+                HostRevenueItem.builder().id(2L).challengeId(20L).amount(100L).build(),
+                HostRevenueItem.builder().id(1L).challengeId(10L).amount(200L).build());
+        when(hostRevenueMapper.selectByHostId(hostId, 0, 10)).thenReturn(content);
+        when(hostRevenueMapper.countByHostId(hostId)).thenReturn(15L);
+
+        HostRevenueHistoryResponse response = settlementService.getHostRevenueHistory(hostId, 0, 10);
+
+        assertThat(response.getContent()).isEqualTo(content);
+        assertThat(response.getPage()).isZero();
+        assertThat(response.getSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(15L);
+        assertThat(response.getTotalPages()).isEqualTo(2); // ceil(15/10)
     }
 }

@@ -10,4 +10,31 @@
         #{amount}, #{status}, #{paidAt}
         )
     </insert>
+
+    <select id="selectByChallengeId" resultType="com.deundeun.pay.dto.HostRevenueItem">
+        SELECT id, challenge_id, amount, status, paid_at
+        FROM host_revenues
+        WHERE challenge_id = #{challengeId}
+    </select>
+
+    <select id="selectByHostId" resultType="com.deundeun.pay.dto.HostRevenueItem">
+        SELECT id, challenge_id, amount, status, paid_at
+        FROM host_revenues
+        WHERE host_id = #{hostId}
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByHostId" resultType="long">
+        SELECT COUNT(*)
+        FROM host_revenues
+        WHERE host_id = #{hostId}
+    </select>
+
+    <select id="existsByChallengeIdAndHostId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM host_revenues
+            WHERE challenge_id = #{challengeId} AND host_id = #{hostId}
+        )
+    </select>
 </mapper>

@@ -1,5 +1,7 @@
 package com.deundeun.pay.service;
 
+import com.deundeun.pay.dto.SettlementResultResponse;
+
 import java.util.List;
 
 /**
@@ -9,4 +11,10 @@ import java.util.List;
 public interface WalletSettlementService {
     Long settle(Long challengeId, List<Long> successUserIds, List<Long> failUserIds,
                 Long hostId, boolean isHostDisqualified, long perPersonFee);
+
+    /**
+     * @throws com.deundeun.global.exception.ApiException SETTLEMENT_NOT_FOUND — 아직 정산되지 않은 챌린지이거나,
+     * requesterId가 해당 챌린지의 참가자도 방장도 아닐 때
+     */
+    SettlementResultResponse getSettlementResult(Long challengeId, Long requesterId);
 }
