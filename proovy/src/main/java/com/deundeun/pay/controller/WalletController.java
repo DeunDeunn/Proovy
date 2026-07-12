@@ -2,7 +2,7 @@ package com.deundeun.pay.controller;
 
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.global.common.CurrentUser;
-import com.deundeun.pay.domain.CashTransactionType;
+import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.dto.TransactionHistoryResponse;
 import com.deundeun.pay.dto.WalletResponse;
 import com.deundeun.pay.service.WalletService;

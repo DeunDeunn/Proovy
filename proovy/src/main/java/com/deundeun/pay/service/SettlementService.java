@@ -2,7 +2,7 @@ package com.deundeun.pay.service;
 
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.pay.domain.CashTransaction;
-import com.deundeun.pay.domain.CashTransactionType;
+import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.HostRevenue;
 import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
@@ -13,6 +13,7 @@ import com.deundeun.pay.mapper.CashTransactionMapper;
 import com.deundeun.pay.mapper.HostRevenueMapper;
 import com.deundeun.pay.mapper.SettlementMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,7 +89,14 @@ public class SettlementService implements WalletSettlementService {
                 .status(SettlementStatus.COMPLETED)
                 .settledAt(LocalDateTime.now())
                 .build();
-        settlementMapper.insert(settlement);
+        try {
+            settlementMapper.insert(settlement);
+        } catch (DataIntegrityViolationException e) {
+            // existsByChallengeId 체크와 실제 insert 사이의 레이스로 유니크 제약(challenge_id)에 걸린 경우.
+            // DuplicateKeyException도 DataIntegrityViolationException의 하위 타입이라 여기서 같이 잡힌다.
+            // 다른 종류의 DB 오류(DataAccessException)는 그대로 던져서 기존 DATABASE_ERROR 처리로 흘러가게 둔다.
+            throw new ApiException(SETTLEMENT_ALREADY_PROCESSED);
+        }
         if (!isHostDisqualified) {
             Wallet hostWallet = walletService.getWalletForUpdate(hostId);
             walletService.updateRewardBalance(hostWallet.getId(), hostWallet.getRewardBalance() + hostFeeAmount);
@@ -137,6 +145,15 @@ public class SettlementService implements WalletSettlementService {
             Wallet wallet = walletService.getWalletForUpdate(userId);
             walletService.updateLockedBalance(wallet.getId(), wallet.getLockedBalance() - perPersonFee);   // 홀딩 해제
             walletService.updateChargedBalance(wallet.getId(), wallet.getChargedBalance() - perPersonFee); // 진짜 출금(영구 손실)
+
+            cashTransactionMapper.insert(CashTransaction.builder()
+                    .walletId(wallet.getId())
+                    .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
+                    .amount(perPersonFee)
+                    .balanceAfter(wallet.getLockedBalance() - perPersonFee)  // 홀딩 해제 반영
+                    .status(CashTransactionStatus.COMPLETED)
+                    .referenceId(challengeId)
+                    .build());
 
             cashTransactionMapper.insert(CashTransaction.builder()
                     .walletId(wallet.getId())

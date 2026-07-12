@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -19,15 +20,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
-import com.deundeun.pay.domain.CashTransactionType;
+import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.HostRevenue;
 import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
-import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.HostRevenueStatus;
 import com.deundeun.pay.mapper.CashTransactionMapper;
 import com.deundeun.pay.mapper.HostRevenueMapper;
@@ -75,6 +76,21 @@ class SettlementServiceTest {
     }
 
     @Test
+    void settle_duplicateKeyOnInsert_translatesToAlreadyProcessed() {
+        // existsByChallengeId 체크 통과 후, insert 시점에 유니크 제약(레이스)에 걸린 경우를 시뮬레이션
+        when(settlementMapper.existsByChallengeId(1L)).thenReturn(false);
+        doThrow(new DuplicateKeyException("dup")).when(settlementMapper).insert(any(Settlement.class));
+
+        assertThatThrownBy(() -> settlementService.settle(1L, List.of(10L), List.of(30L), 99L, false, 1_000L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SETTLEMENT_ALREADY_PROCESSED);
+
+        verify(walletService, never()).getWalletForUpdate(anyLong());
+        verify(cashTransactionMapper, never()).insert(any());
+    }
+
+    @Test
     void settle_normalCase_distributesPrincipalProfitAndHostFee() {
         Long challengeId = 1L;
         Long successA = 10L;
@@ -112,7 +128,7 @@ class SettlementServiceTest {
         verify(walletService).updateChargedBalance(103L, 1_000L); // 2000 - 1000
 
         ArgumentCaptor<CashTransaction> captor = ArgumentCaptor.forClass(CashTransaction.class);
-        verify(cashTransactionMapper, times(6)).insert(captor.capture());
+        verify(cashTransactionMapper, times(7)).insert(captor.capture());
         List<CashTransaction> recorded = captor.getAllValues();
         assertThat(recorded).extracting(CashTransaction::getType).containsExactlyInAnyOrder(
                 CashTransactionType.HOST_FEE,
@@ -120,6 +136,7 @@ class SettlementServiceTest {
                 CashTransactionType.CHALLENGE_PROFIT_DISTRIBUTION,
                 CashTransactionType.CHALLENGE_PRINCIPAL_SUCCESS,
                 CashTransactionType.CHALLENGE_PROFIT_DISTRIBUTION,
+                CashTransactionType.CHALLENGE_PRINCIPAL_FAIL,
                 CashTransactionType.CHALLENGE_PRINCIPAL_FAIL
         );
 
