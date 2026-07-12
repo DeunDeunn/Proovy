@@ -3,8 +3,8 @@ package com.deundeun.pay.service;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
-import com.deundeun.pay.domain.CashTransactionStatus;
-import com.deundeun.pay.domain.CashTransactionType;
+import com.deundeun.pay.enums.CashTransactionStatus;
+import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.ChargeLot;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.TransactionHistoryResponse;
@@ -56,6 +56,12 @@ public class WalletService implements WalletHoldService {
     public void updateChargedBalance(Long walletId, long newChargedBalance) {
         walletMapper.updateChargedBalance(walletId, newChargedBalance);
     }
+    public void updateRewardBalance(Long walletId, long newRewardBalance) {
+        walletMapper.updateRewardBalance(walletId, newRewardBalance);
+    }
+    public void updateLockedBalance(Long walletId, long newLockedBalance) {
+        walletMapper.updateLockedBalance(walletId, newLockedBalance);
+    }
 
     /**
      * 참가비 등을 홀딩한다. charged_balance는 그대로 두고 locked_balance만 늘려서
@@ -74,7 +80,7 @@ public class WalletService implements WalletHoldService {
             throw new ApiException(ErrorCode.INSUFFICIENT_BALANCE);
         }
 
-        walletMapper.updateLockedBalance(wallet.getId(), wallet.getLockedBalance() + amount);
+        updateLockedBalance(wallet.getId(), wallet.getLockedBalance() + amount);
         deductChargeLotsFifo(wallet.getId(), amount);
 
         CashTransaction transaction = CashTransaction.builder()

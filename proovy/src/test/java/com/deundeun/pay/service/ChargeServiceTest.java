@@ -21,7 +21,7 @@ import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.client.NaverPayApiClient;
 import com.deundeun.pay.config.NaverPayProperties;
 import com.deundeun.pay.domain.CashTransaction;
-import com.deundeun.pay.domain.CashTransactionStatus;
+import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.domain.ChargeLot;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.ChargeResponse;

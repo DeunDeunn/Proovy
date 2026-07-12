@@ -1,4 +1,4 @@
-package com.deundeun.pay.domain;
+package com.deundeun.pay.enums;
 
 public enum CashTransactionStatus {
     PENDING,

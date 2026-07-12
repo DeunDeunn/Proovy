@@ -25,6 +25,7 @@ public enum ErrorCode {
     PG_DUPLICATE_REQUEST(HttpStatus.CONFLICT, "CG006", "이미 처리 중이거나 처리된 요청입니다."),
     PG_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "CG007", "PG사 서비스 점검 중입니다. 잠시 후 다시 시도해주세요."),
     PG_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "CG008", "계좌 잔액이 부족하여 결제가 거절되었습니다."),
+    SETTLEMENT_ALREADY_PROCESSED(HttpStatus.CONFLICT, "CG012", "이미 정산 처리된 챌린지입니다."),
     PG_TIME_EXPIRED(HttpStatus.BAD_REQUEST, "CG009", "결제 유효 시간이 만료되었습니다. 다시 시도해주세요."),
     PG_OWNER_AUTH_FAIL(HttpStatus.BAD_REQUEST, "CG010", "본인 인증에 실패했습니다."),
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "CG011", "사용 가능한 잔액이 부족합니다."),
