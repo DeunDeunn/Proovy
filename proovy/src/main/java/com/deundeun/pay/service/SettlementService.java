@@ -179,9 +179,18 @@ public class SettlementService implements WalletSettlementService {
     }
 
     @Override
-    public SettlementResultResponse getSettlementResult(Long challengeId) {
+    public SettlementResultResponse getSettlementResult(Long challengeId, Long requesterId) {
         SettlementResultResponse result = settlementMapper.selectByChallengeId(challengeId);
         if (result == null) {
+            throw new ApiException(ErrorCode.SETTLEMENT_NOT_FOUND);
+        }
+
+        Wallet requesterWallet = walletService.getOrCreateWallet(requesterId);
+        boolean isParticipant = cashTransactionMapper.existsSettlementParticipation(requesterWallet.getId(), challengeId);
+        boolean isHost = hostRevenueMapper.existsByChallengeIdAndHostId(challengeId, requesterId);
+        if (!isParticipant && !isHost) {
+            // 자격 박탈된 방장 본인은 host_revenues에 기록이 없어 여기서 걸러진다 —
+            // pay 도메인엔 "박탈됐지만 원래 방장이었다"는 사실을 저장할 곳이 없어서 room 도메인 연동 전까지는 알려진 한계.
             throw new ApiException(ErrorCode.SETTLEMENT_NOT_FOUND);
         }
         return result;

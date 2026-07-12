@@ -216,18 +216,51 @@ class SettlementServiceTest {
     }
 
     @Test
-    void getSettlementResult_found_returnsIt() {
+    void getSettlementResult_requesterIsParticipant_returnsIt() {
         SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
+        Long requesterId = 10L;
         when(settlementMapper.selectByChallengeId(1L)).thenReturn(response);
+        when(walletService.getOrCreateWallet(requesterId)).thenReturn(walletWith(101L, 0L, 0L, 0L));
+        when(cashTransactionMapper.existsSettlementParticipation(101L, 1L)).thenReturn(true);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, requesterId)).thenReturn(false);
 
-        assertThat(settlementService.getSettlementResult(1L)).isSameAs(response);
+        assertThat(settlementService.getSettlementResult(1L, requesterId)).isSameAs(response);
+    }
+
+    @Test
+    void getSettlementResult_requesterIsHostOnly_returnsIt() {
+        SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
+        Long requesterId = 99L;
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(response);
+        when(walletService.getOrCreateWallet(requesterId)).thenReturn(walletWith(104L, 0L, 0L, 0L));
+        when(cashTransactionMapper.existsSettlementParticipation(104L, 1L)).thenReturn(false);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, requesterId)).thenReturn(true);
+
+        assertThat(settlementService.getSettlementResult(1L, requesterId)).isSameAs(response);
     }
 
     @Test
     void getSettlementResult_notFound_throwsSettlementNotFound() {
         when(settlementMapper.selectByChallengeId(1L)).thenReturn(null);
 
-        assertThatThrownBy(() -> settlementService.getSettlementResult(1L))
+        assertThatThrownBy(() -> settlementService.getSettlementResult(1L, 10L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SETTLEMENT_NOT_FOUND);
+
+        verify(walletService, never()).getOrCreateWallet(anyLong());
+    }
+
+    @Test
+    void getSettlementResult_requesterNeitherParticipantNorHost_throwsNotFound() {
+        SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
+        Long requesterId = 77L;
+        when(settlementMapper.selectByChallengeId(1L)).thenReturn(response);
+        when(walletService.getOrCreateWallet(requesterId)).thenReturn(walletWith(105L, 0L, 0L, 0L));
+        when(cashTransactionMapper.existsSettlementParticipation(105L, 1L)).thenReturn(false);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, requesterId)).thenReturn(false);
+
+        assertThatThrownBy(() -> settlementService.getSettlementResult(1L, requesterId))
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.SETTLEMENT_NOT_FOUND);

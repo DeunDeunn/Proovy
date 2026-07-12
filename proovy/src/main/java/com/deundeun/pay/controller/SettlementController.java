@@ -25,7 +25,8 @@ public class SettlementController {
 
     @GetMapping("/api/challenge-rooms/{challengeId}/settlement")
     public ApiResponse<SettlementResultResponse> getSettlementResults(@PathVariable Long challengeId){
-        SettlementResultResponse response = settlementService.getSettlementResult(challengeId);
+        Long requesterId = CurrentUser.getUserId();
+        SettlementResultResponse response = settlementService.getSettlementResult(challengeId, requesterId);
         return ApiResponse.success(response);
     }
 

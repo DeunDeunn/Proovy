@@ -29,4 +29,6 @@ public interface CashTransactionMapper {
                                             @Param("limit") int limit);
 
     long countByWalletId(@Param("walletId") Long walletId, @Param("type") CashTransactionType type);
+
+    boolean existsSettlementParticipation(@Param("walletId") Long walletId, @Param("referenceId") Long referenceId);
 }

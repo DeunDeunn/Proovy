@@ -30,4 +30,11 @@
         FROM host_revenues
         WHERE host_id = #{hostId}
     </select>
+
+    <select id="existsByChallengeIdAndHostId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM host_revenues
+            WHERE challenge_id = #{challengeId} AND host_id = #{hostId}
+        )
+    </select>
 </mapper>

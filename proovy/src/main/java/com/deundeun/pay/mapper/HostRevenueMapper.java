@@ -18,4 +18,6 @@ public interface HostRevenueMapper {
                                           @Param("limit") int limit);
 
     long countByHostId(@Param("hostId") Long hostId);
+
+    boolean existsByChallengeIdAndHostId(@Param("challengeId") Long challengeId, @Param("hostId") Long hostId);
 }
