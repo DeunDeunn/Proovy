@@ -267,18 +267,35 @@ class SettlementServiceTest {
     }
 
     @Test
-    void getHostRevenueByChallengeId_found_returnsIt() {
+    void getHostRevenueByChallengeId_requesterIsHost_returnsIt() {
         HostRevenueItem item = HostRevenueItem.builder().challengeId(1L).amount(100L).build();
+        Long hostId = 99L;
         when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(item);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, hostId)).thenReturn(true);
 
-        assertThat(settlementService.getHostRevenueByChallengeId(1L)).isSameAs(item);
+        assertThat(settlementService.getHostRevenueByChallengeId(1L, hostId)).isSameAs(item);
     }
 
     @Test
     void getHostRevenueByChallengeId_notFound_throwsHostRevenueNotFound() {
         when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(null);
 
-        assertThatThrownBy(() -> settlementService.getHostRevenueByChallengeId(1L))
+        assertThatThrownBy(() -> settlementService.getHostRevenueByChallengeId(1L, 99L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.HOST_REVENUE_NOT_FOUND);
+
+        verify(hostRevenueMapper, never()).existsByChallengeIdAndHostId(anyLong(), anyLong());
+    }
+
+    @Test
+    void getHostRevenueByChallengeId_requesterIsNotHost_throwsHostRevenueNotFound() {
+        HostRevenueItem item = HostRevenueItem.builder().challengeId(1L).amount(100L).build();
+        Long notHostId = 77L;
+        when(hostRevenueMapper.selectByChallengeId(1L)).thenReturn(item);
+        when(hostRevenueMapper.existsByChallengeIdAndHostId(1L, notHostId)).thenReturn(false);
+
+        assertThatThrownBy(() -> settlementService.getHostRevenueByChallengeId(1L, notHostId))
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.HOST_REVENUE_NOT_FOUND);

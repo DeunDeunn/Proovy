@@ -196,9 +196,12 @@ public class SettlementService implements WalletSettlementService {
         return result;
     }
 
-    public HostRevenueItem getHostRevenueByChallengeId(Long challengeId) {
+    public HostRevenueItem getHostRevenueByChallengeId(Long challengeId, Long requesterId) {
         HostRevenueItem result = hostRevenueMapper.selectByChallengeId(challengeId);
         if (result == null) {
+            throw new ApiException(ErrorCode.HOST_REVENUE_NOT_FOUND);
+        }
+        if (!hostRevenueMapper.existsByChallengeIdAndHostId(challengeId, requesterId)) {
             throw new ApiException(ErrorCode.HOST_REVENUE_NOT_FOUND);
         }
         return result;

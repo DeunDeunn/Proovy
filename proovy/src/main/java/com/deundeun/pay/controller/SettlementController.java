@@ -32,7 +32,8 @@ public class SettlementController {
 
     @GetMapping("/api/challenge-rooms/{challengeId}/settlement/host-revenue")
     public ApiResponse<HostRevenueItem> getHostRevenue(@PathVariable Long challengeId){
-        return ApiResponse.success(settlementService.getHostRevenueByChallengeId(challengeId));
+        Long requesterId = CurrentUser.getUserId();
+        return ApiResponse.success(settlementService.getHostRevenueByChallengeId(challengeId, requesterId));
     }
 
     @GetMapping("/api/hosts/me/revenues")
