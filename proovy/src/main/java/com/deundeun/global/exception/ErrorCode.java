@@ -34,6 +34,9 @@ public enum ErrorCode {
     INVALID_WITHDRAWAL_AMOUNT(HttpStatus.BAD_REQUEST, "CG015", "리워드 출금은 5,000원 이상부터 가능합니다."),
     WITHDRAWAL_NOT_FOUND(HttpStatus.NOT_FOUND, "CG016", "출금 신청 내역을 찾을 수 없습니다."),
     WITHDRAWAL_ALREADY_PROCESSED(HttpStatus.CONFLICT, "CG017", "이미 처리된 출금 신청입니다."),
+    HOLD_NOT_FOUND(HttpStatus.NOT_FOUND, "CG018", "홀딩 내역을 찾을 수 없습니다."),
+    HOLD_ALREADY_CANCELLED(HttpStatus.CONFLICT, "CG019", "이미 취소 처리된 홀딩입니다."),
+    INVALID_CANCEL_AMOUNT(HttpStatus.BAD_REQUEST, "CG020", "취소 금액이 원래 홀딩 금액과 일치하지 않습니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),

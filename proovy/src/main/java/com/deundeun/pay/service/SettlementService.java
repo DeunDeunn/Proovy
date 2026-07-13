@@ -41,6 +41,11 @@ public class SettlementService implements WalletSettlementService {
         if(settlementMapper.existsByChallengeId(challengeId)){
             throw new ApiException(SETTLEMENT_ALREADY_PROCESSED);
         }
+        // 호출자가 같은 유저를 리스트에 중복으로 넘기면 아래 for문에서 잠금 잔액 차감/수익 지급/영구 손실 반영이
+        // 그 유저에 대해 두 번 일어나 버리므로(charge_lots는 released_at 가드로 막아도, locked_reward_balance나
+        // charged_balance/reward_balance 자체는 그대로 두 번 깎이거나 지급됨), 입력 단계에서 중복을 제거한다.
+        successUserIds = successUserIds.stream().distinct().toList();
+        failUserIds = failUserIds.stream().distinct().toList();
         BigDecimal participantShareRate;
         BigDecimal platformFeeRate;
         BigDecimal hostFeeRate;
