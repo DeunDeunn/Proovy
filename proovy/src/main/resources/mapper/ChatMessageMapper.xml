@@ -24,4 +24,11 @@
         LIMIT #{limit}
     </select>
 
+    <select id="countAfterId" resultType="int">
+        SELECT COUNT(*)
+        FROM chat_messages
+        WHERE chat_room_id = #{chatRoomId}
+          AND id > COALESCE(#{afterId}, 0)
+    </select>
+
 </mapper>

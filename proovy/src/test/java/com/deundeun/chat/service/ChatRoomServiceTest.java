@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -23,9 +24,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.deundeun.chat.domain.ChatRoom;
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.domain.ChatRoomType;
+import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
+import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
+import com.deundeun.chat.service.validator.ChatRoomMemberValidator;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 
@@ -37,6 +41,12 @@ class ChatRoomServiceTest {
 
     @Mock
     private ChatRoomMemberMapper chatRoomMemberMapper;
+
+    @Mock
+    private ChatMessageMapper chatMessageMapper;
+
+    @Mock
+    private ChatRoomMemberValidator chatRoomMemberValidator;
 
     @InjectMocks
     private ChatRoomService chatRoomService;
@@ -117,5 +127,59 @@ class ChatRoomServiceTest {
         assertThat(response.chatRoomId()).isEqualTo(20L);
         assertThat(response.created()).isFalse();
         verify(chatRoomMemberMapper, never()).insert(any());
+    }
+
+    @Test
+    void getChallengeRoom_roomNotFound_throwsException() {
+        Long challengeId = 100L;
+        Long userId = 1L;
+        when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> chatRoomService.getChallengeRoom(challengeId, userId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ROOM_NOT_FOUND);
+
+        verify(chatRoomMemberValidator, never()).findMember(any(), any());
+    }
+
+    @Test
+    void getChallengeRoom_notMember_propagatesValidatorException() {
+        Long challengeId = 100L;
+        Long userId = 1L;
+        ChatRoom room = ChatRoom.createChallengeRoom(challengeId);
+        ReflectionTestUtils.setField(room, "id", 5L);
+        when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
+        when(chatRoomMemberValidator.findMember(5L, userId))
+            .thenThrow(new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
+
+        assertThatThrownBy(() -> chatRoomService.getChallengeRoom(challengeId, userId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ROOM_FORBIDDEN);
+    }
+
+    @Test
+    void getChallengeRoom_success_returnsFullData() {
+        Long challengeId = 100L;
+        Long userId = 1L;
+        ChatRoom room = ChatRoom.createChallengeRoom(challengeId);
+        ReflectionTestUtils.setField(room, "id", 5L);
+
+        ChatRoomMember member = ChatRoomMember.join(5L, userId);
+        ReflectionTestUtils.setField(member, "lastReadMessageId", 20L);
+
+        when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
+        when(chatRoomMemberValidator.findMember(5L, userId)).thenReturn(member);
+        when(chatRoomMemberMapper.findActiveByChatRoomId(5L))
+            .thenReturn(List.of(ChatRoomMember.join(5L, userId), ChatRoomMember.join(5L, 2L)));
+        when(chatMessageMapper.countAfterId(5L, 20L)).thenReturn(3);
+
+        ChallengeChatRoomResponse response = chatRoomService.getChallengeRoom(challengeId, userId);
+
+        assertThat(response.chatRoomId()).isEqualTo(5L);
+        assertThat(response.memberCount()).isEqualTo(2);
+        assertThat(response.unreadCount()).isEqualTo(3);
+        assertThat(response.lastReadMessageId()).isEqualTo(20L);
     }
 }

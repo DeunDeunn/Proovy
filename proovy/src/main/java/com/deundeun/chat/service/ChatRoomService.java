@@ -2,9 +2,12 @@ package com.deundeun.chat.service;
 
 import com.deundeun.chat.domain.ChatRoom;
 import com.deundeun.chat.domain.ChatRoomMember;
+import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
+import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
+import com.deundeun.chat.service.validator.ChatRoomMemberValidator;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChatRoomService {
 
+    private final ChatRoomMemberValidator chatRoomMemberValidator;
     private final ChatRoomMapper chatRoomMapper;
     private final ChatRoomMemberMapper chatRoomMemberMapper;
+    private final ChatMessageMapper chatMessageMapper;
 
     @Transactional
     public ChatRoom createChallengeRoom(Long challengeId) {
@@ -45,6 +50,16 @@ public class ChatRoomService {
             .orElseGet(() -> createDirectRoom(directChatKey, userId1, userId2));
     }
 
+    public ChallengeChatRoomResponse getChallengeRoom(Long challengeId, Long userId) {
+        ChatRoom room = getChatRoomByChallengeId(challengeId);
+        ChatRoomMember member = chatRoomMemberValidator.findMember(room.getId(), userId);
+
+        int memberCount = chatRoomMemberMapper.findActiveByChatRoomId(room.getId()).size();
+        int unreadCount = chatMessageMapper.countAfterId(room.getId(), member.getLastReadMessageId());
+
+        return ChallengeChatRoomResponse.of(room, memberCount, unreadCount, member);
+    }
+
     private DirectChatRoomResponse createDirectRoom(String directChatKey, Long userId1, Long userId2) {
         try {
             ChatRoom room = ChatRoom.createDirectRoom(directChatKey);
@@ -61,6 +76,11 @@ public class ChatRoomService {
 
             return DirectChatRoomResponse.of(room, false);
         }
+    }
+
+    private ChatRoom getChatRoomByChallengeId(Long challengeId) {
+        return chatRoomMapper.findByChallengeId(challengeId)
+            .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
     private void validateNotSelfChat(Long userId1, Long userId2) {

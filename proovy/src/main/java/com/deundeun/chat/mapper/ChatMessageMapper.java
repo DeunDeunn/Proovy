@@ -17,4 +17,6 @@ public interface ChatMessageMapper {
     List<ChatMessage> findByChatRoomIdBeforeId(@Param("chatRoomId") Long chatRoomId,
                                                 @Param("beforeId") Long beforeId,
                                                 @Param("limit") int limit);
+
+    int countAfterId(@Param("chatRoomId") Long chatRoomId, @Param("afterId") Long afterId);
 }

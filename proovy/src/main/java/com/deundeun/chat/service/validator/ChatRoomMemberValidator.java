@@ -5,18 +5,24 @@ import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+@Component
 @RequiredArgsConstructor
 public class ChatRoomMemberValidator {
 
     private final ChatRoomMemberMapper chatRoomMemberMapper;
 
     public void validateMember(Long chatRoomId, Long userId) {
+        findMember(chatRoomId, userId);
+    }
+
+    public ChatRoomMember findMember(Long chatRoomId, Long userId) {
         ChatRoomMember member = getChatRoomMember(chatRoomId, userId);
 
         validateActive(member);
+
+        return member;
     }
 
     private ChatRoomMember getChatRoomMember(Long chatRoomId, Long userId) {
