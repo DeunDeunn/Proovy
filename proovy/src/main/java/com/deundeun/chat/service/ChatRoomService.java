@@ -50,6 +50,7 @@ public class ChatRoomService {
             .orElseGet(() -> createDirectRoom(directChatKey, userId1, userId2));
     }
 
+    @Transactional(readOnly = true)
     public ChallengeChatRoomResponse getChallengeRoom(Long challengeId, Long userId) {
         ChatRoom room = getChatRoomByChallengeId(challengeId);
         ChatRoomMember member = chatRoomMemberValidator.findMember(room.getId(), userId);
@@ -61,21 +62,23 @@ public class ChatRoomService {
     }
 
     private DirectChatRoomResponse createDirectRoom(String directChatKey, Long userId1, Long userId2) {
-        try {
-            ChatRoom room = ChatRoom.createDirectRoom(directChatKey);
-            chatRoomMapper.insert(room);
-            chatRoomMemberMapper.insert(ChatRoomMember.join(room.getId(), userId1));
-            chatRoomMemberMapper.insert(ChatRoomMember.join(room.getId(), userId2));
-            log.info("[Chat] 1:1 채팅방 생성 완료: chatRoomId={}, directChatKey={}", room.getId(), directChatKey);
+        ChatRoom room = ChatRoom.createDirectRoom(directChatKey);
 
-            return DirectChatRoomResponse.of(room, true);
+        try {
+            chatRoomMapper.insert(room);
         } catch (DuplicateKeyException e) {
             log.debug("[Chat] 동시 요청으로 인한 1:1 채팅방 중복 생성 시도, 기존 방 재조회: directChatKey={}", directChatKey);
-            ChatRoom room = chatRoomMapper.findByDirectChatKey(directChatKey)
+            ChatRoom existingRoom = chatRoomMapper.findByDirectChatKey(directChatKey)
                 .orElseThrow(() -> e);
 
-            return DirectChatRoomResponse.of(room, false);
+            return DirectChatRoomResponse.of(existingRoom, false);
         }
+
+        chatRoomMemberMapper.insert(ChatRoomMember.join(room.getId(), userId1));
+        chatRoomMemberMapper.insert(ChatRoomMember.join(room.getId(), userId2));
+        log.info("[Chat] 1:1 채팅방 생성 완료: chatRoomId={}, directChatKey={}", room.getId(), directChatKey);
+
+        return DirectChatRoomResponse.of(room, true);
     }
 
     private ChatRoom getChatRoomByChallengeId(Long challengeId) {
