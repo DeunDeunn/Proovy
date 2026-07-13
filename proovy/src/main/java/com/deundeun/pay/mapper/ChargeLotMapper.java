@@ -24,4 +24,9 @@ public interface ChargeLotMapper {
      * 충전일로부터 7일이 지나(withdrawable_at <= now()) 지금 당장 출금 가능한 lot들의 remaining_amount 합.
      */
     long sumWithdrawableRemainingByWalletId(@Param("walletId") Long walletId);
+
+    /**
+     * 홀딩 해제(정산 성공 등) 시 charge_lot_allocations에 기록된 만큼 remaining_amount를 되돌릴 때 사용.
+     */
+    void incrementRemainingAmount(@Param("id") Long id, @Param("amount") long amount);
 }

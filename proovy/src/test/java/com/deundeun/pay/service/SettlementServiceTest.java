@@ -52,8 +52,13 @@ class SettlementServiceTest {
     @InjectMocks
     private SettlementService settlementService;
 
-    private Wallet walletWith(Long id, long charged, long reward, long locked) {
-        return Wallet.builder().id(id).chargedBalance(charged).rewardBalance(reward).lockedBalance(locked).build();
+    private Wallet walletWith(Long id, long charged, long reward, long lockedCharged) {
+        return walletWith(id, charged, reward, lockedCharged, 0L);
+    }
+
+    private Wallet walletWith(Long id, long charged, long reward, long lockedCharged, long lockedReward) {
+        return Wallet.builder().id(id).chargedBalance(charged).rewardBalance(reward)
+                .lockedChargedBalance(lockedCharged).lockedRewardBalance(lockedReward).build();
     }
 
     private void stubInsertGeneratesId(SettlementMapper mapper, long generatedId) {
@@ -108,6 +113,10 @@ class SettlementServiceTest {
         when(walletService.getWalletForUpdate(successB)).thenReturn(walletWith(102L, 3_000L, 500L, 1_000L));
         when(walletService.getWalletForUpdate(failUser)).thenReturn(walletWith(103L, 2_000L, 0L, 1_000L));
         when(walletService.getWalletForUpdate(hostId)).thenReturn(walletWith(104L, 0L, 0L, 0L));
+        // 세 명 다 홀딩 전액이 charged에서 왔다고 가정 (기존 테스트 시나리오와 동일)
+        when(walletService.releaseChargeLotsFifo(101L, challengeId)).thenReturn(1_000L);
+        when(walletService.releaseChargeLotsFifo(102L, challengeId)).thenReturn(1_000L);
+        when(walletService.sumChargeLotAllocations(103L, challengeId)).thenReturn(1_000L);
 
         Long settlementId = settlementService.settle(
                 challengeId, List.of(successA, successB), List.of(failUser), hostId, false, perPersonFee);
@@ -122,16 +131,20 @@ class SettlementServiceTest {
         verify(hostRevenueMapper).insert(argThat((HostRevenue hr) ->
                 hr.getHostId().equals(hostId) && hr.getAmount() == 100L && hr.getStatus() == HostRevenueStatus.PAID));
 
-        verify(walletService).updateLockedBalance(101L, 0L);   // 1000 - 1000
+        verify(walletService).updateLockedChargedBalance(101L, 0L);   // 1000 - 1000(charged 몫)
+        verify(walletService).updateLockedRewardBalance(101L, 0L);    // 0 - 0(reward 몫)
         verify(walletService).updateRewardBalance(101L, 350L); // 0 + 350
-        verify(walletService).updateLockedBalance(102L, 0L);
+        verify(walletService).updateLockedChargedBalance(102L, 0L);
+        verify(walletService).updateLockedRewardBalance(102L, 0L);
         verify(walletService).updateRewardBalance(102L, 850L); // 500 + 350
 
-        verify(walletService).updateLockedBalance(103L, 0L);
-        verify(walletService).updateChargedBalance(103L, 1_000L); // 2000 - 1000
+        verify(walletService).updateLockedChargedBalance(103L, 0L);
+        verify(walletService).updateLockedRewardBalance(103L, 0L);
+        verify(walletService).updateChargedBalance(103L, 1_000L); // 2000 - 1000(charged 몫)
+        verify(walletService).updateRewardBalance(103L, 0L); // reward 몫 0이라 그대로
 
         ArgumentCaptor<CashTransaction> captor = ArgumentCaptor.forClass(CashTransaction.class);
-        verify(cashTransactionMapper, times(7)).insert(captor.capture());
+        verify(cashTransactionMapper, times(6)).insert(captor.capture());
         List<CashTransaction> recorded = captor.getAllValues();
         assertThat(recorded).extracting(CashTransaction::getType).containsExactlyInAnyOrder(
                 CashTransactionType.HOST_FEE,
@@ -139,9 +152,15 @@ class SettlementServiceTest {
                 CashTransactionType.CHALLENGE_PROFIT_DISTRIBUTION,
                 CashTransactionType.CHALLENGE_PRINCIPAL_SUCCESS,
                 CashTransactionType.CHALLENGE_PROFIT_DISTRIBUTION,
-                CashTransactionType.CHALLENGE_PRINCIPAL_FAIL,
                 CashTransactionType.CHALLENGE_PRINCIPAL_FAIL
         );
+
+        // 실패자의 CHALLENGE_PRINCIPAL_FAIL 레코드 금액 합이 실제 손실액(perPersonFee)과 정확히 일치해야 한다 (중복 기록 방지 회귀 테스트)
+        long failRecordedTotal = recorded.stream()
+                .filter(t -> t.getType() == CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
+                .mapToLong(CashTransaction::getAmount)
+                .sum();
+        assertThat(failRecordedTotal).isEqualTo(perPersonFee);
 
         ArgumentCaptor<Settlement> settlementCaptor = ArgumentCaptor.forClass(Settlement.class);
         verify(settlementMapper).insert(settlementCaptor.capture());
@@ -163,6 +182,9 @@ class SettlementServiceTest {
 
         settlementService.settle(1L, List.of(), List.of(30L), 99L, false, 1_000L);
 
+        // 성공자가 없으니 홀딩 해제/복구 대상 자체가 없음
+        verify(walletService, never()).releaseChargeLotsFifo(anyLong(), anyLong());
+
         // failurePool=1000, 성공자 0명 -> participantShare 0%, platform 90%, host 10%
         ArgumentCaptor<Settlement> captor = ArgumentCaptor.forClass(Settlement.class);
         verify(settlementMapper).insert(captor.capture());
@@ -180,6 +202,8 @@ class SettlementServiceTest {
         when(walletService.getWalletForUpdate(30L)).thenReturn(walletWith(103L, 2_000L, 0L, 1_000L));
 
         settlementService.settle(1L, List.of(10L), List.of(30L), 99L, true, 1_000L);
+
+        verify(walletService).releaseChargeLotsFifo(101L, 1L); // 성공자는 방장 자격 박탈 여부와 무관하게 복구됨
 
         // 방장 자격 박탈 -> host 지갑/거래/host_revenues 전부 안 건드림
         verify(walletService, never()).getWalletForUpdate(99L);
@@ -203,6 +227,8 @@ class SettlementServiceTest {
 
         settlementService.settle(1L, List.of(10L), List.of(30L), 99L, false, 1_001L);
 
+        verify(walletService).releaseChargeLotsFifo(101L, 1L);
+
         ArgumentCaptor<Settlement> captor = ArgumentCaptor.forClass(Settlement.class);
         verify(settlementMapper).insert(captor.capture());
         Settlement saved = captor.getValue();
@@ -213,6 +239,31 @@ class SettlementServiceTest {
 
         long total = saved.getParticipantShareAmount() + saved.getHostFeeAmount() + saved.getPlatformFeeAmount();
         assertThat(total).isEqualTo(saved.getFailurePool());
+    }
+
+    @Test
+    void settle_failUserHeldPartlyFromReward_splitsLossAndDoesNotDoubleRecordTransactions() {
+        // perPersonFee=1,000인데 그중 600만 charged에서, 400은 reward에서 홀딩된 상황
+        Long failUser = 30L;
+        long perPersonFee = 1_000L;
+        stubInsertGeneratesId(settlementMapper, 1L);
+        when(walletService.getWalletForUpdate(failUser)).thenReturn(walletWith(103L, 2_000L, 1_000L, 600L, 400L));
+        when(walletService.sumChargeLotAllocations(103L, 1L)).thenReturn(600L);
+
+        settlementService.settle(1L, List.of(), List.of(failUser), 99L, true, perPersonFee);
+
+        verify(walletService).updateChargedBalance(103L, 1_400L); // 2,000 - 600(charged 몫만)
+        verify(walletService).updateRewardBalance(103L, 600L);    // 1,000 - 400(reward 몫만)
+        verify(walletService).updateLockedChargedBalance(103L, 0L); // 600 - 600
+        verify(walletService).updateLockedRewardBalance(103L, 0L);  // 400 - 400
+
+        ArgumentCaptor<CashTransaction> captor = ArgumentCaptor.forClass(CashTransaction.class);
+        verify(cashTransactionMapper, times(2)).insert(captor.capture());
+        List<CashTransaction> recorded = captor.getAllValues();
+        assertThat(recorded).allMatch(t -> t.getType() == CashTransactionType.CHALLENGE_PRINCIPAL_FAIL);
+
+        long totalRecorded = recorded.stream().mapToLong(CashTransaction::getAmount).sum();
+        assertThat(totalRecorded).isEqualTo(perPersonFee); // 실제 손실액과 정확히 일치, 중복 기록 없음
     }
 
     @Test

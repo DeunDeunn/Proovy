@@ -54,8 +54,13 @@ class WithdrawalServiceTest {
     private static final Long USER_ID = 1L;
     private static final Long WALLET_ID = 100L;
 
-    private Wallet walletWith(long charged, long reward, long locked) {
-        return Wallet.builder().id(WALLET_ID).chargedBalance(charged).rewardBalance(reward).lockedBalance(locked).build();
+    private Wallet walletWith(long charged, long reward, long lockedCharged) {
+        return walletWith(charged, reward, lockedCharged, 0L);
+    }
+
+    private Wallet walletWith(long charged, long reward, long lockedCharged, long lockedReward) {
+        return Wallet.builder().id(WALLET_ID).chargedBalance(charged).rewardBalance(reward)
+                .lockedChargedBalance(lockedCharged).lockedRewardBalance(lockedReward).build();
     }
 
     private WithdrawalRequest pendingWithdrawalRequest(Long id, SourceType sourceType, long amount) {
@@ -121,6 +126,20 @@ class WithdrawalServiceTest {
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_WITHDRAWAL_AMOUNT);
+
+        verify(walletService, never()).updateRewardBalance(anyLong(), anyLong());
+        verify(withdrawalMapper, never()).insert(any());
+    }
+
+    @Test
+    void applyWithdrawal_reward_currentlyLockedInChallenge_throwsInsufficientBalance() {
+        // reward_balance는 10,000이지만 전부 챌린지 참가로 잠겨있어(locked_reward_balance=10,000) 실제로는 출금 불가
+        when(walletService.getWalletForUpdate(USER_ID)).thenReturn(walletWith(0L, 10_000L, 0L, 10_000L));
+
+        assertThatThrownBy(() -> withdrawalService.applyWithdrawal(USER_ID, requestOf(SourceType.REWARD, 10_000L)))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INSUFFICIENT_BALANCE);
 
         verify(walletService, never()).updateRewardBalance(anyLong(), anyLong());
         verify(withdrawalMapper, never()).insert(any());
