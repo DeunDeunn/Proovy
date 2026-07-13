@@ -26,7 +26,7 @@
         SELECT COALESCE(SUM(remaining_amount), 0)
         FROM charge_lots
         WHERE wallet_id = #{walletId}
-          AND withdrawable_at <= now()
+          AND withdrawable_at &lt;= now()
     </select>
 
 </mapper>
