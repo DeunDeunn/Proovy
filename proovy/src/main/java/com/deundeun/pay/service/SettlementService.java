@@ -159,23 +159,16 @@ public class SettlementService implements WalletSettlementService {
             walletService.updateChargedBalance(wallet.getId(), wallet.getChargedBalance() - chargedPortion); // 진짜 출금(영구 손실, charged 몫만)
             walletService.updateRewardBalance(wallet.getId(), wallet.getRewardBalance() - rewardPortion);   // 진짜 출금(영구 손실, reward 몫만)
 
-            cashTransactionMapper.insert(CashTransaction.builder()
-                    .walletId(wallet.getId())
-                    .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
-                    .amount(perPersonFee)
-                    .balanceAfter(wallet.getLockedBalance() - perPersonFee)  // 홀딩 해제 반영
-                    .status(CashTransactionStatus.COMPLETED)
-                    .referenceId(challengeId)
-                    .build());
-
-            cashTransactionMapper.insert(CashTransaction.builder()
-                    .walletId(wallet.getId())
-                    .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
-                    .amount(chargedPortion)
-                    .balanceAfter(wallet.getChargedBalance() - chargedPortion)  // 실제로 줄어든 충전잔액 (charged 몫만)
-                    .status(CashTransactionStatus.COMPLETED)
-                    .referenceId(challengeId)
-                    .build());
+            if (chargedPortion > 0) {
+                cashTransactionMapper.insert(CashTransaction.builder()
+                        .walletId(wallet.getId())
+                        .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
+                        .amount(chargedPortion)
+                        .balanceAfter(wallet.getChargedBalance() - chargedPortion)  // 실제로 줄어든 충전잔액 (charged 몫만)
+                        .status(CashTransactionStatus.COMPLETED)
+                        .referenceId(challengeId)
+                        .build());
+            }
 
             if (rewardPortion > 0) {
                 cashTransactionMapper.insert(CashTransaction.builder()
