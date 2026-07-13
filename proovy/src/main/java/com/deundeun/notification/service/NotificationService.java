@@ -5,9 +5,11 @@ import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.notification.domain.Notification;
 import com.deundeun.notification.dto.NotificationCreateCommand;
 import com.deundeun.notification.dto.response.*;
+import com.deundeun.notification.event.NotificationCreatedEvent;
 import com.deundeun.notification.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationMapper notificationMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void create(NotificationCreateCommand command) {
@@ -29,6 +32,8 @@ public class NotificationService {
         try {
             notificationMapper.insert(notification);
             log.info("[Notification] 알림 생성 완료: eventKey={}", command.eventKey());
+            eventPublisher.publishEvent(
+                    new NotificationCreatedEvent(command.userId(), NotificationResponse.from(notification)));
         } catch (DuplicateKeyException e) {
             log.debug("[Notification] 중복 알림 무시: eventKey={}", command.eventKey());
         }
@@ -45,6 +50,15 @@ public class NotificationService {
         long totalElements = notificationMapper.countByUserId(userId);
 
         return NotificationPageResponse.of(content, page, size, totalElements);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getNotificationsAfter(Long userId, Long lastEventId, int limit) {
+        log.debug("[Notification] 재연결 시 미수신 알림 조회: userId={}, lastEventId={}, limit={}", userId, lastEventId, limit);
+
+        return notificationMapper.findByUserIdAfterId(userId, lastEventId, limit).stream()
+                .map(NotificationResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)

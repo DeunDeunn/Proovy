@@ -20,6 +20,10 @@ public interface NotificationMapper {
                                      @Param("limit") int limit,
                                      @Param("offset") int offset);
 
+    List<Notification> findByUserIdAfterId(@Param("userId") Long userId,
+                                            @Param("lastEventId") Long lastEventId,
+                                            @Param("limit") int limit);
+
     int countUnread(@Param("userId") Long userId);
 
     int countByUserId(@Param("userId") Long userId);

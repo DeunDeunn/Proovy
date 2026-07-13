@@ -8,4 +8,25 @@
         VALUES (#{walletId}, #{amount}, #{remainingAmount})
     </insert>
 
+    <select id="selectRemainingByWalletIdOrderByChargedAtAsc" resultType="com.deundeun.pay.domain.ChargeLot">
+        SELECT id, wallet_id, amount, remaining_amount, charged_at, withdrawable_at
+        FROM charge_lots
+        WHERE wallet_id = #{walletId}
+          AND remaining_amount > 0
+        ORDER BY charged_at ASC
+    </select>
+
+    <update id="updateRemainingAmount">
+        UPDATE charge_lots
+        SET remaining_amount = #{remainingAmount}
+        WHERE id = #{id}
+    </update>
+
+    <select id="sumWithdrawableRemainingByWalletId" resultType="long">
+        SELECT COALESCE(SUM(remaining_amount), 0)
+        FROM charge_lots
+        WHERE wallet_id = #{walletId}
+          AND withdrawable_at &lt;= now()
+    </select>
+
 </mapper>

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX uq_settlements_challenge_id ON settlements(challenge_id);

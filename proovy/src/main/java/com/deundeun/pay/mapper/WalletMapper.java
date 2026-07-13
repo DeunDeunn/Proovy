@@ -16,4 +16,8 @@ public interface WalletMapper {
     void insertIfAbsent(@Param("userId") Long userId);
 
     void updateChargedBalance(@Param("id") Long id, @Param("chargedBalance") long chargedBalance);
+
+    void updateLockedBalance(@Param("id") Long id, @Param("lockedBalance") long lockedBalance);
+
+    void updateRewardBalance(@Param("id") Long id, @Param("rewardBalance") long rewardBalance);
 }

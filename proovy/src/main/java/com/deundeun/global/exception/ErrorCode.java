@@ -33,12 +33,18 @@ public enum ErrorCode {
     PG_DUPLICATE_REQUEST(HttpStatus.CONFLICT, "CG006", "이미 처리 중이거나 처리된 요청입니다."),
     PG_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "CG007", "PG사 서비스 점검 중입니다. 잠시 후 다시 시도해주세요."),
     PG_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "CG008", "계좌 잔액이 부족하여 결제가 거절되었습니다."),
+    SETTLEMENT_ALREADY_PROCESSED(HttpStatus.CONFLICT, "CG012", "이미 정산 처리된 챌린지입니다."),
     PG_TIME_EXPIRED(HttpStatus.BAD_REQUEST, "CG009", "결제 유효 시간이 만료되었습니다. 다시 시도해주세요."),
     PG_OWNER_AUTH_FAIL(HttpStatus.BAD_REQUEST, "CG010", "본인 인증에 실패했습니다."),
-  
+    INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "CG011", "사용 가능한 잔액이 부족합니다."),
+    SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CG013", "정산 결과를 찾을 수 없습니다."),
+    HOST_REVENUE_NOT_FOUND(HttpStatus.NOT_FOUND, "CG014", "방장 수익 내역을 찾을 수 없습니다."),
+    INVALID_WITHDRAWAL_AMOUNT(HttpStatus.BAD_REQUEST, "CG015", "리워드 출금은 5,000원 이상부터 가능합니다."),
+
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
-    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "알림을 찾을 수 없습니다.");
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "알림을 찾을 수 없습니다."),
+    NOTIFICATION_SUBSCRIBE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "NT003", "알림 구독 연결에 실패했습니다.");
 
     private final HttpStatus status;
     private final String code;

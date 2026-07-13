@@ -35,4 +35,14 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updateLockedBalance">
+        UPDATE wallets
+        SET locked_balance = #{lockedBalance}
+        WHERE id = #{id}
+    </update>
+    <update id="updateRewardBalance">
+        UPDATE wallets
+        SET reward_balance = #{rewardBalance}
+        WHERE id = #{id}
+    </update>
 </mapper>

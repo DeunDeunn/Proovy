@@ -54,4 +54,13 @@
         </if>
     </select>
 
+    <select id="existsSettlementParticipation" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM cash_transactions
+            WHERE wallet_id = #{walletId}
+              AND reference_id = #{referenceId}
+              AND type IN ('CHALLENGE_PRINCIPAL_SUCCESS', 'CHALLENGE_PRINCIPAL_FAIL')
+        )
+    </select>
+
 </mapper>
