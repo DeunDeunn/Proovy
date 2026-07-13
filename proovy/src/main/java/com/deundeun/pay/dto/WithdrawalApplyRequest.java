@@ -4,6 +4,7 @@ import com.deundeun.pay.enums.SourceType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -18,11 +19,14 @@ public class WithdrawalApplyRequest {
       private Long amount;
 
       @NotBlank(message = "은행명을 입력해주세요.")
+      @Size(max = 50, message = "은행명은 50자 이내로 입력해주세요.")
       private String bankName;
 
       @NotBlank(message = "계좌번호를 입력해주세요.")
+      @Size(max = 50, message = "계좌번호는 50자 이내로 입력해주세요.")
       private String accountNumber;
 
       @NotBlank(message = "예금주명을 입력해주세요.")
+      @Size(max = 50, message = "예금주명은 50자 이내로 입력해주세요.")
       private String accountHolderName;
 }
