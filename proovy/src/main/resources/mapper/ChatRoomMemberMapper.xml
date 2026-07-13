@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.chat.mapper.ChatRoomMemberMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_room_members (chat_room_id, user_id, joined_at)
+        VALUES (#{chatRoomId}, #{userId}, #{joinedAt})
+    </insert>
+
+    <select id="findByChatRoomIdAndUserId" resultType="com.deundeun.chat.domain.ChatRoomMember">
+        SELECT id, chat_room_id, user_id, last_read_message_id, last_read_at, joined_at, left_at
+        FROM chat_room_members
+        WHERE chat_room_id = #{chatRoomId}
+          AND user_id = #{userId}
+    </select>
+
+    <select id="findActiveByChatRoomId" resultType="com.deundeun.chat.domain.ChatRoomMember">
+        SELECT id, chat_room_id, user_id, last_read_message_id, last_read_at, joined_at, left_at
+        FROM chat_room_members
+        WHERE chat_room_id = #{chatRoomId}
+          AND left_at IS NULL
+    </select>
+
+    <update id="updateLastRead">
+        UPDATE chat_room_members
+        SET last_read_message_id = #{lastReadMessageId},
+            last_read_at = #{lastReadAt}
+        WHERE chat_room_id = #{chatRoomId}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="leave">
+        UPDATE chat_room_members
+        SET left_at = #{leftAt}
+        WHERE chat_room_id = #{chatRoomId}
+          AND user_id = #{userId}
+    </update>
+
+    <update id="rejoin">
+        UPDATE chat_room_members
+        SET left_at = NULL
+        WHERE chat_room_id = #{chatRoomId}
+          AND user_id = #{userId}
+    </update>
+
+</mapper>
