@@ -49,7 +49,7 @@ public class WithdrawalService {
             if (amount < MIN_REWARD_WITHDRAWAL_AMOUNT) {
                 throw new ApiException(ErrorCode.INVALID_WITHDRAWAL_AMOUNT);
             }
-            if (wallet.getRewardBalance() < amount) {
+            if (wallet.getUnlockedRewardBalance() < amount) {
                 throw new ApiException(ErrorCode.INSUFFICIENT_BALANCE);
             }
             walletService.updateRewardBalance(wallet.getId(), wallet.getRewardBalance() - amount);

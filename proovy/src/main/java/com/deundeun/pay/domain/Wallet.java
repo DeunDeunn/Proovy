@@ -18,11 +18,20 @@ public class Wallet {
     private Long userId;
     private Long chargedBalance;
     private Long rewardBalance;
-    private Long lockedBalance;
+    private Long lockedChargedBalance;
+    private Long lockedRewardBalance;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    public long getLockedBalance() {
+        return lockedChargedBalance + lockedRewardBalance;
+    }
+
     public long getAvailableBalance() {
-        return chargedBalance + rewardBalance - lockedBalance;
+        return chargedBalance + rewardBalance - getLockedBalance();
+    }
+
+    public long getUnlockedRewardBalance() {
+        return rewardBalance - lockedRewardBalance;
     }
 }

@@ -29,4 +29,10 @@
           AND withdrawable_at &lt;= now()
     </select>
 
+    <update id="incrementRemainingAmount">
+        UPDATE charge_lots
+        SET remaining_amount = remaining_amount + #{amount}
+        WHERE id = #{id}
+    </update>
+
 </mapper>
