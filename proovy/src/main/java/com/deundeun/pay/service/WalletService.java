@@ -105,6 +105,30 @@ public class WalletService implements WalletHoldService {
     }
 
     /**
+     * 챌린지 시작 전 취소처럼, 손실 없이 홀딩을 전액 그대로 돌려준다.
+     * 정산 성공 시 참가비를 돌려주는 것과 로직이 동일해서 releaseChargeLotsFifo를 그대로 재사용한다.
+     */
+    @Override
+    @Transactional
+    public void cancel(Long userId, long amount, Long referenceId) {
+        Wallet wallet = getWalletForUpdate(userId);
+
+        long chargedPortion = releaseChargeLotsFifo(wallet.getId(), referenceId);
+        long rewardPortion = amount - chargedPortion;
+        updateLockedChargedBalance(wallet.getId(), wallet.getLockedChargedBalance() - chargedPortion);
+        updateLockedRewardBalance(wallet.getId(), wallet.getLockedRewardBalance() - rewardPortion);
+
+        cashTransactionMapper.insert(CashTransaction.builder()
+                .walletId(wallet.getId())
+                .type(CashTransactionType.CHALLENGE_PRINCIPAL_REFUND)
+                .amount(amount)
+                .balanceAfter(wallet.getAvailableBalance() + amount)  // 홀딩 해제로 늘어난 사용가능잔액
+                .status(CashTransactionStatus.COMPLETED)
+                .referenceId(referenceId)
+                .build());
+    }
+
+    /**
      * 출금처럼 영구적으로 빠져나가는 돈일 때 사용. 복구할 일이 없으니 어느 lot에서 뺐는지 따로 기록하지 않는다.
      */
     public void deductChargeLotsFifo(Long walletId, long amount) {

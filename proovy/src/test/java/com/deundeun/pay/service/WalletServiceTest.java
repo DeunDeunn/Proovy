@@ -220,6 +220,57 @@ class WalletServiceTest {
     }
 
     @Test
+    void cancel_fullyChargedHold_releasesLockedChargedAndRecordsRefundTransaction() {
+        Long userId = 1L;
+        Wallet wallet = Wallet.builder()
+                .id(10L).userId(userId)
+                .chargedBalance(10_000L).rewardBalance(0L)
+                .lockedChargedBalance(3_000L).lockedRewardBalance(0L)
+                .build();
+        when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
+
+        ChargeLotAllocation allocation = ChargeLotAllocation.builder().id(1L).chargeLotId(100L).amount(3_000L).build();
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L))
+                .thenReturn(List.of(allocation));
+
+        walletService.cancel(userId, 3_000L, 99L);
+
+        verify(chargeLotMapper).incrementRemainingAmount(100L, 3_000L); // releaseChargeLotsFifo 재사용 확인
+        verify(walletMapper).updateLockedChargedBalance(10L, 0L); // 3,000 - 3,000(charged 몫)
+        verify(walletMapper).updateLockedRewardBalance(10L, 0L);  // 0 - 0(reward 몫)
+
+        ArgumentCaptor<CashTransaction> captor = ArgumentCaptor.forClass(CashTransaction.class);
+        verify(cashTransactionMapper).insert(captor.capture());
+        CashTransaction saved = captor.getValue();
+        assertThat(saved.getType()).isEqualTo(CashTransactionType.CHALLENGE_PRINCIPAL_REFUND);
+        assertThat(saved.getAmount()).isEqualTo(3_000L);
+        assertThat(saved.getReferenceId()).isEqualTo(99L);
+        assertThat(saved.getBalanceAfter()).isEqualTo(10_000L); // availableBalance(7000) + 3000
+    }
+
+    @Test
+    void cancel_mixedHold_splitsLockedReleaseBetweenChargedAndReward() {
+        Long userId = 1L;
+        // 5,000 홀딩 중 2,000은 charged, 3,000은 reward 몫이었던 상황
+        Wallet wallet = Wallet.builder()
+                .id(10L).userId(userId)
+                .chargedBalance(2_000L).rewardBalance(8_000L)
+                .lockedChargedBalance(2_000L).lockedRewardBalance(3_000L)
+                .build();
+        when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
+
+        ChargeLotAllocation allocation = ChargeLotAllocation.builder().id(1L).chargeLotId(100L).amount(2_000L).build();
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L))
+                .thenReturn(List.of(allocation));
+
+        walletService.cancel(userId, 5_000L, 99L);
+
+        verify(chargeLotMapper).incrementRemainingAmount(100L, 2_000L);
+        verify(walletMapper).updateLockedChargedBalance(10L, 0L); // 2,000 - 2,000
+        verify(walletMapper).updateLockedRewardBalance(10L, 0L);  // 3,000 - 3,000(reward 몫)
+    }
+
+    @Test
     void releaseChargeLotsFifo_restoresExactlyTheRecordedAllocationsAndReturnsTotal() {
         ChargeLotAllocation allocation1 = ChargeLotAllocation.builder().id(1L).chargeLotId(100L).amount(3_000L).build();
         ChargeLotAllocation allocation2 = ChargeLotAllocation.builder().id(2L).chargeLotId(200L).amount(1_500L).build();
