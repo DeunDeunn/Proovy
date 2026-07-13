@@ -37,6 +37,8 @@ public enum ErrorCode {
 
     //chat
     CHAT_ROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "CH001", "해당 채팅방에 접근할 권한이 없습니다."),
+    CHAT_ROOM_ALREADY_LEFT(HttpStatus.CONFLICT, "CH002", "이미 나간 채팅방입니다."),
+    CHAT_ROOM_ALREADY_JOINED(HttpStatus.CONFLICT, "CH003", "이미 참여 중인 채팅방입니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
