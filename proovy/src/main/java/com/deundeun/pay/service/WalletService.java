@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -148,8 +149,12 @@ public class WalletService implements WalletHoldService {
      */
     public long releaseChargeLotsFifo(Long walletId, Long referenceId) {
         long totalRestored = 0;
-        for (ChargeLotAllocation allocation : chargeLotAllocationMapper.selectByWalletIdAndReferenceId(walletId, referenceId)) {
+        LocalDateTime releasedAt = LocalDateTime.now();
+        // released_at IS NULL인 것만 대상으로 해서, successUserIds에 같은 유저가 중복으로 들어와도
+        // 같은 홀딩이 두 번 복구되지 않는다.
+        for (ChargeLotAllocation allocation : chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(walletId, referenceId)) {
             chargeLotMapper.incrementRemainingAmount(allocation.getChargeLotId(), allocation.getAmount());
+            chargeLotAllocationMapper.markReleased(allocation.getId(), releasedAt);
             totalRestored += allocation.getAmount();
         }
         return totalRestored;

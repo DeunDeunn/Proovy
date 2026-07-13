@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -220,21 +221,24 @@ class WalletServiceTest {
 
     @Test
     void releaseChargeLotsFifo_restoresExactlyTheRecordedAllocationsAndReturnsTotal() {
-        ChargeLotAllocation allocation1 = ChargeLotAllocation.builder().chargeLotId(100L).amount(3_000L).build();
-        ChargeLotAllocation allocation2 = ChargeLotAllocation.builder().chargeLotId(200L).amount(1_500L).build();
-        when(chargeLotAllocationMapper.selectByWalletIdAndReferenceId(10L, 99L))
+        ChargeLotAllocation allocation1 = ChargeLotAllocation.builder().id(1L).chargeLotId(100L).amount(3_000L).build();
+        ChargeLotAllocation allocation2 = ChargeLotAllocation.builder().id(2L).chargeLotId(200L).amount(1_500L).build();
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L))
                 .thenReturn(List.of(allocation1, allocation2));
 
         long restored = walletService.releaseChargeLotsFifo(10L, 99L);
 
         verify(chargeLotMapper).incrementRemainingAmount(100L, 3_000L);
         verify(chargeLotMapper).incrementRemainingAmount(200L, 1_500L);
+        verify(chargeLotAllocationMapper).markReleased(eq(1L), any(LocalDateTime.class));
+        verify(chargeLotAllocationMapper).markReleased(eq(2L), any(LocalDateTime.class));
         assertThat(restored).isEqualTo(4_500L);
     }
 
     @Test
     void releaseChargeLotsFifo_noAllocations_doesNothingAndReturnsZero() {
-        when(chargeLotAllocationMapper.selectByWalletIdAndReferenceId(10L, 99L)).thenReturn(List.of());
+        // successUserIds에 같은 유저가 중복으로 들어와서 이미 처리된 경우도, 애초에 기록이 없는 경우도 여기 해당
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L)).thenReturn(List.of());
 
         long restored = walletService.releaseChargeLotsFifo(10L, 99L);
 

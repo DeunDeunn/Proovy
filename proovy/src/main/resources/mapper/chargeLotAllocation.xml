@@ -8,9 +8,21 @@
     </insert>
 
     <select id="selectByWalletIdAndReferenceId" resultType="com.deundeun.pay.domain.ChargeLotAllocation">
-        SELECT id, charge_lot_id, wallet_id, reference_id, amount, created_at
+        SELECT id, charge_lot_id, wallet_id, reference_id, amount, created_at, released_at
         FROM charge_lot_allocations
         WHERE wallet_id = #{walletId} AND reference_id = #{referenceId}
     </select>
+
+    <select id="selectUnreleasedByWalletIdAndReferenceId" resultType="com.deundeun.pay.domain.ChargeLotAllocation">
+        SELECT id, charge_lot_id, wallet_id, reference_id, amount, created_at, released_at
+        FROM charge_lot_allocations
+        WHERE wallet_id = #{walletId} AND reference_id = #{referenceId} AND released_at IS NULL
+    </select>
+
+    <update id="markReleased">
+        UPDATE charge_lot_allocations
+        SET released_at = #{releasedAt}
+        WHERE id = #{id}
+    </update>
 
 </mapper>

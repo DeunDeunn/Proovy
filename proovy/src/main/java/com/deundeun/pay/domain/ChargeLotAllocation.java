@@ -20,4 +20,5 @@ public class ChargeLotAllocation {
     private Long referenceId;
     private Long amount;
     private LocalDateTime createdAt;
+    private LocalDateTime releasedAt;
 }
