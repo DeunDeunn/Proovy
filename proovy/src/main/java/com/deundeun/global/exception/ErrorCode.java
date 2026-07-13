@@ -31,6 +31,7 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "CG011", "사용 가능한 잔액이 부족합니다."),
     SETTLEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CG013", "정산 결과를 찾을 수 없습니다."),
     HOST_REVENUE_NOT_FOUND(HttpStatus.NOT_FOUND, "CG014", "방장 수익 내역을 찾을 수 없습니다."),
+    INVALID_WITHDRAWAL_AMOUNT(HttpStatus.BAD_REQUEST, "CG015", "리워드 출금은 5,000원 이상부터 가능합니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),

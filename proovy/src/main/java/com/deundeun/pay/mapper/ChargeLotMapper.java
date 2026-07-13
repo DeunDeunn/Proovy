@@ -19,4 +19,9 @@ public interface ChargeLotMapper {
     List<ChargeLot> selectRemainingByWalletIdOrderByChargedAtAsc(@Param("walletId") Long walletId);
 
     void updateRemainingAmount(@Param("id") Long id, @Param("remainingAmount") long remainingAmount);
+
+    /**
+     * 충전일로부터 7일이 지나(withdrawable_at <= now()) 지금 당장 출금 가능한 lot들의 remaining_amount 합.
+     */
+    long sumWithdrawableRemainingByWalletId(@Param("walletId") Long walletId);
 }
