@@ -10,6 +10,7 @@ import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.TransactionHistoryResponse;
 import com.deundeun.pay.dto.TransactionItem;
 import com.deundeun.pay.dto.WalletResponse;
+import com.deundeun.pay.dto.WithdrawableAmountResponse;
 import com.deundeun.pay.mapper.CashTransactionMapper;
 import com.deundeun.pay.mapper.ChargeLotMapper;
 import com.deundeun.pay.mapper.WalletMapper;
@@ -96,7 +97,7 @@ public class WalletService implements WalletHoldService {
         return transaction.getId();
     }
 
-    private void deductChargeLotsFifo(Long walletId, long amount) {
+    public void deductChargeLotsFifo(Long walletId, long amount) {
         long remaining = amount;
         for (ChargeLot lot : chargeLotMapper.selectRemainingByWalletIdOrderByChargedAtAsc(walletId)) {
             if (remaining <= 0) {
@@ -117,6 +118,23 @@ public class WalletService implements WalletHoldService {
                 .lockedBalance(wallet.getLockedBalance())
                 .availableBalance(wallet.getAvailableBalance())
                 .build();
+    }
+
+    @Transactional
+    public WithdrawableAmountResponse getWithdrawableAmount(Long userId) {
+        Wallet wallet = getOrCreateWallet(userId);
+        return WithdrawableAmountResponse.builder()
+                .chargedWithdrawableAmount(getChargedWithdrawableAmount(wallet.getId()))
+                .rewardWithdrawableAmount(wallet.getRewardBalance())
+                .build();
+    }
+
+    /**
+     * 충전일로부터 7일이 지나 지금 당장 출금 가능한 charged_balance 부분.
+     * 출금 신청 시 잔액 검증에도 이 값을 그대로 사용한다.
+     */
+    public long getChargedWithdrawableAmount(Long walletId) {
+        return chargeLotMapper.sumWithdrawableRemainingByWalletId(walletId);
     }
 
     @Transactional

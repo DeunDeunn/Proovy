@@ -5,6 +5,7 @@ import com.deundeun.global.common.CurrentUser;
 import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.dto.TransactionHistoryResponse;
 import com.deundeun.pay.dto.WalletResponse;
+import com.deundeun.pay.dto.WithdrawableAmountResponse;
 import com.deundeun.pay.service.WalletService;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,12 @@ public class WalletController {
     public ApiResponse<WalletResponse> getMyWallet() {
         Long userId = CurrentUser.getUserId();
         return ApiResponse.success(walletService.getWalletView(userId));
+    }
+
+    @GetMapping("/api/wallets/withdrawable-amount")
+    public ApiResponse<WithdrawableAmountResponse> getWithdrawableAmount() {
+        Long userId = CurrentUser.getUserId();
+        return ApiResponse.success(walletService.getWithdrawableAmount(userId));
     }
 
     @GetMapping("/api/wallets/transactions")
