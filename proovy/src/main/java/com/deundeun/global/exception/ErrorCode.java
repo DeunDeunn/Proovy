@@ -35,6 +35,9 @@ public enum ErrorCode {
     WITHDRAWAL_NOT_FOUND(HttpStatus.NOT_FOUND, "CG016", "출금 신청 내역을 찾을 수 없습니다."),
     WITHDRAWAL_ALREADY_PROCESSED(HttpStatus.CONFLICT, "CG017", "이미 처리된 출금 신청입니다."),
 
+    //chat
+    CHAT_ROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "CH001", "해당 채팅방에 접근할 권한이 없습니다."),
+
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "알림을 찾을 수 없습니다."),
