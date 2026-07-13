@@ -267,6 +267,33 @@ class SettlementServiceTest {
     }
 
     @Test
+    void settle_duplicateUserIdInSuccessList_processesUserOnlyOnce() {
+        // 호출자가 같은 성공자를 리스트에 실수로 두 번 넘긴 상황
+        Long challengeId = 1L;
+        Long successUser = 10L;
+        Long hostId = 99L;
+        long perPersonFee = 1_000L;
+        stubInsertGeneratesId(settlementMapper, 1L);
+
+        when(walletService.getWalletForUpdate(successUser)).thenReturn(walletWith(101L, 5_000L, 0L, 1_000L));
+        when(walletService.getWalletForUpdate(hostId)).thenReturn(walletWith(104L, 0L, 0L, 0L));
+        when(walletService.releaseChargeLotsFifo(101L, challengeId)).thenReturn(1_000L);
+
+        settlementService.settle(challengeId, List.of(successUser, successUser), List.of(), hostId, false, perPersonFee);
+
+        // 실패자가 없으니 participantShare=0, 방장이 전부(failurePool=0이라 사실 전부 0)
+        verify(walletService, times(1)).getWalletForUpdate(successUser); // 지갑 조회 자체가 한 번만
+        verify(walletService, times(1)).updateLockedChargedBalance(101L, 0L);
+        verify(walletService, times(1)).updateLockedRewardBalance(101L, 0L);
+        verify(walletService, times(1)).updateRewardBalance(101L, 0L); // profitPerUser=0(실패자 없어 나눠줄 몫도 0)
+        verify(cashTransactionMapper, times(3)).insert(any(CashTransaction.class)); // HOST_FEE + SUCCESS + PROFIT_DISTRIBUTION, 중복 없이 한 세트만
+
+        ArgumentCaptor<Settlement> settlementCaptor = ArgumentCaptor.forClass(Settlement.class);
+        verify(settlementMapper).insert(settlementCaptor.capture());
+        assertThat(settlementCaptor.getValue().getSuccessUserCount()).isEqualTo(1); // 중복 제거 후 1명으로 집계
+    }
+
+    @Test
     void getSettlementResult_requesterIsParticipant_returnsIt() {
         SettlementResultResponse response = SettlementResultResponse.builder().challengeId(1L).build();
         Long requesterId = 10L;
