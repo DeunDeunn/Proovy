@@ -27,11 +27,11 @@ public class ChatRoom {
         return new ChatRoom(challengeId, null, ChatRoomType.CHALLENGE);
     }
 
-    public static ChatRoom createDirectRoom(Long userId1, Long userId2) {
-        return new ChatRoom(null, buildDirectChatKey(userId1, userId2), ChatRoomType.DIRECT);
+    public static ChatRoom createDirectRoom(String directChatKey) {
+        return new ChatRoom(null, directChatKey, ChatRoomType.DIRECT);
     }
 
-    private static String buildDirectChatKey(Long userId1, Long userId2) {
+    public static String buildDirectChatKey(Long userId1, Long userId2) {
         long min = Math.min(userId1, userId2);
         long max = Math.max(userId1, userId2);
         return min + ":" + max;

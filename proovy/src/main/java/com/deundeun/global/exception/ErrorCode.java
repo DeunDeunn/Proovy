@@ -38,6 +38,13 @@ public enum ErrorCode {
     HOLD_ALREADY_CANCELLED(HttpStatus.CONFLICT, "CG019", "이미 취소 처리된 홀딩입니다."),
     INVALID_CANCEL_AMOUNT(HttpStatus.BAD_REQUEST, "CG020", "취소 금액이 원래 홀딩 금액과 일치하지 않습니다."),
 
+    //chat
+    CHAT_ROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "CH001", "해당 채팅방에 접근할 권한이 없습니다."),
+    CHAT_ROOM_ALREADY_LEFT(HttpStatus.CONFLICT, "CH002", "이미 나간 채팅방입니다."),
+    CHAT_ROOM_ALREADY_JOINED(HttpStatus.CONFLICT, "CH003", "이미 참여 중인 채팅방입니다."),
+    CHAT_ROOM_SELF_CHAT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH004", "자기 자신과는 1:1 채팅방을 생성할 수 없습니다."),
+    CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CH005", "존재하지 않는 채팅방입니다."),
+
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "알림을 찾을 수 없습니다."),

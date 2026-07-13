@@ -26,4 +26,8 @@ public class ChatRoomMember {
     public static ChatRoomMember join(Long chatRoomId, Long userId) {
         return new ChatRoomMember(chatRoomId, userId);
     }
+
+    public boolean isActive() {
+        return this.leftAt == null;
+    }
 }
