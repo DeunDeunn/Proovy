@@ -3,6 +3,7 @@ package com.deundeun.pay.service;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
+import com.deundeun.pay.domain.ChargeLot;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.domain.WithdrawalRequest;
 import com.deundeun.pay.dto.WithdrawalApplyRequest;
@@ -14,6 +15,7 @@ import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.enums.SourceType;
 import com.deundeun.pay.enums.WithdrawalStatus;
 import com.deundeun.pay.mapper.CashTransactionMapper;
+import com.deundeun.pay.mapper.ChargeLotMapper;
 import com.deundeun.pay.mapper.WithdrawalMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class WithdrawalService {
     private final WithdrawalMapper withdrawalMapper;
     private final WalletService walletService;
     private final CashTransactionMapper cashTransactionMapper;
+    private final ChargeLotMapper chargeLotMapper;
 
     @Transactional
     public WithdrawalApplyResponse applyWithdrawal(Long userId, WithdrawalApplyRequest request) {
@@ -114,11 +117,85 @@ public class WithdrawalService {
                 .build();
     }
 
+    private WithdrawalRequest getPendingWithdrawalOrThrow(Long withdrawalId) {
+        WithdrawalRequest withdrawalRequest = withdrawalMapper.selectByIdForUpdate(withdrawalId);
+        if (withdrawalRequest == null) {
+            throw new ApiException(ErrorCode.WITHDRAWAL_NOT_FOUND);
+        }
+        if (withdrawalRequest.getStatus() != WithdrawalStatus.PENDING) {
+            throw new ApiException(ErrorCode.WITHDRAWAL_ALREADY_PROCESSED);
+        }
+        return withdrawalRequest;
+    }
+
     private long calculateFee(SourceType sourceType, long amount) {
         BigDecimal rate = sourceType == SourceType.REWARD ? REWARD_FEE_RATE : CHARGED_FEE_RATE;
         return BigDecimal.valueOf(amount)
                 .multiply(rate)
                 .setScale(0, RoundingMode.FLOOR)
                 .longValueExact();
+    }
+    @Transactional
+    public WithdrawalItem completeWithdrawal(Long withdrawalId) {
+        WithdrawalRequest withdrawalRequest = getPendingWithdrawalOrThrow(withdrawalId);
+
+        LocalDateTime processedAt = LocalDateTime.now();
+        withdrawalMapper.completeById(withdrawalId, processedAt);
+
+        withdrawalRequest.setStatus(WithdrawalStatus.COMPLETED);
+        withdrawalRequest.setProcessedAt(processedAt);
+        return toWithdrawalItem(withdrawalRequest);
+    }
+
+    @Transactional
+    public WithdrawalItem rejectWithdrawal(Long withdrawalId, String rejectReason) {
+        WithdrawalRequest withdrawalRequest = getPendingWithdrawalOrThrow(withdrawalId);
+        Wallet wallet = walletService.getWalletByIdForUpdate(withdrawalRequest.getWalletId());
+        long amount = withdrawalRequest.getAmount();
+
+        if (withdrawalRequest.getSourceType() == SourceType.REWARD) {
+            walletService.updateRewardBalance(wallet.getId(), wallet.getRewardBalance() + amount);
+        } else {
+            walletService.updateChargedBalance(wallet.getId(), wallet.getChargedBalance() + amount);
+            chargeLotMapper.insert(ChargeLot.builder()
+                    .walletId(wallet.getId())
+                    .amount(amount)
+                    .remainingAmount(amount)
+                    .build());
+        }
+
+        cashTransactionMapper.insert(CashTransaction.builder()
+                .walletId(wallet.getId())
+                .type(CashTransactionType.WITHDRAWAL_REFUND)
+                .amount(amount)
+                .balanceAfter(wallet.getAvailableBalance() + amount)
+                .status(CashTransactionStatus.COMPLETED)
+                .referenceId(withdrawalId)
+                .build());
+
+        LocalDateTime processedAt = LocalDateTime.now();
+        withdrawalMapper.rejectById(withdrawalId, rejectReason, processedAt);
+
+        withdrawalRequest.setStatus(WithdrawalStatus.REJECTED);
+        withdrawalRequest.setRejectReason(rejectReason);
+        withdrawalRequest.setProcessedAt(processedAt);
+        return toWithdrawalItem(withdrawalRequest);
+    }
+
+    private WithdrawalItem toWithdrawalItem(WithdrawalRequest withdrawalRequest) {
+        return WithdrawalItem.builder()
+                .id(withdrawalRequest.getId())
+                .sourceType(withdrawalRequest.getSourceType())
+                .amount(withdrawalRequest.getAmount())
+                .feeAmount(withdrawalRequest.getFeeAmount())
+                .netTransferAmount(withdrawalRequest.getNetTransferAmount())
+                .bankName(withdrawalRequest.getBankName())
+                .accountNumber(withdrawalRequest.getAccountNumber())
+                .accountHolderName(withdrawalRequest.getAccountHolderName())
+                .status(withdrawalRequest.getStatus())
+                .rejectReason(withdrawalRequest.getRejectReason())
+                .requestedAt(withdrawalRequest.getRequestedAt())
+                .processedAt(withdrawalRequest.getProcessedAt())
+                .build();
     }
 }
