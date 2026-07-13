@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.chat.mapper.ChatAttachmentMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_attachments (uploader_id, file_url, original_file_name, file_type, file_size, created_at)
+        VALUES (#{uploaderId}, #{fileUrl}, #{originalFileName}, #{fileType}, #{fileSize}, #{createdAt})
+    </insert>
+
+    <update id="linkToMessage">
+        UPDATE chat_attachments
+        SET message_id = #{messageId}
+        WHERE id = #{id}
+          AND uploader_id = #{uploaderId}
+    </update>
+
+</mapper>
