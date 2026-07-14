@@ -227,10 +227,13 @@ public class CertificationService {
         }
 
         // 수정도 인증 등록 가능 시간대(KST) 안에서만 가능
+        // challenge_participant_id에 FK가 없어 연관이 깨진 글이 들어올 수 있음.
+        // 조인 결과가 null이면 검증을 건너뛰지 말고 실패 처리(검증 우회 방지).
         ChallengeForCertification challenge = certificationMapper.findChallengeByPostId(postId);
-        if (challenge != null) {
-            validateCertTimeRange(challenge);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
         }
+        validateCertTimeRange(challenge);
 
         // 본문·대표이미지 수정 + PENDING 회귀
         certificationMapper.updatePost(postId, request.getContents(), request.getThumbnailImage());
