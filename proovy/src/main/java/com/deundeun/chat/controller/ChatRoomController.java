@@ -22,9 +22,9 @@ public class ChatRoomController {
 
     @PostMapping("/direct-rooms")
     public ApiResponse<DirectChatRoomResponse> createOrGetDirectRoom(
-        @RequestParam Long userId, //TODO 인증 붙으면 로그인 사용자 ID로 대체
         @RequestBody @Valid DirectChatRoomRequest request
     ) {
+        Long userId = CurrentUser.getUserId();
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId, request.targetUserId());
         String message = response.created() ? "1:1 채팅방을 생성했습니다." : "1:1 채팅방을 조회했습니다.";
 
@@ -32,10 +32,8 @@ public class ChatRoomController {
     }
 
     @GetMapping("/challenge-rooms/{challengeId}")
-    public ApiResponse<ChallengeChatRoomResponse> getChallengeRoom(
-        @RequestParam Long userId, //TODO 인증 붙으면 로그인 사용자 ID로 대체
-        @PathVariable Long challengeId
-    ) {
+    public ApiResponse<ChallengeChatRoomResponse> getChallengeRoom(@PathVariable Long challengeId) {
+        Long userId = CurrentUser.getUserId();
         ChallengeChatRoomResponse response = chatRoomService.getChallengeRoom(challengeId, userId);
 
         return ApiResponse.success(response, "챌린지 채팅방을 조회했습니다.");
