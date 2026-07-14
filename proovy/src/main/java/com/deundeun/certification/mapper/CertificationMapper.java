@@ -50,12 +50,12 @@ public interface CertificationMapper {
    // 승인/반려용: 글 상태 + 방장
    PostReviewContext findPostReviewContext(Long postId);
 
-   // 글 승인 (approvalType: MANUAL=방장수동 / AUTO=스케줄러자동)
-   void approvePost(@Param("postId") Long postId,
-                    @Param("approvalType") ApprovalType approvalType);
+   // 글 승인 (approvalType: MANUAL=방장수동 / AUTO=스케줄러자동). 반환=영향받은 행 수
+   int approvePost(@Param("postId") Long postId,
+                   @Param("approvalType") ApprovalType approvalType);
 
-   // 글 반려
-   void rejectPost(@Param("postId") Long postId, @Param("reason") String reason);
+   // 글 반려. 반환=영향받은 행 수
+   int rejectPost(@Param("postId") Long postId, @Param("reason") String reason);
 
    // 특정 챌린지의 승인대기 인증글 목록 (방장 검수용)
    List<PendingCertificationResponse> findPendingCertifications(Long challengeId);

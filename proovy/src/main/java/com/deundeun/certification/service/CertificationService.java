@@ -149,7 +149,11 @@ public class CertificationService {
         if (ctx.getStatus() != CertificationStatus.PENDING) {
             throw new ApiException(ErrorCode.NOT_PENDING_POST);
         }
-        certificationMapper.approvePost(postId, ApprovalType.MANUAL);
+        // 동시 요청 방어: PENDING일 때만 갱신되므로, 0행이면 이미 처리된 것 → 차단(이벤트도 발행 안 함)
+        int updated = certificationMapper.approvePost(postId, ApprovalType.MANUAL);
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.NOT_PENDING_POST);
+        }
         // 작성자에게 "승인됨" 알림 (실제 발송은 알림 도메인이 처리)
         eventPublisher.publishEvent(new VerificationApprovedEvent(ctx.getAuthorId(), postId));
     }
@@ -175,7 +179,11 @@ public class CertificationService {
         if (ctx.getStatus() != CertificationStatus.PENDING) {
             throw new ApiException(ErrorCode.NOT_PENDING_POST);
         }
-        certificationMapper.rejectPost(postId, request.getReason());
+        // 동시 요청 방어: PENDING일 때만 갱신되므로, 0행이면 이미 처리된 것 → 차단(이벤트도 발행 안 함)
+        int updated = certificationMapper.rejectPost(postId, request.getReason());
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.NOT_PENDING_POST);
+        }
         // 작성자에게 반려됐다고 알림
         eventPublisher.publishEvent(new VerificationRejectedEvent(ctx.getAuthorId(), postId));
         // TODO: 반려글 24시간 후 자동삭제 (스케줄러 — 별도)

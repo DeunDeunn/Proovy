@@ -111,20 +111,23 @@
     </select>
 
     <!-- 글 승인 (approval_type은 파라미터로: MANUAL/AUTO) -->
+    <!-- 상태 조건: 동시 요청 방어 — PENDING일 때만 갱신, 아니면 0행 -->
     <update id="approvePost">
         UPDATE certification_posts
         SET certification_status = 'APPROVED',
             approval_type = #{approvalType}
         WHERE id = #{postId}
+          AND certification_status = 'PENDING'
     </update>
 
-    <!-- 글 반려 -->
+    <!-- 글 반려 (상태 조건: 동시 요청 방어 — PENDING일 때만 갱신, 아니면 0행) -->
     <update id="rejectPost">
         UPDATE certification_posts
         SET certification_status = 'REJECTED',
             rejection_reason = #{reason},
             rejected_at = now()
         WHERE id = #{postId}
+          AND certification_status = 'PENDING'
     </update>
 
     <!-- 특정 챌린지의 검수 대기(PENDING) 목록 (오래된 것부터) -->
