@@ -15,6 +15,10 @@ public class ChatRoomMemberFinder {
     private final ChatRoomMapper chatRoomMapper;
     private final ChatRoomMemberMapper chatRoomMemberMapper;
 
+    public void validateMember(Long chatRoomId, Long userId) {
+        findMember(chatRoomId, userId);
+    }
+
     public ChatRoomMember findMember(Long chatRoomId, Long userId) {
         chatRoomMapper.findById(chatRoomId)
             .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_NOT_FOUND));

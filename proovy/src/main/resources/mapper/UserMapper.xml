@@ -19,6 +19,16 @@
           AND deleted_at IS NULL
     </select>
 
+    <select id="findByIds" resultType="com.deundeun.auth.domain.User">
+        SELECT id, provider, provider_id, email, nickname, profile_image_url, role,
+               created_at, updated_at, deleted_at, suspended_from, suspended_until
+        FROM users
+        WHERE id IN
+        <foreach item="userId" collection="ids" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (provider, provider_id, email, nickname, profile_image_url, role)
         VALUES (#{provider}, #{providerId}, #{email,jdbcType=VARCHAR}, #{nickname}, #{profileImageUrl}, #{role})
