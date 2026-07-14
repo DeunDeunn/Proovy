@@ -52,14 +52,17 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             expireCookie(response, "reauthUid");
 
             String redirectUrl;
-            Long expectedUserId = Long.valueOf(reauthUid);
-            if (userId.equals(expectedUserId) && reauthTokenRepository.isPending(expectedUserId)) {
-                reauthTokenRepository.clearPending(expectedUserId);
-                reauthTokenRepository.markVerified(expectedUserId);
-                redirectUrl = frontendUrl + "/mypage/withdraw?reauth=true";
-            } else {
-                reauthTokenRepository.clearPending(expectedUserId);
-                String provider = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+            String provider = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+            try {
+                Long expectedUserId = Long.valueOf(reauthUid);
+                if (userId.equals(expectedUserId) && reauthTokenRepository.isPending(expectedUserId)) {
+                    reauthTokenRepository.clearPending(expectedUserId);
+                    reauthTokenRepository.markVerified(expectedUserId);
+                    redirectUrl = frontendUrl + "/mypage/withdraw?reauth=true";
+                } else {
+                    redirectUrl = frontendUrl + "/mypage/withdraw?reauth=false&error=" + provider + "_reauth_failed";
+                }
+            } catch (NumberFormatException e) {
                 redirectUrl = frontendUrl + "/mypage/withdraw?reauth=false&error=" + provider + "_reauth_failed";
             }
 

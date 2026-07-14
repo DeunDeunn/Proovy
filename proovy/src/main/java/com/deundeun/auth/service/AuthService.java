@@ -15,6 +15,7 @@ import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.mapper.WalletMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -64,20 +65,29 @@ public class AuthService {
     }
 
     public void checkNicknameDuplicate(String nickname) {
+        validateNicknameFormat(nickname);
         if (userMapper.existsByNickname(nickname, null)) {
             throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
         }
     }
 
     public NicknameUpdateResponse updateNickname(Long userId, String nickname) {
-        if (nickname == null || nickname.length() < 2 || nickname.length() > 10) {
-            throw new ApiException(ErrorCode.NICKNAME_INVALID);
-        }
+        validateNicknameFormat(nickname);
         if (userMapper.existsByNickname(nickname, userId)) {
             throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
         }
-        userMapper.updateNickname(userId, nickname);
+        try {
+            userMapper.updateNickname(userId, nickname);
+        } catch (DataIntegrityViolationException e) {
+            throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
+        }
         return new NicknameUpdateResponse(nickname);
+    }
+
+    private void validateNicknameFormat(String nickname) {
+        if (nickname == null || nickname.length() < 2 || nickname.length() > 10) {
+            throw new ApiException(ErrorCode.NICKNAME_INVALID);
+        }
     }
 
     public ConnectStatusResponse getConnectStatus(Long userId, String provider) {

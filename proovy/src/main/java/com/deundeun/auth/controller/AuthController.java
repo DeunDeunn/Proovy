@@ -81,36 +81,20 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal CustomUserDetails userDetails) {
         authService.logout(userDetails.getUserId());
-
-        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
-        headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-
         return ResponseEntity.ok()
-                .headers(headers)
+                .headers(expireAuthCookies())
                 .body(ApiResponse.success(null));
     }
 
     @DeleteMapping("/account")
     public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
         authService.withdraw(userDetails.getUserId());
+        return ResponseEntity.ok()
+                .headers(expireAuthCookies())
+                .body(ApiResponse.success(null));
+    }
 
+    private HttpHeaders expireAuthCookies() {
         ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
                 .httpOnly(true)
                 .secure(cookieSecure)
@@ -130,10 +114,7 @@ public class AuthController {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
         headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(ApiResponse.success(null));
+        return headers;
     }
 
     private static final Set<String> REAUTH_PROVIDERS = Set.of("google", "kakao");
