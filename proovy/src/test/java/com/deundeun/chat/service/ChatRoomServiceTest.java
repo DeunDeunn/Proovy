@@ -3,6 +3,7 @@ package com.deundeun.chat.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -10,8 +11,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -21,10 +24,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.deundeun.auth.domain.User;
+import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.challenge.domain.Challenge;
+import com.deundeun.challenge.mapper.ChallengeMapper;
+import com.deundeun.chat.domain.ChatMessageType;
 import com.deundeun.chat.domain.ChatRoom;
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.domain.ChatRoomType;
+import com.deundeun.chat.dto.ChatRoomListItem;
 import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
+import com.deundeun.chat.dto.response.ChatRoomListResponse;
+import com.deundeun.chat.dto.response.ChatRoomSummaryResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
@@ -33,6 +44,7 @@ import com.deundeun.chat.service.support.ChatUnreadCounter;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 
+@DisplayName("ChatRoomService")
 @ExtendWith(MockitoExtension.class)
 class ChatRoomServiceTest {
 
@@ -41,6 +53,12 @@ class ChatRoomServiceTest {
 
     @Mock
     private ChatRoomMemberMapper chatRoomMemberMapper;
+
+    @Mock
+    private ChallengeMapper challengeMapper;
+
+    @Mock
+    private UserMapper userMapper;
 
     @Mock
     private ChatUnreadCounter chatUnreadCounter;
@@ -52,6 +70,7 @@ class ChatRoomServiceTest {
     private ChatRoomService chatRoomService;
 
     @Test
+    @DisplayName("챌린지 채팅방을 생성한다")
     void createChallengeRoom_success() {
         Long challengeId = 100L;
 
@@ -63,6 +82,7 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("이미 있는 1:1 채팅방이면 그대로 조회한다")
     void createOrGetDirectRoom_existingRoom_reusesRoom() {
         Long userId1 = 1L;
         Long userId2 = 2L;
@@ -79,6 +99,7 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("없으면 1:1 채팅방을 생성하고 양쪽을 멤버로 등록한다")
     void createOrGetDirectRoom_noExistingRoom_createsRoomAndRegistersBothMembers() {
         Long userId1 = 1L;
         Long userId2 = 2L;
@@ -97,6 +118,7 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("자기 자신과의 1:1 채팅방 생성은 예외를 던진다")
     void createOrGetDirectRoom_selfChat_throwsException() {
         Long userId = 1L;
 
@@ -110,6 +132,7 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("동시 생성으로 인한 중복 키 발생 시 기존 방을 재조회한다")
     void createOrGetDirectRoom_duplicateKeyOnInsert_fallsBackToExistingRoom() {
         Long userId1 = 1L;
         Long userId2 = 2L;
@@ -130,6 +153,7 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("챌린지 채팅방이 없으면 예외를 던진다")
     void getChallengeRoom_roomNotFound_throwsException() {
         Long challengeId = 100L;
         Long userId = 1L;
@@ -144,6 +168,7 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("참여자가 아니면 접근 검증 예외가 그대로 전파된다")
     void getChallengeRoom_notMember_propagatesValidatorException() {
         Long challengeId = 100L;
         Long userId = 1L;
@@ -160,6 +185,7 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("챌린지 채팅방 조회 시 멤버수/안읽음수/읽음정보를 전부 반환한다")
     void getChallengeRoom_success_returnsFullData() {
         Long challengeId = 100L;
         Long userId = 1L;
@@ -181,5 +207,80 @@ class ChatRoomServiceTest {
         assertThat(response.memberCount()).isEqualTo(2);
         assertThat(response.unreadCount()).isEqualTo(3);
         assertThat(response.lastReadMessageId()).isEqualTo(20L);
+    }
+
+    @Test
+    @DisplayName("방이 없으면 배치 조회 없이 빈 목록을 반환한다")
+    void getMyRooms_noRooms_returnsEmptyContentWithoutBatchLookups() {
+        Long userId = 1L;
+        when(chatRoomMemberMapper.findRoomsByUserId(userId, 0, 20)).thenReturn(List.of());
+        when(chatRoomMemberMapper.countRoomsByUserId(userId)).thenReturn(0);
+
+        ChatRoomListResponse response = chatRoomService.getMyRooms(userId, 0, 20);
+
+        assertThat(response.content()).isEmpty();
+        assertThat(response.totalElements()).isZero();
+        verify(challengeMapper, never()).findByIds(any());
+        verify(userMapper, never()).findByIds(any());
+        verify(chatUnreadCounter, never()).countBatch(anyMap());
+    }
+
+    @Test
+    @DisplayName("챌린지 채팅방 목록 조회 시 챌린지 제목과 마지막 메시지, 안 읽은 개수를 반환한다")
+    void getMyRooms_challengeRoom_assemblesChallengeTitleAndUnreadCount() {
+        Long userId = 1L;
+        ChatRoomListItem item = new ChatRoomListItem(
+            10L, ChatRoomType.CHALLENGE, 7L, null,
+            ChatRoom.createChallengeRoom(7L).getCreatedAt(),
+            20L, null,
+            25L, 3L, "오늘 인증 완료했습니다!", ChatMessageType.TEXT, null, null
+        );
+        Challenge challenge = Challenge.builder().id(7L).title("매일 아침 7시 기상").build();
+        User sender = User.builder().id(3L).nickname("민기").build();
+
+        when(chatRoomMemberMapper.findRoomsByUserId(userId, 0, 20)).thenReturn(List.of(item));
+        when(chatRoomMemberMapper.countRoomsByUserId(userId)).thenReturn(1);
+        when(challengeMapper.findByIds(List.of(7L))).thenReturn(List.of(challenge));
+        when(userMapper.findByIds(List.of(3L))).thenReturn(List.of(sender));
+        when(chatUnreadCounter.countBatch(Map.of(10L, 20L))).thenReturn(Map.of(10L, 5));
+
+        ChatRoomListResponse response = chatRoomService.getMyRooms(userId, 0, 20);
+
+        ChatRoomSummaryResponse summary = response.content().get(0);
+        assertThat(summary.challengeTitle()).isEqualTo("매일 아침 7시 기상");
+        assertThat(summary.directChatPartner()).isNull();
+        assertThat(summary.lastMessage().senderNickname()).isEqualTo("민기");
+        assertThat(summary.unreadCount()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("1:1 채팅방을 한 번도 읽지 않은 경우 상대방 정보를 조회하고 읽음 기준값을 0으로 처리한다")
+    void getMyRooms_directRoomWithNoReadsYet_resolvesPartnerAndNormalizesNullCursorToZero() {
+        Long userId = 1L;
+        Long partnerId = 2L;
+        ChatRoomListItem item = new ChatRoomListItem(
+            11L, ChatRoomType.DIRECT, null, "1:2",
+            ChatRoom.createDirectRoom("1:2").getCreatedAt(),
+            null, null,
+            null, null, null, null, null, null
+        );
+        User partner = User.builder().id(partnerId).nickname("지훈").profileImageUrl("url").build();
+
+        when(chatRoomMemberMapper.findRoomsByUserId(userId, 0, 20)).thenReturn(List.of(item));
+        when(chatRoomMemberMapper.countRoomsByUserId(userId)).thenReturn(1);
+        when(userMapper.findByIds(List.of(partnerId))).thenReturn(List.of(partner));
+        when(chatUnreadCounter.countBatch(any())).thenReturn(Map.of());
+
+        ChatRoomListResponse response = chatRoomService.getMyRooms(userId, 0, 20);
+
+        ChatRoomSummaryResponse summary = response.content().get(0);
+        assertThat(summary.directChatPartner().nickname()).isEqualTo("지훈");
+        assertThat(summary.lastMessage()).isNull();
+        assertThat(summary.unreadCount()).isZero();
+        verify(challengeMapper, never()).findByIds(any());
+
+        ArgumentCaptor<Map<Long, Long>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(chatUnreadCounter).countBatch(captor.capture());
+        assertThat(captor.getValue()).containsEntry(11L, 0L);
     }
 }

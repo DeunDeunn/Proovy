@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.deundeun.chat.domain.ChatMessage;
+import com.deundeun.chat.dto.RoomReadCursor;
+import com.deundeun.chat.dto.RoomUnreadCount;
 
 @Mapper
 public interface ChatMessageMapper {
@@ -19,4 +21,6 @@ public interface ChatMessageMapper {
                                                 @Param("limit") int limit);
 
     int countAfterId(@Param("chatRoomId") Long chatRoomId, @Param("afterId") Long afterId);
+
+    List<RoomUnreadCount> countUnreadByRooms(@Param("cursors") List<RoomReadCursor> cursors);
 }

@@ -44,4 +44,41 @@
           AND user_id = #{userId}
     </update>
 
+    <select id="findRoomsByUserId" resultType="com.deundeun.chat.dto.ChatRoomListItem">
+        SELECT
+            r.id                    AS chat_room_id,
+            r.type                  AS chat_room_type,
+            r.challenge_id          AS challenge_id,
+            r.direct_chat_key       AS direct_chat_key,
+            r.created_at            AS room_created_at,
+            m.last_read_message_id  AS last_read_message_id,
+            m.last_read_at          AS last_read_at,
+            lm.id                   AS last_message_id,
+            lm.sender_id            AS last_message_sender_id,
+            lm.content              AS last_message_content,
+            lm.message_type         AS last_message_type,
+            lm.deleted_at           AS last_message_deleted_at,
+            lm.created_at           AS last_message_created_at
+        FROM chat_room_members m
+        JOIN chat_rooms r ON r.id = m.chat_room_id
+        LEFT JOIN LATERAL (
+            SELECT id, sender_id, content, message_type, deleted_at, created_at
+            FROM chat_messages
+            WHERE chat_room_id = r.id
+            ORDER BY id DESC
+            LIMIT 1
+        ) lm ON true
+        WHERE m.user_id = #{userId}
+          AND m.left_at IS NULL
+        ORDER BY COALESCE(lm.created_at, r.created_at) DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countRoomsByUserId" resultType="int">
+        SELECT COUNT(*)
+        FROM chat_room_members
+        WHERE user_id = #{userId}
+          AND left_at IS NULL
+    </select>
+
 </mapper>
