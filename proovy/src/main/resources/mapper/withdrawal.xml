@@ -52,4 +52,25 @@
             AND status = #{status}
         </if>
     </select>
+
+    <select id="selectAll" resultType="com.deundeun.pay.dto.WithdrawalItem">
+        SELECT wr.id, w.user_id AS userId, wr.source_type, wr.amount, wr.fee_amount, wr.net_transfer_amount,
+        wr.bank_name, wr.account_number, wr.account_holder_name,
+        wr.status, wr.reject_reason, wr.requested_at, wr.processed_at
+        FROM withdrawal_requests wr
+        JOIN wallets w ON w.id = wr.wallet_id
+        <if test="status != null">
+            WHERE wr.status = #{status}
+        </if>
+        ORDER BY wr.requested_at DESC, wr.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*)
+        FROM withdrawal_requests
+        <if test="status != null">
+            WHERE status = #{status}
+        </if>
+    </select>
 </mapper>
