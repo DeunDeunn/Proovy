@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.NoSuchElementException;
 
 @Slf4j
 @Service
@@ -21,14 +21,10 @@ public class ChatRoomMemberService {
 
     @Transactional
     public void join(Long chatRoomId, Long userId) {
-        Optional<ChatRoomMember> existing = chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId);
-
-        if (existing.isEmpty()) { //없으면 join 처리
-            ChatRoomMember member = ChatRoomMember.join(chatRoomId, userId);
-            chatRoomMemberMapper.insert(member);
-        } else { //있으면 재입장 가능한 상태인지 검증 후 rejoin 처리
-            validateNotJoined(existing.get());
-            chatRoomMemberMapper.rejoin(chatRoomId, userId);
+        try {
+            rejoin(chatRoomId, userId);
+        } catch (NoSuchElementException e) {
+            chatRoomMemberMapper.insert(ChatRoomMember.join(chatRoomId, userId));
         }
 
         log.info("[Chat] 채팅방 참여 완료: chatRoomId={}, userId={}", chatRoomId, userId);
@@ -42,6 +38,14 @@ public class ChatRoomMemberService {
 
         chatRoomMemberMapper.leave(chatRoomId, userId, LocalDateTime.now());
         log.info("[Chat] 채팅방 탈퇴 완료: chatRoomId={}, userId={}", chatRoomId, userId);
+    }
+
+    private void rejoin(Long chatRoomId, Long userId) {
+        ChatRoomMember member = chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId)
+            .orElseThrow(NoSuchElementException::new);
+
+        validateNotJoined(member);
+        chatRoomMemberMapper.rejoin(chatRoomId, userId);
     }
 
     public ChatRoomMember getChatRoomMember(Long chatRoomId, Long userId) {
