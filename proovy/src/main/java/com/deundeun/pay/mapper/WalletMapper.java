@@ -17,7 +17,9 @@ public interface WalletMapper {
 
     void updateChargedBalance(@Param("id") Long id, @Param("chargedBalance") long chargedBalance);
 
-    void updateLockedBalance(@Param("id") Long id, @Param("lockedBalance") long lockedBalance);
+    void updateLockedChargedBalance(@Param("id") Long id, @Param("lockedChargedBalance") long lockedChargedBalance);
+
+    void updateLockedRewardBalance(@Param("id") Long id, @Param("lockedRewardBalance") long lockedRewardBalance);
 
     void updateRewardBalance(@Param("id") Long id, @Param("rewardBalance") long rewardBalance);
 }

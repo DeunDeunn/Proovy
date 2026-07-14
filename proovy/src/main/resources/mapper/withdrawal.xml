@@ -7,6 +7,30 @@
         VALUES (#{walletId}, #{sourceType}, #{amount}, #{feeAmount}, #{netTransferAmount}, #{bankName}, #{accountNumber}, #{accountHolderName}, #{status}, #{rejectReason}, #{requestedAt}, #{processedAt})
     </insert>
 
+    <select id="selectByIdForUpdate" resultType="com.deundeun.pay.domain.WithdrawalRequest">
+        SELECT id, wallet_id, source_type, amount, fee_amount, net_transfer_amount,
+        bank_name, account_number, account_holder_name,
+        status, reject_reason, requested_at, processed_at
+        FROM withdrawal_requests
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <update id="completeById">
+        UPDATE withdrawal_requests
+        SET status = 'COMPLETED',
+            processed_at = #{processedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="rejectById">
+        UPDATE withdrawal_requests
+        SET status = 'REJECTED',
+            reject_reason = #{rejectReason},
+            processed_at = #{processedAt}
+        WHERE id = #{id}
+    </update>
+
     <select id="selectByWalletId" resultType="com.deundeun.pay.dto.WithdrawalItem">
         SELECT id, source_type, amount, fee_amount, net_transfer_amount,
         bank_name, account_number, account_holder_name,

@@ -18,4 +18,15 @@ public interface WalletHoldService {
      * @throws com.deundeun.global.exception.ApiException INSUFFICIENT_BALANCE — 사용 가능 잔액이 amount보다 적을 때
      */
     Long hold(Long userId, long amount, Long referenceId);
+
+    /**
+     * 챌린지 시작 전 취소처럼, 손실 없이 홀딩을 전액 그대로 돌려줄 때 사용한다.
+     * hold()가 어느 charge_lot에서 얼마를 가져갔는지 이미 기록해둔 걸 그대로 복구하고,
+     * 나머지(reward 몫)는 locked_reward_balance에서 그만큼 풀어준다.
+     *
+     * @param userId      홀딩을 걸었던 유저 id
+     * @param amount      hold() 때 넘겼던 것과 동일한 금액
+     * @param referenceId hold() 때 넘겼던 것과 동일한 참조 id
+     */
+    void cancel(Long userId, long amount, Long referenceId);
 }

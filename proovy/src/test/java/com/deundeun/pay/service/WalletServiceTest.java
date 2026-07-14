@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
+import com.deundeun.pay.domain.ChargeLotAllocation;
 import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.ChargeLot;
@@ -31,6 +34,7 @@ import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.TransactionHistoryResponse;
 import com.deundeun.pay.dto.WalletResponse;
 import com.deundeun.pay.mapper.CashTransactionMapper;
+import com.deundeun.pay.mapper.ChargeLotAllocationMapper;
 import com.deundeun.pay.mapper.ChargeLotMapper;
 import com.deundeun.pay.mapper.WalletMapper;
 
@@ -46,6 +50,9 @@ class WalletServiceTest {
     @Mock
     private ChargeLotMapper chargeLotMapper;
 
+    @Mock
+    private ChargeLotAllocationMapper chargeLotAllocationMapper;
+
     @InjectMocks
     private WalletService walletService;
 
@@ -57,7 +64,8 @@ class WalletServiceTest {
                 .userId(userId)
                 .chargedBalance(10_000L)
                 .rewardBalance(2_000L)
-                .lockedBalance(3_000L)
+                .lockedChargedBalance(3_000L)
+                .lockedRewardBalance(0L)
                 .build();
         when(walletMapper.selectByUserId(userId)).thenReturn(wallet);
 
@@ -105,11 +113,12 @@ class WalletServiceTest {
     }
 
     @Test
-    void hold_success_updatesLockedBalanceAndDeductsSingleLotAndRecordsTransaction() {
+    void hold_success_updatesLockedChargedBalanceAndDeductsSingleLotAndRecordsTransaction() {
         Long userId = 1L;
         Wallet wallet = Wallet.builder()
                 .id(10L).userId(userId)
-                .chargedBalance(10_000L).rewardBalance(0L).lockedBalance(0L)
+                .chargedBalance(10_000L).rewardBalance(0L)
+                .lockedChargedBalance(0L).lockedRewardBalance(0L)
                 .build();
         when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
 
@@ -125,8 +134,13 @@ class WalletServiceTest {
         Long transactionId = walletService.hold(userId, 3_000L, 99L);
 
         assertThat(transactionId).isEqualTo(555L);
-        verify(walletMapper).updateLockedBalance(10L, 3_000L);
+        // 3,000 전액이 charge_lots로 커버되니 locked_charged만 늘고 locked_reward는 0
+        verify(walletMapper).updateLockedChargedBalance(10L, 3_000L);
+        verify(walletMapper).updateLockedRewardBalance(10L, 0L);
         verify(chargeLotMapper).updateRemainingAmount(100L, 7_000L);
+        verify(chargeLotAllocationMapper).insert(argThat(a ->
+                a.getChargeLotId().equals(100L) && a.getWalletId().equals(10L)
+                        && a.getReferenceId().equals(99L) && a.getAmount() == 3_000L));
 
         ArgumentCaptor<CashTransaction> captor = ArgumentCaptor.forClass(CashTransaction.class);
         verify(cashTransactionMapper).insert(captor.capture());
@@ -143,7 +157,8 @@ class WalletServiceTest {
         Long userId = 1L;
         Wallet wallet = Wallet.builder()
                 .id(10L).userId(userId)
-                .chargedBalance(1_000L).rewardBalance(0L).lockedBalance(0L)
+                .chargedBalance(1_000L).rewardBalance(0L)
+                .lockedChargedBalance(0L).lockedRewardBalance(0L)
                 .build();
         when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
 
@@ -152,7 +167,8 @@ class WalletServiceTest {
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.INSUFFICIENT_BALANCE);
 
-        verify(walletMapper, never()).updateLockedBalance(anyLong(), anyLong());
+        verify(walletMapper, never()).updateLockedChargedBalance(anyLong(), anyLong());
+        verify(walletMapper, never()).updateLockedRewardBalance(anyLong(), anyLong());
         verify(chargeLotMapper, never()).selectRemainingByWalletIdOrderByChargedAtAsc(anyLong());
         verify(cashTransactionMapper, never()).insert(any());
     }
@@ -162,7 +178,8 @@ class WalletServiceTest {
         Long userId = 1L;
         Wallet wallet = Wallet.builder()
                 .id(10L).userId(userId)
-                .chargedBalance(10_000L).rewardBalance(0L).lockedBalance(0L)
+                .chargedBalance(10_000L).rewardBalance(0L)
+                .lockedChargedBalance(0L).lockedRewardBalance(0L)
                 .build();
         when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
 
@@ -176,15 +193,18 @@ class WalletServiceTest {
         InOrder inOrder = Mockito.inOrder(chargeLotMapper);
         inOrder.verify(chargeLotMapper).updateRemainingAmount(100L, 0L);      // 오래된 lot부터 다 소진
         inOrder.verify(chargeLotMapper).updateRemainingAmount(200L, 4_800L); // 남은 200만 다음 lot에서 차감
+        verify(walletMapper).updateLockedChargedBalance(10L, 1_200L); // 전액 charge_lots로 커버됨
+        verify(walletMapper).updateLockedRewardBalance(10L, 0L);
     }
 
     @Test
-    void hold_amountExceedsChargeLots_stopsAtLastLotWithoutFailing() {
+    void hold_amountExceedsChargeLots_splitsBetweenLockedChargedAndLockedReward() {
         Long userId = 1L;
         // charged 2,000 + reward 8,000 = availableBalance 10,000 (5,000 홀딩엔 충분)
         Wallet wallet = Wallet.builder()
                 .id(10L).userId(userId)
-                .chargedBalance(2_000L).rewardBalance(8_000L).lockedBalance(0L)
+                .chargedBalance(2_000L).rewardBalance(8_000L)
+                .lockedChargedBalance(0L).lockedRewardBalance(0L)
                 .build();
         when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
 
@@ -193,8 +213,172 @@ class WalletServiceTest {
 
         walletService.hold(userId, 5_000L, 99L);
 
-        // lot은 가진 만큼(2,000)만 차감되고, 나머지 3,000은 reward_balance 몫이라 lot 차감 없이 넘어감
+        // lot은 가진 만큼(2,000)만 차감되고, 나머지 3,000은 reward 몫
         verify(chargeLotMapper).updateRemainingAmount(100L, 0L);
-        verify(walletMapper).updateLockedBalance(10L, 5_000L);
+        verify(walletMapper).updateLockedChargedBalance(10L, 2_000L);
+        verify(walletMapper).updateLockedRewardBalance(10L, 3_000L);
+    }
+
+    @Test
+    void cancel_fullyChargedHold_releasesLockedChargedAndRecordsRefundTransaction() {
+        Long userId = 1L;
+        Wallet wallet = Wallet.builder()
+                .id(10L).userId(userId)
+                .chargedBalance(10_000L).rewardBalance(0L)
+                .lockedChargedBalance(3_000L).lockedRewardBalance(0L)
+                .build();
+        when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
+        when(cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(10L, 99L, CashTransactionType.CHALLENGE_HOLD))
+                .thenReturn(CashTransaction.builder().amount(3_000L).build());
+
+        ChargeLotAllocation allocation = ChargeLotAllocation.builder().id(1L).chargeLotId(100L).amount(3_000L).build();
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L))
+                .thenReturn(List.of(allocation));
+
+        walletService.cancel(userId, 3_000L, 99L);
+
+        verify(chargeLotMapper).incrementRemainingAmount(100L, 3_000L); // releaseChargeLotsFifo 재사용 확인
+        verify(walletMapper).updateLockedChargedBalance(10L, 0L); // 3,000 - 3,000(charged 몫)
+        verify(walletMapper).updateLockedRewardBalance(10L, 0L);  // 0 - 0(reward 몫)
+
+        ArgumentCaptor<CashTransaction> captor = ArgumentCaptor.forClass(CashTransaction.class);
+        verify(cashTransactionMapper).insert(captor.capture());
+        CashTransaction saved = captor.getValue();
+        assertThat(saved.getType()).isEqualTo(CashTransactionType.CHALLENGE_PRINCIPAL_REFUND);
+        assertThat(saved.getAmount()).isEqualTo(3_000L);
+        assertThat(saved.getReferenceId()).isEqualTo(99L);
+        assertThat(saved.getBalanceAfter()).isEqualTo(10_000L); // availableBalance(7000) + 3000
+    }
+
+    @Test
+    void cancel_mixedHold_splitsLockedReleaseBetweenChargedAndReward() {
+        Long userId = 1L;
+        // 5,000 홀딩 중 2,000은 charged, 3,000은 reward 몫이었던 상황
+        Wallet wallet = Wallet.builder()
+                .id(10L).userId(userId)
+                .chargedBalance(2_000L).rewardBalance(8_000L)
+                .lockedChargedBalance(2_000L).lockedRewardBalance(3_000L)
+                .build();
+        when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
+        when(cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(10L, 99L, CashTransactionType.CHALLENGE_HOLD))
+                .thenReturn(CashTransaction.builder().amount(5_000L).build());
+
+        ChargeLotAllocation allocation = ChargeLotAllocation.builder().id(1L).chargeLotId(100L).amount(2_000L).build();
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L))
+                .thenReturn(List.of(allocation));
+
+        walletService.cancel(userId, 5_000L, 99L);
+
+        verify(chargeLotMapper).incrementRemainingAmount(100L, 2_000L);
+        verify(walletMapper).updateLockedChargedBalance(10L, 0L); // 2,000 - 2,000
+        verify(walletMapper).updateLockedRewardBalance(10L, 0L);  // 3,000 - 3,000(reward 몫)
+    }
+
+    @Test
+    void cancel_amountMismatchesOriginalHold_throwsAndDoesNotMutateLockedBalance() {
+        Long userId = 1L;
+        Wallet wallet = Wallet.builder()
+                .id(10L).userId(userId)
+                .chargedBalance(10_000L).rewardBalance(0L)
+                .lockedChargedBalance(3_000L).lockedRewardBalance(0L)
+                .build();
+        when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
+        // 원래 홀딩은 3,000인데 호출자가 6,000을 취소하겠다고 우기는 상황
+        when(cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(10L, 99L, CashTransactionType.CHALLENGE_HOLD))
+                .thenReturn(CashTransaction.builder().amount(3_000L).build());
+
+        assertThatThrownBy(() -> walletService.cancel(userId, 6_000L, 99L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_CANCEL_AMOUNT);
+
+        verify(walletMapper, never()).updateLockedChargedBalance(anyLong(), anyLong());
+        verify(walletMapper, never()).updateLockedRewardBalance(anyLong(), anyLong());
+        verify(cashTransactionMapper, never()).insert(any(CashTransaction.class));
+    }
+
+    @Test
+    void cancel_holdNotFound_throws() {
+        Long userId = 1L;
+        Wallet wallet = Wallet.builder()
+                .id(10L).userId(userId)
+                .chargedBalance(10_000L).rewardBalance(0L)
+                .lockedChargedBalance(0L).lockedRewardBalance(0L)
+                .build();
+        when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
+        when(cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(10L, 99L, CashTransactionType.CHALLENGE_HOLD))
+                .thenReturn(null);
+
+        assertThatThrownBy(() -> walletService.cancel(userId, 3_000L, 99L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.HOLD_NOT_FOUND);
+    }
+
+    @Test
+    void cancel_calledTwiceForSameReferenceId_secondCallThrowsAndDoesNotDoubleReleaseLockedBalance() {
+        Long userId = 1L;
+        Wallet wallet = Wallet.builder()
+                .id(10L).userId(userId)
+                .chargedBalance(10_000L).rewardBalance(0L)
+                .lockedChargedBalance(0L).lockedRewardBalance(0L) // 첫 취소가 이미 반영된 이후 상태
+                .build();
+        when(walletMapper.selectByUserIdForUpdate(userId)).thenReturn(wallet);
+        when(cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(10L, 99L, CashTransactionType.CHALLENGE_HOLD))
+                .thenReturn(CashTransaction.builder().amount(3_000L).build());
+        // 첫 번째 cancel() 호출 때 이미 CHALLENGE_PRINCIPAL_REFUND가 기록된 상태를 재현
+        when(cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(10L, 99L, CashTransactionType.CHALLENGE_PRINCIPAL_REFUND))
+                .thenReturn(CashTransaction.builder().amount(3_000L).build());
+
+        assertThatThrownBy(() -> walletService.cancel(userId, 3_000L, 99L))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.HOLD_ALREADY_CANCELLED);
+
+        // 재시도가 released_at 처리된 lot을 다시 건드리거나 잠금 잔액을 또 차감하면 안 된다
+        verify(chargeLotAllocationMapper, never()).selectUnreleasedByWalletIdAndReferenceId(anyLong(), anyLong());
+        verify(walletMapper, never()).updateLockedChargedBalance(anyLong(), anyLong());
+        verify(walletMapper, never()).updateLockedRewardBalance(anyLong(), anyLong());
+        verify(cashTransactionMapper, never()).insert(any(CashTransaction.class));
+    }
+
+    @Test
+    void releaseChargeLotsFifo_restoresExactlyTheRecordedAllocationsAndReturnsTotal() {
+        ChargeLotAllocation allocation1 = ChargeLotAllocation.builder().id(1L).chargeLotId(100L).amount(3_000L).build();
+        ChargeLotAllocation allocation2 = ChargeLotAllocation.builder().id(2L).chargeLotId(200L).amount(1_500L).build();
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L))
+                .thenReturn(List.of(allocation1, allocation2));
+
+        long restored = walletService.releaseChargeLotsFifo(10L, 99L);
+
+        verify(chargeLotMapper).incrementRemainingAmount(100L, 3_000L);
+        verify(chargeLotMapper).incrementRemainingAmount(200L, 1_500L);
+        verify(chargeLotAllocationMapper).markReleased(eq(1L), any(LocalDateTime.class));
+        verify(chargeLotAllocationMapper).markReleased(eq(2L), any(LocalDateTime.class));
+        assertThat(restored).isEqualTo(4_500L);
+    }
+
+    @Test
+    void releaseChargeLotsFifo_noAllocations_doesNothingAndReturnsZero() {
+        // successUserIds에 같은 유저가 중복으로 들어와서 이미 처리된 경우도, 애초에 기록이 없는 경우도 여기 해당
+        when(chargeLotAllocationMapper.selectUnreleasedByWalletIdAndReferenceId(10L, 99L)).thenReturn(List.of());
+
+        long restored = walletService.releaseChargeLotsFifo(10L, 99L);
+
+        verify(chargeLotMapper, never()).incrementRemainingAmount(anyLong(), anyLong());
+        assertThat(restored).isZero();
+    }
+
+    @Test
+    void sumChargeLotAllocations_sumsRecordedAllocationsWithoutMutatingAnything() {
+        ChargeLotAllocation allocation1 = ChargeLotAllocation.builder().chargeLotId(100L).amount(3_000L).build();
+        ChargeLotAllocation allocation2 = ChargeLotAllocation.builder().chargeLotId(200L).amount(1_500L).build();
+        when(chargeLotAllocationMapper.selectByWalletIdAndReferenceId(10L, 99L))
+                .thenReturn(List.of(allocation1, allocation2));
+
+        long sum = walletService.sumChargeLotAllocations(10L, 99L);
+
+        assertThat(sum).isEqualTo(4_500L);
+        verify(chargeLotMapper, never()).incrementRemainingAmount(anyLong(), anyLong());
     }
 }

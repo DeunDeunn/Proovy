@@ -41,6 +41,11 @@ public class SettlementService implements WalletSettlementService {
         if(settlementMapper.existsByChallengeId(challengeId)){
             throw new ApiException(SETTLEMENT_ALREADY_PROCESSED);
         }
+        // 호출자가 같은 유저를 리스트에 중복으로 넘기면 아래 for문에서 잠금 잔액 차감/수익 지급/영구 손실 반영이
+        // 그 유저에 대해 두 번 일어나 버리므로(charge_lots는 released_at 가드로 막아도, locked_reward_balance나
+        // charged_balance/reward_balance 자체는 그대로 두 번 깎이거나 지급됨), 입력 단계에서 중복을 제거한다.
+        successUserIds = successUserIds.stream().distinct().toList();
+        failUserIds = failUserIds.stream().distinct().toList();
         BigDecimal participantShareRate;
         BigDecimal platformFeeRate;
         BigDecimal hostFeeRate;
@@ -125,7 +130,10 @@ public class SettlementService implements WalletSettlementService {
         }
         for (Long userId : successUserIds) {
             Wallet wallet = walletService.getWalletForUpdate(userId);
-            walletService.updateLockedBalance(wallet.getId(), wallet.getLockedBalance() - perPersonFee);   // 홀딩 해제
+            long chargedPortion = walletService.releaseChargeLotsFifo(wallet.getId(), challengeId); // charge_lots 복구 + charged 몫 확인
+            long rewardPortion = perPersonFee - chargedPortion;
+            walletService.updateLockedChargedBalance(wallet.getId(), wallet.getLockedChargedBalance() - chargedPortion);
+            walletService.updateLockedRewardBalance(wallet.getId(), wallet.getLockedRewardBalance() - rewardPortion);
             walletService.updateRewardBalance(wallet.getId(), wallet.getRewardBalance() + profitPerUser);  // 수익 지급
             cashTransactionMapper.insert(CashTransaction.builder()
                     .walletId(wallet.getId())
@@ -147,26 +155,36 @@ public class SettlementService implements WalletSettlementService {
         }
         for (Long userId : failUserIds) {
             Wallet wallet = walletService.getWalletForUpdate(userId);
-            walletService.updateLockedBalance(wallet.getId(), wallet.getLockedBalance() - perPersonFee);   // 홀딩 해제
-            walletService.updateChargedBalance(wallet.getId(), wallet.getChargedBalance() - perPersonFee); // 진짜 출금(영구 손실)
+            // charge_lots는 홀딩 시점에 이미 깎인 채로 둬야 맞음(돈이 진짜 사라짐) -> 복구하지 않고 charged 몫만 조회
+            long chargedPortion = walletService.sumChargeLotAllocations(wallet.getId(), challengeId);
+            long rewardPortion = perPersonFee - chargedPortion;
 
-            cashTransactionMapper.insert(CashTransaction.builder()
-                    .walletId(wallet.getId())
-                    .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
-                    .amount(perPersonFee)
-                    .balanceAfter(wallet.getLockedBalance() - perPersonFee)  // 홀딩 해제 반영
-                    .status(CashTransactionStatus.COMPLETED)
-                    .referenceId(challengeId)
-                    .build());
+            walletService.updateLockedChargedBalance(wallet.getId(), wallet.getLockedChargedBalance() - chargedPortion); // 홀딩 해제
+            walletService.updateLockedRewardBalance(wallet.getId(), wallet.getLockedRewardBalance() - rewardPortion);   // 홀딩 해제
+            walletService.updateChargedBalance(wallet.getId(), wallet.getChargedBalance() - chargedPortion); // 진짜 출금(영구 손실, charged 몫만)
+            walletService.updateRewardBalance(wallet.getId(), wallet.getRewardBalance() - rewardPortion);   // 진짜 출금(영구 손실, reward 몫만)
 
-            cashTransactionMapper.insert(CashTransaction.builder()
-                    .walletId(wallet.getId())
-                    .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
-                    .amount(perPersonFee)
-                    .balanceAfter(wallet.getChargedBalance() - perPersonFee)  // 실제로 줄어든 충전잔액
-                    .status(CashTransactionStatus.COMPLETED)
-                    .referenceId(challengeId)
-                    .build());
+            if (chargedPortion > 0) {
+                cashTransactionMapper.insert(CashTransaction.builder()
+                        .walletId(wallet.getId())
+                        .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
+                        .amount(chargedPortion)
+                        .balanceAfter(wallet.getChargedBalance() - chargedPortion)  // 실제로 줄어든 충전잔액 (charged 몫만)
+                        .status(CashTransactionStatus.COMPLETED)
+                        .referenceId(challengeId)
+                        .build());
+            }
+
+            if (rewardPortion > 0) {
+                cashTransactionMapper.insert(CashTransaction.builder()
+                        .walletId(wallet.getId())
+                        .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
+                        .amount(rewardPortion)
+                        .balanceAfter(wallet.getRewardBalance() - rewardPortion)  // 실제로 줄어든 리워드잔액 (reward 몫만)
+                        .status(CashTransactionStatus.COMPLETED)
+                        .referenceId(challengeId)
+                        .build());
+            }
         }
         return settlement.getId();
     }

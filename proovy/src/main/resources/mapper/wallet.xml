@@ -3,20 +3,20 @@
 <mapper namespace="com.deundeun.pay.mapper.WalletMapper">
 
     <select id="selectByUserId" resultType="com.deundeun.pay.domain.Wallet">
-        SELECT id, user_id, charged_balance, reward_balance, locked_balance, created_at, updated_at
+        SELECT id, user_id, charged_balance, reward_balance, locked_charged_balance, locked_reward_balance, created_at, updated_at
         FROM wallets
         WHERE user_id = #{userId}
     </select>
 
     <select id="selectByUserIdForUpdate" resultType="com.deundeun.pay.domain.Wallet">
-        SELECT id, user_id, charged_balance, reward_balance, locked_balance, created_at, updated_at
+        SELECT id, user_id, charged_balance, reward_balance, locked_charged_balance, locked_reward_balance, created_at, updated_at
         FROM wallets
         WHERE user_id = #{userId}
         FOR UPDATE
     </select>
 
     <select id="selectByIdForUpdate" resultType="com.deundeun.pay.domain.Wallet">
-        SELECT id, user_id, charged_balance, reward_balance, locked_balance, created_at, updated_at
+        SELECT id, user_id, charged_balance, reward_balance, locked_charged_balance, locked_reward_balance, created_at, updated_at
         FROM wallets
         WHERE id = #{id}
         FOR UPDATE
@@ -35,9 +35,14 @@
         WHERE id = #{id}
     </update>
 
-    <update id="updateLockedBalance">
+    <update id="updateLockedChargedBalance">
         UPDATE wallets
-        SET locked_balance = #{lockedBalance}
+        SET locked_charged_balance = #{lockedChargedBalance}
+        WHERE id = #{id}
+    </update>
+    <update id="updateLockedRewardBalance">
+        UPDATE wallets
+        SET locked_reward_balance = #{lockedRewardBalance}
         WHERE id = #{id}
     </update>
     <update id="updateRewardBalance">

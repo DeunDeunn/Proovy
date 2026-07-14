@@ -63,4 +63,14 @@
         )
     </select>
 
+    <select id="selectByWalletIdAndReferenceIdAndType" resultType="com.deundeun.pay.domain.CashTransaction">
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        FROM cash_transactions
+        WHERE wallet_id = #{walletId}
+          AND reference_id = #{referenceId}
+          AND type = #{type}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
 </mapper>
