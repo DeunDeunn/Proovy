@@ -47,8 +47,17 @@ public class ChatRoomMember {
     }
 
     public void markRead(Long lastReadMessageId) {
+        if (!canAdvanceReadCursor(lastReadMessageId)) {
+            throw new ApiException(ErrorCode.CHAT_INVALID_READ_CURSOR);
+        }
+
         this.lastReadMessageId = lastReadMessageId;
         this.lastReadAt = LocalDateTime.now();
+    }
+
+    public boolean canAdvanceReadCursor(Long lastReadMessageId) {
+        return lastReadMessageId != null
+            && (this.lastReadMessageId == null || this.lastReadMessageId < lastReadMessageId);
     }
 
     public boolean isActive() {

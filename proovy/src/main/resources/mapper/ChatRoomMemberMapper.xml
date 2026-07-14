@@ -27,6 +27,11 @@
             last_read_at = #{lastReadAt}
         WHERE chat_room_id = #{chatRoomId}
           AND user_id = #{userId}
+          AND #{lastReadMessageId} IS NOT NULL
+          AND (
+              last_read_message_id IS NULL
+              OR last_read_message_id &lt; #{lastReadMessageId}
+          )
     </update>
 
     <update id="leave">

@@ -51,8 +51,16 @@ public class ChatRoomMemberService {
         ChatRoomMember member = chatRoomMemberFinder.findMember(chatRoomId, userId);
         Long latestMessageId = findLatestMessageId(chatRoomId);
 
+        if (!member.canAdvanceReadCursor(latestMessageId)) {
+            return ChatRoomReadResponse.of(member);
+        }
+
         member.markRead(latestMessageId);
-        chatRoomMemberMapper.updateLastRead(member);
+        int updatedCount = chatRoomMemberMapper.updateLastRead(member);
+        if (updatedCount == 0) {
+            member = chatRoomMemberFinder.findMember(chatRoomId, userId);
+        }
+
         log.info("[Chat] 읽음 처리 완료: chatRoomId={}, userId={}, lastReadMessageId={}", chatRoomId, userId, latestMessageId);
 
         return ChatRoomReadResponse.of(member);

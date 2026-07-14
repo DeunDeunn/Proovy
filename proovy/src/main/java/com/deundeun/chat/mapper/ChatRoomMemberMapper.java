@@ -25,7 +25,7 @@ public interface ChatRoomMemberMapper {
 
     int countRoomsByUserId(@Param("userId") Long userId);
 
-    void updateLastRead(ChatRoomMember member);
+    int updateLastRead(ChatRoomMember member);
 
     void leave(ChatRoomMember member);
 
