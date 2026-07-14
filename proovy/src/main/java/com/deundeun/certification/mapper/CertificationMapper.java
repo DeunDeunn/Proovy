@@ -6,6 +6,7 @@ import com.deundeun.certification.dto.CreateCertificationPostSqlParam;
 import com.deundeun.certification.dto.ParticipantForCertification;
 import com.deundeun.certification.dto.PendingCertificationResponse;
 import com.deundeun.certification.dto.PostReviewContext;
+import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.enums.ApprovalType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -71,4 +72,6 @@ public interface CertificationMapper {
    // 그 글의 추가 이미지 전부 삭제 (수정 시 통째 교체용)
    void deletePostImages(Long postId);
 
+   // 채팅 메시지의 인증글 공유 카드용 요약 정보 (챌린지 제목/작성자 닉네임 포함), 배치 조회
+   List<SharedCertificationInfo> findSharedCertifications(@Param("postIds") List<Long> postIds);
 }

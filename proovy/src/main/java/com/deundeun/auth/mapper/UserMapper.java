@@ -1,5 +1,7 @@
 package com.deundeun.auth.mapper;
 
+import java.util.List;
+
 import com.deundeun.auth.domain.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -11,6 +13,8 @@ public interface UserMapper {
                                       @Param("providerId") String providerId);
 
     User findById(@Param("id") Long id);
+
+    List<User> findByIds(@Param("ids") List<Long> ids);
 
     void insert(User user);
 

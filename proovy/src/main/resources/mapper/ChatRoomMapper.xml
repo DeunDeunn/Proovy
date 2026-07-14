@@ -7,6 +7,12 @@
         VALUES (#{challengeId}, #{directChatKey}, #{type}, #{createdAt})
     </insert>
 
+    <select id="findById" resultType="com.deundeun.chat.domain.ChatRoom">
+        SELECT id, challenge_id, direct_chat_key, type, created_at
+        FROM chat_rooms
+        WHERE id = #{chatRoomId}
+    </select>
+
     <select id="findByChallengeId" resultType="com.deundeun.chat.domain.ChatRoom">
         SELECT id, challenge_id, direct_chat_key, type, created_at
         FROM chat_rooms

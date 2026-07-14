@@ -12,6 +12,8 @@ public interface ChatRoomMapper {
 
     void insert(ChatRoom room);
 
+    Optional<ChatRoom> findById(@Param("chatRoomId") Long chatRoomId);
+
     Optional<ChatRoom> findByChallengeId(@Param("challengeId") Long challengeId);
 
     Optional<ChatRoom> findByDirectChatKey(@Param("directChatKey") String directChatKey);

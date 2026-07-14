@@ -1,7 +1,11 @@
 package com.deundeun.chat.service;
 
+import com.deundeun.chat.domain.ChatMessage;
 import com.deundeun.chat.domain.ChatRoomMember;
+import com.deundeun.chat.dto.response.ChatRoomReadResponse;
+import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
+import com.deundeun.chat.service.support.ChatRoomMemberFinder;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChatRoomMemberService {
 
     private final ChatRoomMemberMapper chatRoomMemberMapper;
+    private final ChatMessageMapper chatMessageMapper;
+
+    private final ChatRoomMemberFinder chatRoomMemberFinder;
 
     @Transactional
     public void join(Long chatRoomId, Long userId) {
@@ -37,6 +44,26 @@ public class ChatRoomMemberService {
         member.leave();
         chatRoomMemberMapper.leave(member);
         log.info("[Chat] 채팅방 탈퇴 완료: chatRoomId={}, userId={}", chatRoomId, userId);
+    }
+
+    @Transactional
+    public ChatRoomReadResponse markAsRead(Long chatRoomId, Long userId) {
+        ChatRoomMember member = chatRoomMemberFinder.findMember(chatRoomId, userId);
+        Long latestMessageId = findLatestMessageId(chatRoomId);
+
+        if (!member.canAdvanceReadCursor(latestMessageId)) {
+            return ChatRoomReadResponse.of(member);
+        }
+
+        member.markRead(latestMessageId);
+        int updatedCount = chatRoomMemberMapper.updateLastRead(member);
+        if (updatedCount == 0) {
+            member = chatRoomMemberFinder.findMember(chatRoomId, userId);
+        }
+
+        log.info("[Chat] 읽음 처리 완료: chatRoomId={}, userId={}, lastReadMessageId={}", chatRoomId, userId, latestMessageId);
+
+        return ChatRoomReadResponse.of(member);
     }
 
     public ChatRoomMember getChatRoomMember(Long chatRoomId, Long userId) {
@@ -64,5 +91,12 @@ public class ChatRoomMemberService {
         member.rejoin();
         chatRoomMemberMapper.rejoin(member);
         log.info("[Chat] 채팅방 재참여 완료: chatRoomId={}, userId={}", member.getChatRoomId(), member.getUserId());
+    }
+
+    private Long findLatestMessageId(Long chatRoomId) {
+        return chatMessageMapper.findLatestByChatRoomId(chatRoomId, 1).stream()
+            .findFirst()
+            .map(ChatMessage::getId)
+            .orElse(null);
     }
 }

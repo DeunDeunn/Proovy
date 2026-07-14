@@ -172,4 +172,24 @@
         WHERE post_id = #{postId}
     </delete>
 
+    <!-- 채팅 메시지의 인증글 공유 카드용 요약 정보 (글→참가자→챌린지, 작성자 JOIN), 배치 조회 -->
+    <select id="findSharedCertifications" resultType="SharedCertificationInfo">
+        SELECT p.id                      AS certification_id,
+               c.id                      AS challenge_id,
+               c.title                   AS challenge_title,
+               p.user_id                 AS author_id,
+               u.nickname                AS author_nickname,
+               p.certification_image_url AS thumbnail_url,
+               p.created_at              AS certified_at
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
+        JOIN users u                   ON u.id = p.user_id
+        WHERE p.id IN
+        <foreach item="postId" collection="postIds" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+        AND p.deleted_at IS NULL -- 삭제된 인증글 조회 채팅 공유 메시지에서 제외
+    </select>
+
 </mapper>
