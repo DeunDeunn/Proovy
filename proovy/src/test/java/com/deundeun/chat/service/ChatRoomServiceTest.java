@@ -29,7 +29,7 @@ import com.deundeun.chat.dto.response.DirectChatRoomResponse;
 import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
-import com.deundeun.chat.service.validator.ChatRoomMemberValidator;
+import com.deundeun.chat.service.support.ChatRoomMemberFinder;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 
@@ -46,7 +46,7 @@ class ChatRoomServiceTest {
     private ChatMessageMapper chatMessageMapper;
 
     @Mock
-    private ChatRoomMemberValidator chatRoomMemberValidator;
+    private ChatRoomMemberFinder chatRoomMemberFinder;
 
     @InjectMocks
     private ChatRoomService chatRoomService;
@@ -140,7 +140,7 @@ class ChatRoomServiceTest {
             .extracting(e -> ((ApiException) e).getErrorCode())
             .isEqualTo(ErrorCode.CHAT_ROOM_NOT_FOUND);
 
-        verify(chatRoomMemberValidator, never()).findMember(any(), any());
+        verify(chatRoomMemberFinder, never()).findMember(any(), any());
     }
 
     @Test
@@ -150,7 +150,7 @@ class ChatRoomServiceTest {
         ChatRoom room = ChatRoom.createChallengeRoom(challengeId);
         ReflectionTestUtils.setField(room, "id", 5L);
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
-        when(chatRoomMemberValidator.findMember(5L, userId))
+        when(chatRoomMemberFinder.findMember(5L, userId))
             .thenThrow(new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
 
         assertThatThrownBy(() -> chatRoomService.getChallengeRoom(challengeId, userId))
@@ -170,7 +170,7 @@ class ChatRoomServiceTest {
         ReflectionTestUtils.setField(member, "lastReadMessageId", 20L);
 
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
-        when(chatRoomMemberValidator.findMember(5L, userId)).thenReturn(member);
+        when(chatRoomMemberFinder.findMember(5L, userId)).thenReturn(member);
         when(chatRoomMemberMapper.findActiveByChatRoomId(5L))
             .thenReturn(List.of(ChatRoomMember.join(5L, userId), ChatRoomMember.join(5L, 2L)));
         when(chatMessageMapper.countAfterId(5L, 20L)).thenReturn(3);

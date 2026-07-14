@@ -2,6 +2,7 @@ package com.deundeun.chat.service;
 
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
+import com.deundeun.chat.service.support.ChatRoomMemberFinder;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChatRoomMemberService {
 
     private final ChatRoomMemberMapper chatRoomMemberMapper;
+    private final ChatRoomMemberFinder chatRoomMemberFinder;
+
+    @Transactional
+    public void markAsRead(Long chatRoomId, Long userId, Long lastReadMessageId) {
+        ChatRoomMember member = chatRoomMemberFinder.findMember(chatRoomId, userId);
+
+        member.markRead(lastReadMessageId);
+        chatRoomMemberMapper.updateLastRead(member);
+    }
 
     @Transactional
     public void join(Long chatRoomId, Long userId) {

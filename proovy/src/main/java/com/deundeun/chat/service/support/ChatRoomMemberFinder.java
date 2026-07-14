@@ -1,4 +1,4 @@
-package com.deundeun.chat.service.validator;
+package com.deundeun.chat.service.support;
 
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
@@ -9,23 +9,18 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class ChatRoomMemberValidator {
+public class ChatRoomMemberFinder {
 
     private final ChatRoomMemberMapper chatRoomMemberMapper;
 
-    public void validateMember(Long chatRoomId, Long userId) {
-        findMember(chatRoomId, userId);
-    }
-
     public ChatRoomMember findMember(Long chatRoomId, Long userId) {
-        ChatRoomMember member = getChatRoomMember(chatRoomId, userId);
-
+        ChatRoomMember member = getMember(chatRoomId, userId);
         validateActive(member);
 
         return member;
     }
 
-    private ChatRoomMember getChatRoomMember(Long chatRoomId, Long userId) {
+    private ChatRoomMember getMember(Long chatRoomId, Long userId) {
         return chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId)
             .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
     }

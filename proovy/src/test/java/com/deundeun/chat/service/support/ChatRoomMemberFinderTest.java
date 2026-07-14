@@ -1,6 +1,6 @@
-package com.deundeun.chat.service.validator;
+package com.deundeun.chat.service.support;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
@@ -20,41 +20,42 @@ import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 
 @ExtendWith(MockitoExtension.class)
-class ChatRoomMemberValidatorTest {
+class ChatRoomMemberFinderTest {
 
     @Mock
     private ChatRoomMemberMapper chatRoomMemberMapper;
 
     @InjectMocks
-    private ChatRoomMemberValidator chatRoomMemberValidator;
+    private ChatRoomMemberFinder chatRoomMemberFinder;
 
     @Test
-    void validateMember_activeMember_doesNotThrow() {
+    void findMember_activeMember_returnsMember() {
         Long chatRoomId = 1L;
         Long userId = 10L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, userId);
         when(chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .thenReturn(Optional.of(member));
 
-        assertThatCode(() -> chatRoomMemberValidator.validateMember(chatRoomId, userId))
-                .doesNotThrowAnyException();
+        ChatRoomMember result = chatRoomMemberFinder.findMember(chatRoomId, userId);
+
+        assertThat(result).isEqualTo(member);
     }
 
     @Test
-    void validateMember_notAMember_throwsForbidden() {
+    void findMember_notAMember_throwsForbidden() {
         Long chatRoomId = 1L;
         Long userId = 10L;
         when(chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> chatRoomMemberValidator.validateMember(chatRoomId, userId))
+        assertThatThrownBy(() -> chatRoomMemberFinder.findMember(chatRoomId, userId))
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.CHAT_ROOM_FORBIDDEN);
     }
 
     @Test
-    void validateMember_leftMember_throwsForbidden() {
+    void findMember_leftMember_throwsForbidden() {
         Long chatRoomId = 1L;
         Long userId = 10L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, userId);
@@ -62,7 +63,7 @@ class ChatRoomMemberValidatorTest {
         when(chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId))
                 .thenReturn(Optional.of(member));
 
-        assertThatThrownBy(() -> chatRoomMemberValidator.validateMember(chatRoomId, userId))
+        assertThatThrownBy(() -> chatRoomMemberFinder.findMember(chatRoomId, userId))
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.CHAT_ROOM_FORBIDDEN);
