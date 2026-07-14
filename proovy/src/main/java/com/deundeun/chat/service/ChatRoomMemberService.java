@@ -6,11 +6,9 @@ import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.NoSuchElementException;
 
 @Slf4j
 @Service
@@ -21,31 +19,24 @@ public class ChatRoomMemberService {
 
     @Transactional
     public void join(Long chatRoomId, Long userId) {
-        try {
-            rejoin(chatRoomId, userId);
-        } catch (NoSuchElementException e) {
-            chatRoomMemberMapper.insert(ChatRoomMember.join(chatRoomId, userId));
-        }
-
-        log.info("[Chat] 채팅방 참여 완료: chatRoomId={}, userId={}", chatRoomId, userId);
+        chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId)
+            .ifPresentOrElse(
+                this::rejoinIfInactive,
+                () -> insertNewMember(chatRoomId, userId)
+            );
     }
 
     @Transactional
     public void leave(Long chatRoomId, Long userId) {
         ChatRoomMember member = getChatRoomMember(chatRoomId, userId);
 
-        validateActive(member);
+        if (!member.isActive()) {
+            return; // 이미 나간 상태 — 멱등 처리
+        }
 
-        chatRoomMemberMapper.leave(chatRoomId, userId, LocalDateTime.now());
+        member.leave();
+        chatRoomMemberMapper.leave(member);
         log.info("[Chat] 채팅방 탈퇴 완료: chatRoomId={}, userId={}", chatRoomId, userId);
-    }
-
-    private void rejoin(Long chatRoomId, Long userId) {
-        ChatRoomMember member = chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId)
-            .orElseThrow(NoSuchElementException::new);
-
-        validateNotJoined(member);
-        chatRoomMemberMapper.rejoin(chatRoomId, userId);
     }
 
     public ChatRoomMember getChatRoomMember(Long chatRoomId, Long userId) {
@@ -53,15 +44,25 @@ public class ChatRoomMemberService {
             .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
     }
 
-    private void validateActive(ChatRoomMember member) {
-        if (!member.isActive()) {
-            throw new ApiException(ErrorCode.CHAT_ROOM_ALREADY_LEFT);
+    private void insertNewMember(Long chatRoomId, Long userId) {
+        ChatRoomMember newMember = ChatRoomMember.join(chatRoomId, userId);
+
+        try {
+            chatRoomMemberMapper.insert(newMember);
+            log.info("[Chat] 채팅방 신규 참여 완료: chatRoomId={}, userId={}", chatRoomId, userId);
+        } catch (DuplicateKeyException e) {
+            log.debug("[Chat] 동시 요청으로 인한 멤버 중복 생성 시도, 무시: chatRoomId={}, userId={}", chatRoomId, userId);
         }
     }
 
-    private void validateNotJoined(ChatRoomMember member) {
+    private void rejoinIfInactive(ChatRoomMember member) {
         if (member.isActive()) {
-            throw new ApiException(ErrorCode.CHAT_ROOM_ALREADY_JOINED);
+            log.debug("[Chat] 이미 활성 멤버, 재참여 처리 스킵: chatRoomId={}, userId={}", member.getChatRoomId(), member.getUserId());
+            return;
         }
+
+        member.rejoin();
+        chatRoomMemberMapper.rejoin(member);
+        log.info("[Chat] 채팅방 재참여 완료: chatRoomId={}, userId={}", member.getChatRoomId(), member.getUserId());
     }
 }
