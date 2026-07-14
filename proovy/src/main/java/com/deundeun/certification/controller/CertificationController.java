@@ -8,6 +8,7 @@ import com.deundeun.certification.dto.RejectCertificationPostRequest;
 import com.deundeun.certification.dto.UpdateCertificationPostRequest;
 import com.deundeun.certification.service.CertificationService;
 import com.deundeun.global.common.ApiResponse;
+import com.deundeun.global.common.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,7 +17,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @RestController
 public class CertificationController {
-    // TODO: userId는 테스트용 임시 (로그인 완성되면 교체)
 
     private final CertificationService certificationService;
 
@@ -24,9 +24,9 @@ public class CertificationController {
     @PostMapping("/api/v1/challenge/{challengeId}/certification-post")
     public ApiResponse<CreateCertificationPostResponse> createCertificationPosts(
             @PathVariable Long challengeId,
-            @RequestParam Long userId,
             @RequestBody CreateCertificationPostRequest request) {
 
+        Long userId = CurrentUser.getUserId();
         Long postId = certificationService.createCertificationPost(challengeId, userId, request);
 
         return ApiResponse.success(new CreateCertificationPostResponse(postId));
@@ -41,16 +41,16 @@ public class CertificationController {
 
     // 인증글 삭제 API
     @DeleteMapping("/api/v1/certification-post/{postId}")
-    public ApiResponse<Void> deleteCertificationPost(@PathVariable Long postId,
-                                                     @RequestParam Long userId) {
+    public ApiResponse<Void> deleteCertificationPost(@PathVariable Long postId) {
+        Long userId = CurrentUser.getUserId();
         certificationService.deleteCertificationPost(postId, userId);
         return ApiResponse.success(null);
     }
 
     // 인증글 승인 API
     @PatchMapping("/api/v1/certification-post/{postId}/approve")
-    public ApiResponse<Void> approveCertificationPost(@PathVariable Long postId,
-                                                      @RequestParam Long userId) {
+    public ApiResponse<Void> approveCertificationPost(@PathVariable Long postId) {
+        Long userId = CurrentUser.getUserId();
         certificationService.approveCertificationPost(postId, userId);
         return ApiResponse.success(null);
     }
@@ -58,8 +58,8 @@ public class CertificationController {
     // 인증글 반려 API
     @PatchMapping("/api/v1/certification-post/{postId}/reject")
     public ApiResponse<Void> rejectCertificationPost(@PathVariable Long postId,
-                                                     @RequestParam Long userId,
                                                      @RequestBody RejectCertificationPostRequest request) {
+        Long userId = CurrentUser.getUserId();
         certificationService.rejectCertificationPost(postId, userId, request);
         return ApiResponse.success(null);
     }
@@ -67,16 +67,16 @@ public class CertificationController {
     // 방장 검수 대기 목록 API
     @GetMapping("/api/v1/challenge/{challengeId}/pending-certifications")
     public ApiResponse<List<PendingCertificationResponse>> getPendingCertifications(
-            @PathVariable Long challengeId,
-            @RequestParam Long userId) {
+            @PathVariable Long challengeId) {
+        Long userId = CurrentUser.getUserId();
         return ApiResponse.success(certificationService.getPendingCertifications(challengeId, userId));
     }
 
     // 인증글 수정 API
     @PutMapping("/api/v1/certification-post/{postId}")
     public ApiResponse<Void> updateCertificationPost(@PathVariable Long postId,
-                                                     @RequestParam Long userId,
                                                      @RequestBody UpdateCertificationPostRequest request) {
+        Long userId = CurrentUser.getUserId();
         certificationService.updateCertificationPost(postId, userId, request);
         return ApiResponse.success(null);
     }

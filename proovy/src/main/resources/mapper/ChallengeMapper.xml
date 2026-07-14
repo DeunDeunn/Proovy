@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.challenge.mapper.ChallengeMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO challenges (
+            host_id, title, description, category_id, entry_fee,
+            verification_method, cert_frequency, daily_cert_limit,
+            success_criteria_rate, ai_review_enabled,
+            start_date, end_date, max_participants, status,
+            cert_start_time, cert_end_time, feed_visibility
+        ) VALUES (
+                     #{hostId}, #{title}, #{description}, #{categoryId}, #{entryFee},
+                     #{verificationMethod}, #{certFrequency}, #{dailyCertLimit},
+                     #{successCriteriaRate}, #{aiReviewEnabled},
+                     #{startDate}, #{endDate}, #{maxParticipants}, #{status},
+                     #{certStartTime}, #{certEndTime}, #{feedVisibility}
+                 )
+    </insert>
+
+</mapper>
