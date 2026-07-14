@@ -9,4 +9,8 @@
         ORDER BY sort_order, id
     </select>
 
+    <select id="existsById" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM categories WHERE id = #{id})
+    </select>
+
 </mapper>

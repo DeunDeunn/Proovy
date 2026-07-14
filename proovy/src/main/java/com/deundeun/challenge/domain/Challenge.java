@@ -1,15 +1,16 @@
 package com.deundeun.challenge.domain;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class Challenge {
 
     private Long id;
@@ -29,5 +30,8 @@ public class Challenge {
     private ChallengeStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalTime certStartTime;
+    private LocalTime certEndTime;
+    private FeedVisibility feedVisibility;
 
 }
