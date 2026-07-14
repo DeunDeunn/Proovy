@@ -62,7 +62,7 @@
         <if test="status != null">
             WHERE wr.status = #{status}
         </if>
-        ORDER BY wr.requested_at DESC
+        ORDER BY wr.requested_at DESC, wr.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
