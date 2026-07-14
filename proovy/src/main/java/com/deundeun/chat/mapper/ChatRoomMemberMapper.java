@@ -24,9 +24,7 @@ public interface ChatRoomMemberMapper {
                          @Param("lastReadMessageId") Long lastReadMessageId,
                          @Param("lastReadAt") LocalDateTime lastReadAt);
 
-    void leave(@Param("chatRoomId") Long chatRoomId,
-               @Param("userId") Long userId,
-               @Param("leftAt") LocalDateTime leftAt);
+    void leave(ChatRoomMember member);
 
-    void rejoin(@Param("chatRoomId") Long chatRoomId, @Param("userId") Long userId);
+    void rejoin(ChatRoomMember member);
 }
