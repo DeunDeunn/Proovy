@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -63,7 +65,8 @@ public class CertificationService {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_IN_PROGRESS);
         }
 
-        // TODO: 인증 시간대 검증 추가 (챌린지에 시간대 컬럼 생기면)
+        // 인증 등록 가능 시간대(KST)인지 검증
+        validateCertTimeRange(challenge);
 
         // 참가자 확인
         ParticipantForCertification participant = certificationMapper.findParticipant(challengeId, userId);
@@ -154,7 +157,7 @@ public class CertificationService {
         if (updated == 0) {
             throw new ApiException(ErrorCode.NOT_PENDING_POST);
         }
-        // 작성자에게 "승인됨" 알림 (실제 발송은 알림 도메인이 처리)
+        // 알림
         eventPublisher.publishEvent(new VerificationApprovedEvent(ctx.getAuthorId(), postId));
     }
 
@@ -223,6 +226,15 @@ public class CertificationService {
             throw new ApiException(ErrorCode.FORBIDDEN);   // 작성자 본인만 수정 가능
         }
 
+        // 수정도 인증 등록 가능 시간대(KST) 안에서만 가능
+        // challenge_participant_id에 FK가 없어 연관이 깨진 글이 들어올 수 있음.
+        // 조인 결과가 null이면 검증을 건너뛰지 말고 실패 처리(검증 우회 방지).
+        ChallengeForCertification challenge = certificationMapper.findChallengeByPostId(postId);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        validateCertTimeRange(challenge);
+
         // 본문·대표이미지 수정 + PENDING 회귀
         certificationMapper.updatePost(postId, request.getContents(), request.getThumbnailImage());
 
@@ -233,6 +245,21 @@ public class CertificationService {
             certificationMapper.insertPostImages(postId, imageList);
         }
 
-        // TODO: 수정도 인증 시간대 안에서만 가능하도록 검증 추가
+    }
+
+    // 인증 등록 가능 시간대(KST) 검증. 현재 시각이 [certStartTime, certEndTime] 범위 밖이면 예외.
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+    private void validateCertTimeRange(ChallengeForCertification challenge) {
+        LocalTime now = LocalTime.now(KST);
+        LocalTime start = challenge.getCertStartTime();
+        LocalTime end = challenge.getCertEndTime();
+        // start~end 컬럼은 NOT NULL이라 정상 데이터면 null 아님
+        if (start == null || end == null) {
+            return;
+        }
+        if (now.isBefore(start) || now.isAfter(end)) {
+            throw new ApiException(ErrorCode.NOT_IN_CERT_TIME_RANGE);
+        }
     }
 }
