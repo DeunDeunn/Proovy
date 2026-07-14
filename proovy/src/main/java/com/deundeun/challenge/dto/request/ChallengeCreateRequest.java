@@ -1,5 +1,6 @@
 package com.deundeun.challenge.dto.request;
 
+import com.deundeun.challenge.domain.FeedVisibility;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 public record ChallengeCreateRequest(
 
@@ -42,6 +44,15 @@ public record ChallengeCreateRequest(
 
         @NotNull(message = "모집 정원은 필수입니다.")
         @Positive(message = "모집 정원은 0보다 커야 합니다.")
-        Integer maxParticipants
+        Integer maxParticipants,
+
+        @NotNull(message = "인증 시작 시간은 필수입니다.")
+        LocalTime certStartTime,
+
+        @NotNull(message = "인증 종료 시간은 필수입니다.")
+        LocalTime certEndTime,
+
+        @NotNull(message = "피드 공개 범위는 필수입니다.")
+        FeedVisibility feedVisibility
 ) {
 }

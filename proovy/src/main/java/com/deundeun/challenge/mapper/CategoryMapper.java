@@ -8,4 +8,5 @@ import java.util.List;
 @Mapper
 public interface CategoryMapper {
     List<Category> findAll();
+    boolean existsById(Long id);
 }

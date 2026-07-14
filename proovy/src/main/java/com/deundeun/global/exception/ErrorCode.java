@@ -29,6 +29,18 @@ public enum ErrorCode {
     NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "U002", "이미 사용 중인 닉네임입니다."),
     NICKNAME_INVALID(HttpStatus.BAD_REQUEST, "U003", "닉네임은 2자 이상 10자 이하로 입력해주세요."),
 
+    //challenge
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CHL001", "존재하지 않는 카테고리입니다."),
+    INVALID_CHALLENGE_PERIOD(HttpStatus.BAD_REQUEST, "CHL002", "종료일은 시작일 이후여야 합니다."),
+    INVALID_CERT_TIME_RANGE(HttpStatus.BAD_REQUEST, "CHL003", "인증 종료 시간은 시작 시간 이후여야 합니다."),
+    CHALLENGE_NOT_FOUND(HttpStatus.NOT_FOUND, "CHL004", "존재하지 않는 챌린지입니다."),
+    CHALLENGE_NOT_EDITABLE(HttpStatus.CONFLICT, "CHL005", "참가자가 있는 챌린지는 핵심 조건을 수정할 수 없습니다."),
+    CHALLENGE_NOT_RECRUITING(HttpStatus.CONFLICT, "CHL006", "모집 중인 챌린지가 아닙니다."),
+    CHALLENGE_FULL(HttpStatus.CONFLICT, "CHL007", "모집 정원이 가득 찼습니다."),
+    ALREADY_JOINED_CHALLENGE(HttpStatus.CONFLICT, "CHL008", "이미 참여 중인 챌린지입니다."),
+    NOT_CHALLENGE_PARTICIPANT(HttpStatus.NOT_FOUND, "CHL009", "챌린지 참가자가 아닙니다."),
+    HOST_CANNOT_LEAVE(HttpStatus.BAD_REQUEST, "CHL010", "방장은 자신의 챌린지에서 탈퇴할 수 없습니다."),
+
     // 결제/캐시/정산
     INVALID_CHARGE_AMOUNT(HttpStatus.BAD_REQUEST, "CG001", "충전 금액은 1,000원 이상 50,000원 이하, 1,000원 단위여야 합니다."),
     PG_AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "CG002", "결제 승인 금액이 요청 금액과 일치하지 않습니다."),
