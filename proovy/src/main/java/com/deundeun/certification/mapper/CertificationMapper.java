@@ -21,6 +21,9 @@ public interface CertificationMapper {
    // 챌린지 존재하는지, 상태어떤지
    ChallengeForCertification findChallengeById(Long challengeId);
 
+   // 인증글이 속한 챌린지 조회 (수정 시 시간대 검증용 — 글→참가자→챌린지 조인)
+   ChallengeForCertification findChallengeByPostId(Long postId);
+
    // 이 유저가 이 챌린지의 참가자인지 조회
    ParticipantForCertification findParticipant(@Param("challengeId") Long challengeId,
                                                @Param("userId") Long userId);
