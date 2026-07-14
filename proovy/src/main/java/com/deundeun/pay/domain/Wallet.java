@@ -34,4 +34,8 @@ public class Wallet {
     public long getUnlockedRewardBalance() {
         return rewardBalance - lockedRewardBalance;
     }
+
+    public long getUnlockedChargedBalance() {
+        return chargedBalance - lockedChargedBalance;
+    }
 }
