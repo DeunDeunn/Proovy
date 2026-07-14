@@ -46,6 +46,11 @@ public class ChatRoomMember {
         this.joinedAt = LocalDateTime.now();
     }
 
+    public void markRead(Long lastReadMessageId) {
+        this.lastReadMessageId = lastReadMessageId;
+        this.lastReadAt = LocalDateTime.now();
+    }
+
     public boolean isActive() {
         return this.leftAt == null;
     }

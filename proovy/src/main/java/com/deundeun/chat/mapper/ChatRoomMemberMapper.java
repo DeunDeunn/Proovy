@@ -1,6 +1,5 @@
 package com.deundeun.chat.mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,10 +18,7 @@ public interface ChatRoomMemberMapper {
 
     List<ChatRoomMember> findActiveByChatRoomId(@Param("chatRoomId") Long chatRoomId);
 
-    void updateLastRead(@Param("chatRoomId") Long chatRoomId,
-                         @Param("userId") Long userId,
-                         @Param("lastReadMessageId") Long lastReadMessageId,
-                         @Param("lastReadAt") LocalDateTime lastReadAt);
+    void updateLastRead(ChatRoomMember member);
 
     void leave(ChatRoomMember member);
 

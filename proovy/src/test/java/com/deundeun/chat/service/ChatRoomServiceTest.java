@@ -26,10 +26,10 @@ import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.domain.ChatRoomType;
 import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
-import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
+import com.deundeun.chat.service.support.ChatUnreadCounter;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 
@@ -43,7 +43,7 @@ class ChatRoomServiceTest {
     private ChatRoomMemberMapper chatRoomMemberMapper;
 
     @Mock
-    private ChatMessageMapper chatMessageMapper;
+    private ChatUnreadCounter chatUnreadCounter;
 
     @Mock
     private ChatRoomMemberFinder chatRoomMemberFinder;
@@ -173,7 +173,7 @@ class ChatRoomServiceTest {
         when(chatRoomMemberFinder.findMember(5L, userId)).thenReturn(member);
         when(chatRoomMemberMapper.findActiveByChatRoomId(5L))
             .thenReturn(List.of(ChatRoomMember.join(5L, userId), ChatRoomMember.join(5L, 2L)));
-        when(chatMessageMapper.countAfterId(5L, 20L)).thenReturn(3);
+        when(chatUnreadCounter.count(member)).thenReturn(3);
 
         ChallengeChatRoomResponse response = chatRoomService.getChallengeRoom(challengeId, userId);
 

@@ -4,10 +4,10 @@ import com.deundeun.chat.domain.ChatRoom;
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
-import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
+import com.deundeun.chat.service.support.ChatUnreadCounter;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChatRoomService {
 
-    private final ChatRoomMemberFinder chatRoomMemberFinder;
     private final ChatRoomMapper chatRoomMapper;
     private final ChatRoomMemberMapper chatRoomMemberMapper;
-    private final ChatMessageMapper chatMessageMapper;
+
+    private final ChatRoomMemberFinder chatRoomMemberFinder;
+    private final ChatUnreadCounter chatUnreadCounter;
 
     @Transactional
     public ChatRoom createChallengeRoom(Long challengeId) {
@@ -56,7 +57,7 @@ public class ChatRoomService {
         ChatRoomMember member = chatRoomMemberFinder.findMember(room.getId(), userId);
 
         int memberCount = chatRoomMemberMapper.findActiveByChatRoomId(room.getId()).size();
-        int unreadCount = chatMessageMapper.countAfterId(room.getId(), member.getLastReadMessageId());
+        int unreadCount = chatUnreadCounter.count(member);
 
         return ChallengeChatRoomResponse.of(room, memberCount, unreadCount, member);
     }
