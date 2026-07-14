@@ -27,4 +27,10 @@ public interface WithdrawalMapper {
                                            @Param("limit") int limit);
 
     long countByWalletId(@Param("walletId") Long walletId, @Param("status") WithdrawalStatus status);
+
+    List<WithdrawalItem> selectAll(@Param("status") WithdrawalStatus status,
+                                    @Param("offset") int offset,
+                                    @Param("limit") int limit);
+
+    long countAll(@Param("status") WithdrawalStatus status);
 }

@@ -1,5 +1,7 @@
 package com.deundeun.chat.domain;
 
+import com.deundeun.global.exception.ApiException;
+import com.deundeun.global.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,6 +27,23 @@ public class ChatRoomMember {
 
     public static ChatRoomMember join(Long chatRoomId, Long userId) {
         return new ChatRoomMember(chatRoomId, userId);
+    }
+
+    public void leave() {
+        if (!isActive()) {
+            throw new ApiException(ErrorCode.CHAT_ROOM_ALREADY_LEFT);
+        }
+
+        this.leftAt = LocalDateTime.now();
+    }
+
+    public void rejoin() {
+        if (isActive()) {
+            throw new ApiException(ErrorCode.CHAT_ROOM_ALREADY_JOINED);
+        }
+
+        this.leftAt = null;
+        this.joinedAt = LocalDateTime.now();
     }
 
     public boolean isActive() {

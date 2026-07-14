@@ -38,7 +38,8 @@
 
     <update id="rejoin">
         UPDATE chat_room_members
-        SET left_at = NULL
+        SET left_at = NULL,
+            joined_at = #{joinedAt}
         WHERE chat_room_id = #{chatRoomId}
           AND user_id = #{userId}
     </update>

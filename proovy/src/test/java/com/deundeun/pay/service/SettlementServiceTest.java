@@ -17,13 +17,17 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.notification.event.HostRevenuePaidEvent;
+import com.deundeun.notification.event.SettlementCompletedEvent;
 import com.deundeun.pay.domain.CashTransaction;
 import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.HostRevenue;
@@ -48,6 +52,8 @@ class SettlementServiceTest {
     private WalletService walletService;
     @Mock
     private CashTransactionMapper cashTransactionMapper;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private SettlementService settlementService;
@@ -172,6 +178,18 @@ class SettlementServiceTest {
         assertThat(saved.getPlatformFeeAmount()).isEqualTo(200L);
         assertThat(saved.getProfitPerUser()).isEqualTo(350L);
         assertThat(saved.getRoundingRemainder()).isEqualTo(0L);
+
+        // 알림: 방장 1건 + 성공자 2건만 발행되고, 실패자에게는 발행되지 않아야 한다
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher, times(3)).publishEvent(eventCaptor.capture());
+        List<Object> events = eventCaptor.getAllValues();
+
+        assertThat(events).filteredOn(e -> e instanceof HostRevenuePaidEvent)
+                .extracting(e -> ((HostRevenuePaidEvent) e).userId())
+                .containsExactly(hostId);
+        assertThat(events).filteredOn(e -> e instanceof SettlementCompletedEvent)
+                .extracting(e -> ((SettlementCompletedEvent) e).userId())
+                .containsExactlyInAnyOrder(successA, successB);
     }
 
     @Test
@@ -209,6 +227,9 @@ class SettlementServiceTest {
         verify(walletService, never()).getWalletForUpdate(99L);
         verify(hostRevenueMapper, never()).insert(any());
         verify(cashTransactionMapper, never()).insert(argThat(t -> t.getType() == CashTransactionType.HOST_FEE));
+        verify(eventPublisher, never()).publishEvent(any(HostRevenuePaidEvent.class));
+        verify(eventPublisher).publishEvent(ArgumentMatchers.<Object>argThat(e ->
+                e instanceof SettlementCompletedEvent sce && sce.userId().equals(10L)));
 
         ArgumentCaptor<Settlement> captor = ArgumentCaptor.forClass(Settlement.class);
         verify(settlementMapper).insert(captor.capture());
@@ -287,6 +308,8 @@ class SettlementServiceTest {
         verify(walletService, times(1)).updateLockedRewardBalance(101L, 0L);
         verify(walletService, times(1)).updateRewardBalance(101L, 0L); // profitPerUser=0(실패자 없어 나눠줄 몫도 0)
         verify(cashTransactionMapper, times(3)).insert(any(CashTransaction.class)); // HOST_FEE + SUCCESS + PROFIT_DISTRIBUTION, 중복 없이 한 세트만
+        verify(eventPublisher, times(1)).publishEvent(ArgumentMatchers.<Object>argThat(e ->
+                e instanceof SettlementCompletedEvent sce && sce.userId().equals(successUser))); // 알림도 중복 없이 한 번만
 
         ArgumentCaptor<Settlement> settlementCaptor = ArgumentCaptor.forClass(Settlement.class);
         verify(settlementMapper).insert(settlementCaptor.capture());
