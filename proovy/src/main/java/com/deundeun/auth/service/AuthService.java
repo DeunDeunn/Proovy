@@ -1,13 +1,18 @@
 package com.deundeun.auth.service;
 
 import com.deundeun.auth.domain.User;
+import com.deundeun.auth.dto.ConnectStatusResponse;
+import com.deundeun.auth.dto.NicknameUpdateResponse;
 import com.deundeun.auth.dto.UserMeResponse;
 import com.deundeun.auth.mapper.UserMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.global.security.jwt.JwtProvider;
+import com.deundeun.global.security.jwt.ReauthTokenRepository;
 import com.deundeun.global.security.jwt.RefreshToken;
 import com.deundeun.global.security.jwt.RefreshTokenRepository;
+import com.deundeun.pay.domain.Wallet;
+import com.deundeun.pay.mapper.WalletMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,7 +25,9 @@ public class AuthService {
 
     private final JwtProvider jwtProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final ReauthTokenRepository reauthTokenRepository;
     private final UserMapper userMapper;
+    private final WalletMapper walletMapper;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
@@ -50,6 +57,58 @@ public class AuthService {
     public UserMeResponse getMe(Long userId) {
         User user = getUserOrThrow(userId);
         return UserMeResponse.from(user);
+    }
+
+    public void logout(Long userId) {
+        refreshTokenRepository.deleteByUserId(userId);
+    }
+
+    public void checkNicknameDuplicate(String nickname) {
+        if (userMapper.existsByNickname(nickname, null)) {
+            throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
+        }
+    }
+
+    public NicknameUpdateResponse updateNickname(Long userId, String nickname) {
+        if (nickname == null || nickname.length() < 2 || nickname.length() > 10) {
+            throw new ApiException(ErrorCode.NICKNAME_INVALID);
+        }
+        if (userMapper.existsByNickname(nickname, userId)) {
+            throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
+        }
+        userMapper.updateNickname(userId, nickname);
+        return new NicknameUpdateResponse(nickname);
+    }
+
+    public ConnectStatusResponse getConnectStatus(Long userId, String provider) {
+        User user = getUserOrThrow(userId);
+        boolean connected = user.getProvider().equalsIgnoreCase(provider);
+        return new ConnectStatusResponse(connected, connected ? user.getEmail() : null);
+    }
+
+    public void startReauth(Long userId) {
+        reauthTokenRepository.markPending(userId);
+    }
+
+    public void withdraw(Long userId) {
+        if (!reauthTokenRepository.isVerified(userId)) {
+            throw new ApiException(ErrorCode.REAUTH_FAILED);
+        }
+
+        getUserOrThrow(userId);
+
+        if (userMapper.existsActiveChallengeParticipation(userId)) {
+            throw new ApiException(ErrorCode.WITHDRAWAL_ACTIVE_CHALLENGE);
+        }
+
+        Wallet wallet = walletMapper.selectByUserId(userId);
+        if (wallet != null && wallet.getChargedBalance() > 0) {
+            throw new ApiException(ErrorCode.WITHDRAWAL_CASH_REMAINING);
+        }
+
+        userMapper.softDelete(userId);
+        refreshTokenRepository.deleteByUserId(userId);
+        reauthTokenRepository.clearVerified(userId);
     }
 
     private User getUserOrThrow(Long userId) {

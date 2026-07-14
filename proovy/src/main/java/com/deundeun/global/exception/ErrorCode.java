@@ -23,6 +23,11 @@ public enum ErrorCode {
     KAKAO_PROFILE_FETCH_FAILED(HttpStatus.BAD_GATEWAY, "U013", "Kakao 사용자 정보를 가져올 수 없습니다."),
     KAKAO_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "U014", "Kakao 인증에 실패했습니다."),
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "U018", "리프레시 토큰이 유효하지 않습니다. 다시 로그인해주세요."),
+    REAUTH_FAILED(HttpStatus.UNAUTHORIZED, "U019", "본인 확인에 실패했습니다. 로그인된 계정과 일치하지 않습니다."),
+    WITHDRAWAL_ACTIVE_CHALLENGE(HttpStatus.BAD_REQUEST, "U005", "진행 중인 챌린지(참가 또는 방장)가 있어 탈퇴할 수 없습니다."),
+    WITHDRAWAL_CASH_REMAINING(HttpStatus.BAD_REQUEST, "U006", "충전 캐시 잔액이 남아있어 탈퇴할 수 없습니다. 출금 후 다시 시도해주세요."),
+    NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "U002", "이미 사용 중인 닉네임입니다."),
+    NICKNAME_INVALID(HttpStatus.BAD_REQUEST, "U003", "닉네임은 2자 이상 10자 이하로 입력해주세요."),
 
     // 결제/캐시/정산
     INVALID_CHARGE_AMOUNT(HttpStatus.BAD_REQUEST, "CG001", "충전 금액은 1,000원 이상 50,000원 이하, 1,000원 단위여야 합니다."),

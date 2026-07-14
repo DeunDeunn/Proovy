@@ -2,15 +2,18 @@ package com.deundeun.global.security.oauth2;
 
 import com.deundeun.global.security.jwt.CustomUserDetails;
 import com.deundeun.global.security.jwt.JwtProvider;
+import com.deundeun.global.security.jwt.ReauthTokenRepository;
 import com.deundeun.global.security.jwt.RefreshToken;
 import com.deundeun.global.security.jwt.RefreshTokenRepository;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +26,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final JwtProvider jwtProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final ReauthTokenRepository reauthTokenRepository;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -42,6 +46,27 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Long userId = userDetails.getUserId();
         String role = userDetails.getRole();
+
+        String reauthUid = extractCookie(request, "reauthUid");
+        if (reauthUid != null) {
+            expireCookie(response, "reauthUid");
+
+            String redirectUrl;
+            Long expectedUserId = Long.valueOf(reauthUid);
+            if (userId.equals(expectedUserId) && reauthTokenRepository.isPending(expectedUserId)) {
+                reauthTokenRepository.clearPending(expectedUserId);
+                reauthTokenRepository.markVerified(expectedUserId);
+                redirectUrl = frontendUrl + "/mypage/withdraw?reauth=true";
+            } else {
+                reauthTokenRepository.clearPending(expectedUserId);
+                String provider = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+                redirectUrl = frontendUrl + "/mypage/withdraw?reauth=false&error=" + provider + "_reauth_failed";
+            }
+
+            clearAuthenticationAttributes(request);
+            getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+            return;
+        }
 
         String redirectUrl;
         try {
@@ -73,5 +98,22 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .maxAge(maxAgeSeconds)
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
+    }
+
+    private void expireCookie(HttpServletResponse response, String name) {
+        addCookie(response, name, "", 0);
+    }
+
+    private String extractCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }
