@@ -117,6 +117,21 @@ public class WithdrawalService {
                 .build();
     }
 
+    @Transactional
+    public WithdrawalHistoryResponse getAllWithdrawals(WithdrawalStatus status, int page, int size) {
+        List<WithdrawalItem> content = withdrawalMapper.selectAll(status, page * size, size);
+        long totalElements = withdrawalMapper.countAll(status);
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        return WithdrawalHistoryResponse.builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
+    }
+
     private WithdrawalRequest getPendingWithdrawalOrThrow(Long withdrawalId) {
         WithdrawalRequest withdrawalRequest = withdrawalMapper.selectByIdForUpdate(withdrawalId);
         if (withdrawalRequest == null) {

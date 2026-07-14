@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Builder
 public class WithdrawalItem {
     private Long id;
+    private Long userId; // 관리자 전체 목록 조회 시에만 채워짐
     private SourceType sourceType;
     private Long amount;
     private Long feeAmount;

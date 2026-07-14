@@ -208,6 +208,22 @@ class WithdrawalServiceTest {
     }
 
     @Test
+    void getAllWithdrawals_filtersByStatusAcrossAllWallets() {
+        List<WithdrawalItem> content = List.of(
+                WithdrawalItem.builder().id(2L).userId(20L).amount(10_000L).status(WithdrawalStatus.PENDING).build(),
+                WithdrawalItem.builder().id(1L).userId(10L).amount(5_000L).status(WithdrawalStatus.PENDING).build());
+        when(withdrawalMapper.selectAll(WithdrawalStatus.PENDING, 0, 10)).thenReturn(content);
+        when(withdrawalMapper.countAll(WithdrawalStatus.PENDING)).thenReturn(2L);
+
+        WithdrawalHistoryResponse response = withdrawalService.getAllWithdrawals(WithdrawalStatus.PENDING, 0, 10);
+
+        assertThat(response.getContent()).isEqualTo(content);
+        assertThat(response.getTotalElements()).isEqualTo(2L);
+        assertThat(response.getTotalPages()).isEqualTo(1);
+        verify(walletService, never()).getOrCreateWallet(anyLong()); // 특정 유저 지갑이 아니라 전체 조회라 지갑 조회 자체가 없어야 함
+    }
+
+    @Test
     void completeWithdrawal_pending_marksCompletedAndPersists() {
         when(withdrawalMapper.selectByIdForUpdate(5L)).thenReturn(pendingWithdrawalRequest(5L, SourceType.CHARGED, 10_000L));
 
