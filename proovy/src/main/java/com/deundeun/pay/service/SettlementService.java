@@ -16,7 +16,10 @@ import com.deundeun.pay.enums.SettlementStatus;
 import com.deundeun.pay.mapper.CashTransactionMapper;
 import com.deundeun.pay.mapper.HostRevenueMapper;
 import com.deundeun.pay.mapper.SettlementMapper;
+import com.deundeun.notification.event.HostRevenuePaidEvent;
+import com.deundeun.notification.event.SettlementCompletedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +38,7 @@ public class SettlementService implements WalletSettlementService {
     private final HostRevenueMapper hostRevenueMapper;
     private final WalletService walletService;
     private final CashTransactionMapper cashTransactionMapper;
+    private final ApplicationEventPublisher eventPublisher;
     @Override
     @Transactional
     public Long settle(Long challengeId, List<Long> successUserIds, List<Long> failUserIds, Long hostId, boolean isHostDisqualified, long perPersonFee) {
@@ -119,14 +123,16 @@ public class SettlementService implements WalletSettlementService {
                     .referenceId(challengeId)
                     .build());
 
-            hostRevenueMapper.insert(HostRevenue.builder()
+            HostRevenue hostRevenue = HostRevenue.builder()
                     .hostId(hostId)
                     .challengeId(challengeId)
                     .settlementId(settlement.getId())
                     .amount(hostFeeAmount)
                     .status(HostRevenueStatus.PAID)
                     .paidAt(LocalDateTime.now())
-                    .build());
+                    .build();
+            hostRevenueMapper.insert(hostRevenue);
+            eventPublisher.publishEvent(new HostRevenuePaidEvent(hostId, hostRevenue.getId()));
         }
         for (Long userId : successUserIds) {
             Wallet wallet = walletService.getWalletForUpdate(userId);
@@ -152,6 +158,8 @@ public class SettlementService implements WalletSettlementService {
                     .status(CashTransactionStatus.COMPLETED)
                     .referenceId(challengeId)
                     .build());
+
+            eventPublisher.publishEvent(new SettlementCompletedEvent(userId, settlement.getId()));
         }
         for (Long userId : failUserIds) {
             Wallet wallet = walletService.getWalletForUpdate(userId);
