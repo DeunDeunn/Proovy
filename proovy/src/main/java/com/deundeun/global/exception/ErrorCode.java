@@ -45,6 +45,7 @@ public enum ErrorCode {
     HOLD_NOT_FOUND(HttpStatus.NOT_FOUND, "CG018", "홀딩 내역을 찾을 수 없습니다."),
     HOLD_ALREADY_CANCELLED(HttpStatus.CONFLICT, "CG019", "이미 취소 처리된 홀딩입니다."),
     INVALID_CANCEL_AMOUNT(HttpStatus.BAD_REQUEST, "CG020", "취소 금액이 원래 홀딩 금액과 일치하지 않습니다."),
+    TICKET_ALREADY_PURCHASED(HttpStatus.CONFLICT, "CG021", "이미 구매 처리된 티켓입니다."),
 
     //chat
     CHAT_ROOM_FORBIDDEN(HttpStatus.FORBIDDEN, "CH001", "해당 채팅방에 접근할 권한이 없습니다."),

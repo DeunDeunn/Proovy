@@ -84,6 +84,49 @@ class TicketServiceTest {
     }
 
     @Test
+    void purchase_alreadyPurchasedForSameReferenceId_throwsAndDoesNotDoubleDeduct() {
+        when(walletService.getWalletForUpdate(USER_ID)).thenReturn(walletWith(10_000L, 0L));
+        when(cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(
+                WALLET_ID, REFERENCE_ID, CashTransactionType.AI_TICKET_PURCHASE))
+                .thenReturn(CashTransaction.builder().id(1L).amount(7_000L).build());
+
+        assertThatThrownBy(() -> ticketService.purchase(USER_ID, 7_000L, REFERENCE_ID))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.TICKET_ALREADY_PURCHASED);
+
+        verify(walletService, never()).updateChargedBalance(anyLong(), anyLong());
+        verify(walletService, never()).deductChargeLotsFifo(anyLong(), anyLong());
+        verify(cashTransactionMapper, never()).insert(any());
+    }
+
+    @Test
+    void purchase_zeroAmount_throwsAndDoesNotTouchWalletOrHistory() {
+        assertThatThrownBy(() -> ticketService.purchase(USER_ID, 0L, REFERENCE_ID))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_REQUEST);
+
+        verify(walletService, never()).getWalletForUpdate(anyLong());
+        verify(walletService, never()).updateChargedBalance(anyLong(), anyLong());
+        verify(walletService, never()).deductChargeLotsFifo(anyLong(), anyLong());
+        verify(cashTransactionMapper, never()).insert(any());
+    }
+
+    @Test
+    void purchase_negativeAmount_throwsAndDoesNotTouchWalletOrHistory() {
+        assertThatThrownBy(() -> ticketService.purchase(USER_ID, -7_000L, REFERENCE_ID))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_REQUEST);
+
+        verify(walletService, never()).getWalletForUpdate(anyLong());
+        verify(walletService, never()).updateChargedBalance(anyLong(), anyLong());
+        verify(walletService, never()).deductChargeLotsFifo(anyLong(), anyLong());
+        verify(cashTransactionMapper, never()).insert(any());
+    }
+
+    @Test
     void purchase_lockedByOtherChallenge_excludedFromUnlockedChargedBalance_throwsInsufficientBalance() {
         // charged_balance는 7,000 있지만 전부 다른 챌린지에 홀딩되어 있어 실제 구매 가능액은 0
         when(walletService.getWalletForUpdate(USER_ID)).thenReturn(walletWith(7_000L, 7_000L));

@@ -12,13 +12,16 @@ public interface WalletTicketService {
      * userId의 지갑에서 amount만큼 티켓 구매 대금을 charged_balance에서 영구히 차감한다.
      * reward_balance는 건드리지 않는다(충전 캐시로만 구매 가능). 플랫폼 내부에서 바로
      * 소비되는 지출이라 출금 전용 7일 대기 규칙과는 무관하게, 다른 챌린지에 홀딩되지 않은
-     * charged_balance 전체를 기준으로 검증한다.
+     * charged_balance 전체를 기준으로 검증한다. 같은 referenceId로 두 번 호출해도
+     * 잔액이 중복 차감되지 않도록 멱등성을 보장한다.
      *
      * @param userId      구매자 userId
      * @param amount      구매 금액 (1원 이상)
      * @param referenceId 이 구매의 근거가 되는 ai_ticket_subscriptions.id
      * @return 이번 구매 건의 거래 id (cash_transactions.id)
      * @throws com.deundeun.global.exception.ApiException INSUFFICIENT_BALANCE — 홀딩되지 않은 충전 잔액이 amount보다 적을 때
+     * @throws com.deundeun.global.exception.ApiException TICKET_ALREADY_PURCHASED — 이미 이 referenceId로 구매 처리된 경우
+     * @throws com.deundeun.global.exception.ApiException INVALID_REQUEST — amount가 0 이하일 때
      */
     Long purchase(Long userId, long amount, Long referenceId);
 }

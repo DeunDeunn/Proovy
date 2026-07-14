@@ -21,7 +21,17 @@ public class TicketService implements WalletTicketService {
     @Override
     @Transactional
     public Long purchase(Long userId, long amount, Long referenceId) {
+        if (amount <= 0) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST);
+        }
+
         Wallet wallet = walletService.getWalletForUpdate(userId);
+
+        boolean alreadyPurchased = cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(
+                wallet.getId(), referenceId, CashTransactionType.AI_TICKET_PURCHASE) != null;
+        if (alreadyPurchased) {
+            throw new ApiException(ErrorCode.TICKET_ALREADY_PURCHASED);
+        }
 
         if (wallet.getUnlockedChargedBalance() < amount) {
             throw new ApiException(ErrorCode.INSUFFICIENT_BALANCE);
