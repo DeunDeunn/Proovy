@@ -41,7 +41,19 @@ public enum ErrorCode {
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "알림을 찾을 수 없습니다."),
-    NOTIFICATION_SUBSCRIBE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "NT003", "알림 구독 연결에 실패했습니다.");
+    NOTIFICATION_SUBSCRIBE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "NT003", "알림 구독 연결에 실패했습니다."),
+
+    // 인증/피드
+    CHALLENGE_NOT_FOUND(HttpStatus.NOT_FOUND, "CF001", "챌린지가 존재하지 않습니다."),
+    CHALLENGE_NOT_IN_PROGRESS(HttpStatus.BAD_REQUEST, "CF002", "진행중인 챌린지에서만 인증글을 등록할 수 있습니다."),
+    NOT_CHALLENGE_PARTICIPANT(HttpStatus.FORBIDDEN, "CF003", "이 챌린지의 참가자가 아닙니다."),
+    PARTICIPANT_NOT_ACTIVE(HttpStatus.FORBIDDEN, "CF004", "인증글을 등록할 수 없습니다."),
+    ALREADY_CERTIFIED_TODAY(HttpStatus.CONFLICT, "CF005", "한 챌린지당 하루에 한개의 인증글만 등록할 수 있습니다."),
+    TOO_MANY_IMAGES(HttpStatus.BAD_REQUEST, "CF006", "추가 이미지는 최대 3장까지 등록할 수 있습니다."),
+    THUMBNAIL_REQUIRED(HttpStatus.BAD_REQUEST, "CF007", "대표 인증 이미지는 필수항목 입니다.."),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "CF008", "인증글을 찾을 수 없습니다."),
+    NOT_PENDING_POST(HttpStatus.CONFLICT, "CF009", "승인대기 상태의 인증글만 처리 가능합니다."),
+    REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "CF010", "반려 사유는 필수 입력사항입니다.");
 
     private final HttpStatus status;
     private final String code;

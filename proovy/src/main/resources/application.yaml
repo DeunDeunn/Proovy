@@ -2,7 +2,11 @@ spring:
   application:
     name: proovy
   datasource:
+    url: jdbc:postgresql://localhost:5432/deundeun_db?TimeZone=Asia/Seoul
+    username: deundeun
+    password: deundeun1234
     driver-class-name: org.postgresql.Driver
+
 
 mybatis:
   mapper-locations: classpath:/mapper/*.xml
