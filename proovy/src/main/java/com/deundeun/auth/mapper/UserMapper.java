@@ -13,4 +13,12 @@ public interface UserMapper {
     User findById(@Param("id") Long id);
 
     void insert(User user);
+
+    void softDelete(@Param("id") Long id);
+
+    boolean existsActiveChallengeParticipation(@Param("userId") Long userId);
+
+    boolean existsByNickname(@Param("nickname") String nickname, @Param("excludeUserId") Long excludeUserId);
+
+    void updateNickname(@Param("id") Long id, @Param("nickname") String nickname);
 }
