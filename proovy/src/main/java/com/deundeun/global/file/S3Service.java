@@ -58,6 +58,28 @@ public class S3Service implements FileStorageService {
     }
 
     /**
+     * 검증만 하고 실제 업로드는 하지 않은 채, 업로드했을 때 쓰일 url을 미리 만들어 반환한다.
+     * DB에 url을 먼저 저장해두고 실제 업로드는 맨 마지막에 하고 싶을 때 {@link #uploadTo}와
+     * 짝지어 쓴다.
+     */
+    @Override
+    public String reserveUrl(MultipartFile file, FileCategory category) {
+        String contentType = validate(file, category);
+        String key = buildKey(category, contentType);
+        return urlFor(key);
+    }
+
+    /**
+     * {@link #reserveUrl}이 미리 발급한 url이 가리키는 위치에 실제로 업로드한다.
+     */
+    @Override
+    public void uploadTo(MultipartFile file, FileCategory category, String url) {
+        String contentType = validate(file, category);
+        String key = extractKey(url);
+        putObject(file, key, contentType);
+    }
+
+    /**
      * 여러 파일을 한 번에 업로드한다. 하나라도 검증(용량/타입)에 실패하면 아무것도
      * 업로드하지 않고 즉시 예외를 던진다 — 실제 업로드 전에 전체 파일을 먼저 검증해서,
      * "검증에 걸리는 파일이 있어서" 실패하는 경우는 아무것도 안 올라간 상태로 막는다.
@@ -114,7 +136,12 @@ public class S3Service implements FileStorageService {
 
     private String uploadValidated(MultipartFile file, FileCategory category, String contentType) {
         String key = buildKey(category, contentType);
-        try {
+        putObject(file, key, contentType);
+        return urlFor(key);
+    }
+
+    private void putObject(MultipartFile file, String key, String contentType) {
+        try (InputStream inputStream = file.getInputStream()) {
             s3Client.putObject(
                     PutObjectRequest.builder()
                             .bucket(bucket)
@@ -122,12 +149,14 @@ public class S3Service implements FileStorageService {
                             .contentType(contentType)
                             .contentLength(file.getSize())
                             .build(),
-                    RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+                    RequestBody.fromInputStream(inputStream, file.getSize())
             );
         } catch (IOException | SdkException e) {
             throw new ApiException(ErrorCode.FILE_UPLOAD_FAILED);
         }
+    }
 
+    private String urlFor(String key) {
         return "https://%s.s3.%s.amazonaws.com/%s".formatted(bucket, region, key);
     }
 
