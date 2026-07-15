@@ -71,6 +71,10 @@ public enum ErrorCode {
     CHAT_ROOM_SELF_CHAT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH004", "자기 자신과는 1:1 채팅방을 생성할 수 없습니다."),
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CH005", "존재하지 않는 채팅방입니다."),
     CHAT_INVALID_READ_CURSOR(HttpStatus.BAD_REQUEST, "CH006", "읽음 처리할 메시지 위치가 올바르지 않습니다."),
+    CHAT_INVALID_MESSAGE_TYPE(HttpStatus.BAD_REQUEST, "CH007", "지원하지 않는 메시지 타입입니다."),
+    CHAT_MESSAGE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "CH008", "메시지 내용을 입력해주세요."),
+    CHAT_MESSAGE_CONTENT_TOO_LONG(HttpStatus.BAD_REQUEST, "CH009", "메시지 내용은 1000자를 초과할 수 없습니다."),
+    CHAT_ATTACHMENT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH010", "텍스트 메시지에는 첨부파일을 첨부할 수 없습니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
