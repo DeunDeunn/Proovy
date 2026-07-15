@@ -33,7 +33,8 @@
             host_id = EXCLUDED.host_id,
             rule_text = EXCLUDED.rule_text,
             review_mode = EXCLUDED.review_mode,
-            active = true
+            active = true,
+            updated_at = CURRENT_TIMESTAMP
     </insert>
 
     <select id="findAiReviewRuleByChallengeId" resultMap="AiReviewRuleMap">
@@ -58,7 +59,8 @@
 
     <update id="updateAiReviewModeByChallengeId">
         UPDATE ai_review_rules
-        SET review_mode = #{reviewMode}
+        SET review_mode = #{reviewMode},
+            updated_at = CURRENT_TIMESTAMP
         WHERE challenge_id = #{challengeId}
             AND active = true
     </update>
