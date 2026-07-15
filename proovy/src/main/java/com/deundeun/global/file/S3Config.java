@@ -30,8 +30,18 @@ public class S3Config {
     }
 
     private AwsCredentialsProvider resolveCredentialsProvider(String accessKey, String secretKey) {
-        if (accessKey.isBlank() || secretKey.isBlank()) {
+        boolean accessKeyBlank = accessKey.isBlank();
+        boolean secretKeyBlank = secretKey.isBlank();
+
+        if (accessKeyBlank && secretKeyBlank) {
             return DefaultCredentialsProvider.create();
+        }
+        if (accessKeyBlank || secretKeyBlank) {
+            // 둘 중 하나만 설정된 경우는 오타/설정 누락일 가능성이 높다. 조용히 DefaultCredentialsProvider로
+            // 넘어가면 한참 뒤 첫 S3 호출 시점에야 알 수 없는 자격증명 오류로 터지니, 부팅 시점에 바로 막는다.
+            throw new IllegalStateException(
+                    "aws.credentials.access-key와 aws.credentials.secret-key는 둘 다 설정하거나 둘 다 비워둬야 합니다. "
+                            + "하나만 설정되어 있습니다.");
         }
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
     }
