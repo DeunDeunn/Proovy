@@ -71,4 +71,24 @@
         <include refid="searchCondition"/>
     </select>
 
+    <select id="findDetailById" resultType="ChallengeDetailResponse">
+        SELECT
+            c.id, c.host_id,
+            u.nickname AS host_nickname,
+            c.title, c.description,
+            cat.name AS category_name,
+            c.entry_fee, c.verification_method, c.daily_cert_limit,
+            c.success_criteria_rate, c.ai_review_enabled,
+            c.start_date, c.end_date,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+            c.max_participants, c.status,
+            c.cert_start_time, c.cert_end_time, c.feed_visibility,
+            c.created_at
+        FROM challenges c
+                 JOIN categories cat ON cat.id = c.category_id
+                 JOIN users u ON u.id = c.host_id
+        WHERE c.id = #{id}
+    </select>
+
 </mapper>

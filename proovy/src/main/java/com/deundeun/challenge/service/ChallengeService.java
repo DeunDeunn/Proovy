@@ -6,6 +6,7 @@ import com.deundeun.challenge.domain.ChallengeStatus;
 import com.deundeun.challenge.dto.request.ChallengeCreateRequest;
 import com.deundeun.challenge.dto.request.ChallengeSearchCondition;
 import com.deundeun.challenge.dto.response.ChallengeCreateResponse;
+import com.deundeun.challenge.dto.response.ChallengeDetailResponse;
 import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
 import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.mapper.CategoryMapper;
@@ -78,6 +79,15 @@ public class ChallengeService {
                 condition.keyword());
 
         return PageResponse.of(content, condition.page(), condition.size(), totalElements);
+    }
+
+    @Transactional(readOnly = true)
+    public ChallengeDetailResponse getDetail(Long challengeId) {
+        ChallengeDetailResponse detail = challengeMapper.findDetailById(challengeId);
+        if (detail == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        return detail;
     }
 
 }
