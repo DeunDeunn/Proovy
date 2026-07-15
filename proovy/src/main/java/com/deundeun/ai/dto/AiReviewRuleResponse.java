@@ -18,4 +18,5 @@ public class AiReviewRuleResponse {
     private String reviewMode;
     private boolean active;
     private LocalDateTime updatedAt;
+
 }
