@@ -31,6 +31,13 @@ import com.deundeun.global.exception.ErrorCode;
 @ExtendWith(MockitoExtension.class)
 class S3ServiceTest {
 
+    // 실제 매직 넘버(파일 시그니처) — 검증 로직이 이제 이 바이트로만 타입을 판별한다
+    private static final byte[] PNG_BYTES = {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0};
+    private static final byte[] JPEG_BYTES = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0, 0, 0};
+    private static final byte[] GIF_BYTES = "GIF89a".getBytes();
+    private static final byte[] WEBP_BYTES = {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
+    private static final byte[] NOT_AN_IMAGE = "<html><script>alert(1)</script></html>".getBytes();
+
     @Mock
     private S3Client s3Client;
 
@@ -43,11 +50,11 @@ class S3ServiceTest {
     }
 
     @Test
-    void upload_validImage_returnsPublicUrlWithUuidKey() {
+    void upload_validPngBytes_returnsPublicUrlWithUuidKey() {
         setBucketAndRegion();
         when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenReturn(PutObjectResponse.builder().build());
-        MockMultipartFile file = new MockMultipartFile("file", "profile.png", "image/png", new byte[]{1, 2, 3});
+        MockMultipartFile file = new MockMultipartFile("file", "profile.png", "image/png", PNG_BYTES);
 
         String url = s3Service.upload(file, FileCategory.PROFILE);
 
@@ -71,14 +78,14 @@ class S3ServiceTest {
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.FILE_EMPTY);
 
-        verify(s3Client, org.mockito.Mockito.never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
     }
 
     @Test
-    void upload_disallowedContentType_throwsInvalidFileType() {
+    void upload_bytesDontMatchAnyKnownImageSignature_throwsInvalidFileType() {
         setBucketAndRegion();
-        // PROFILE 카테고리는 이미지만 허용하는데 실행 파일을 올리려는 상황
-        MockMultipartFile file = new MockMultipartFile("file", "malware.exe", "application/x-msdownload", new byte[]{1});
+        // 확장자/Content-Type 없이(또는 뭐라 선언하든) 실제 바이트 자체가 이미지가 아닌 경우
+        MockMultipartFile file = new MockMultipartFile("file", "malware.exe", "application/x-msdownload", new byte[]{1, 2, 3});
 
         assertThatThrownBy(() -> s3Service.upload(file, FileCategory.PROFILE))
                 .isInstanceOf(ApiException.class)
@@ -87,9 +94,44 @@ class S3ServiceTest {
     }
 
     @Test
+    void upload_declaredContentTypeLiesButActualBytesArentImage_throwsInvalidFileType() {
+        setBucketAndRegion();
+        // Content-Type을 image/png라고 속여도, 실제 바이트가 이미지가 아니면 거부돼야 한다
+        MockMultipartFile file = new MockMultipartFile("file", "profile.png", "image/png", NOT_AN_IMAGE);
+
+        assertThatThrownBy(() -> s3Service.upload(file, FileCategory.PROFILE))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_TYPE);
+
+        verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    }
+
+    @Test
+    void upload_maliciousFilenameExtensionIsIgnored_keyUsesDetectedType() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        // 파일명은 .html이지만 실제 바이트는 진짜 PNG인 상황 — key/Content-Type이 파일명이 아니라
+        // 실제 판별된 타입(png)을 따라야 한다
+        MockMultipartFile file = new MockMultipartFile("file", "photo.html", "image/png", PNG_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.PROFILE);
+
+        assertThat(url).endsWith(".png");
+        assertThat(url).doesNotContain(".html");
+
+        ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client).putObject(requestCaptor.capture(), any(RequestBody.class));
+        assertThat(requestCaptor.getValue().contentType()).isEqualTo("image/png");
+        assertThat(requestCaptor.getValue().key()).endsWith(".png");
+    }
+
+    @Test
     void upload_exceedsMaxSize_throwsFileTooLarge() {
         setBucketAndRegion();
         byte[] oversized = new byte[(int) FileCategory.PROFILE.getMaxFileSizeBytes() + 1];
+        System.arraycopy(PNG_BYTES, 0, oversized, 0, PNG_BYTES.length);
         MockMultipartFile file = new MockMultipartFile("file", "big.png", "image/png", oversized);
 
         assertThatThrownBy(() -> s3Service.upload(file, FileCategory.PROFILE))
@@ -99,11 +141,35 @@ class S3ServiceTest {
     }
 
     @Test
+    void upload_jpegBytes_detectedAndUploaded() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", JPEG_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CERTIFICATION);
+
+        assertThat(url).contains("/certification/").endsWith(".jpg");
+    }
+
+    @Test
+    void upload_webpBytes_detectedAndUploaded() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "photo.webp", "image/webp", WEBP_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CERTIFICATION);
+
+        assertThat(url).contains("/certification/").endsWith(".webp");
+    }
+
+    @Test
     void upload_chatAllowsGifUnlikeOtherCategories() {
         setBucketAndRegion();
         when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenReturn(PutObjectResponse.builder().build());
-        MockMultipartFile file = new MockMultipartFile("file", "meme.gif", "image/gif", new byte[]{1, 2});
+        MockMultipartFile file = new MockMultipartFile("file", "meme.gif", "image/gif", GIF_BYTES);
 
         String url = s3Service.upload(file, FileCategory.CHAT);
 
@@ -111,12 +177,12 @@ class S3ServiceTest {
     }
 
     @Test
-    void upload_chatRejectsNonImageDocument() {
+    void upload_profileRejectsGifEvenThoughBytesAreValidGif() {
         setBucketAndRegion();
-        // 사진만 허용하는 정책이라 CHAT도 pdf 같은 문서는 거부해야 한다
-        MockMultipartFile file = new MockMultipartFile("file", "notes.pdf", "application/pdf", new byte[]{1, 2});
+        // GIF 자체는 진짜 이미지지만, PROFILE 카테고리는 gif를 허용 목록에 안 넣어뒀다
+        MockMultipartFile file = new MockMultipartFile("file", "meme.gif", "image/gif", GIF_BYTES);
 
-        assertThatThrownBy(() -> s3Service.upload(file, FileCategory.CHAT))
+        assertThatThrownBy(() -> s3Service.upload(file, FileCategory.PROFILE))
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_FILE_TYPE);
@@ -127,7 +193,7 @@ class S3ServiceTest {
         setBucketAndRegion();
         when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenThrow(S3Exception.builder().message("boom").build());
-        MockMultipartFile file = new MockMultipartFile("file", "profile.png", "image/png", new byte[]{1});
+        MockMultipartFile file = new MockMultipartFile("file", "profile.png", "image/png", PNG_BYTES);
 
         assertThatThrownBy(() -> s3Service.upload(file, FileCategory.PROFILE))
                 .isInstanceOf(ApiException.class)
@@ -140,8 +206,8 @@ class S3ServiceTest {
         setBucketAndRegion();
         when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenReturn(PutObjectResponse.builder().build());
-        MockMultipartFile file1 = new MockMultipartFile("files", "a.png", "image/png", new byte[]{1});
-        MockMultipartFile file2 = new MockMultipartFile("files", "b.jpg", "image/jpeg", new byte[]{2});
+        MockMultipartFile file1 = new MockMultipartFile("files", "a.png", "image/png", PNG_BYTES);
+        MockMultipartFile file2 = new MockMultipartFile("files", "b.jpg", "image/jpeg", JPEG_BYTES);
 
         List<String> urls = s3Service.uploadAll(List.of(file1, file2), FileCategory.CERTIFICATION);
 
@@ -154,8 +220,8 @@ class S3ServiceTest {
     @Test
     void uploadAll_oneFileFailsValidation_uploadsNothing() {
         setBucketAndRegion();
-        MockMultipartFile valid = new MockMultipartFile("files", "a.png", "image/png", new byte[]{1});
-        MockMultipartFile invalid = new MockMultipartFile("files", "b.exe", "application/x-msdownload", new byte[]{2});
+        MockMultipartFile valid = new MockMultipartFile("files", "a.png", "image/png", PNG_BYTES);
+        MockMultipartFile invalid = new MockMultipartFile("files", "b.exe", "application/x-msdownload", new byte[]{1, 2, 3});
 
         assertThatThrownBy(() -> s3Service.uploadAll(List.of(valid, invalid), FileCategory.CERTIFICATION))
                 .isInstanceOf(ApiException.class)
@@ -180,7 +246,7 @@ class S3ServiceTest {
     void uploadAll_exceedsMaxBatchSize_throwsInvalidRequest() {
         setBucketAndRegion();
         List<MultipartFile> tooMany = java.util.stream.IntStream.range(0, 11)
-                .mapToObj(i -> (MultipartFile) new MockMultipartFile("files", i + ".png", "image/png", new byte[]{1}))
+                .mapToObj(i -> (MultipartFile) new MockMultipartFile("files", i + ".png", "image/png", PNG_BYTES))
                 .toList();
 
         assertThatThrownBy(() -> s3Service.uploadAll(tooMany, FileCategory.CERTIFICATION))
