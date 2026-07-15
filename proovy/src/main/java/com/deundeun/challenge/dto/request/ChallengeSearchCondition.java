@@ -15,8 +15,8 @@ public record ChallengeSearchCondition(
         if (size == null || size < 1 || size > 50)size = 10;
     }
 
-    public int offset() {
-        return page * size;
+    public long offset() {
+            return (long) page * size;
     }
 
 }

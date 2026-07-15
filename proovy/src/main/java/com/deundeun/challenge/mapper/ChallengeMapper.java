@@ -19,7 +19,7 @@ public interface ChallengeMapper {
             @Param("categoryId") Long categoryId,
             @Param("status") ChallengeStatus status,
             @Param("keyword") String keyword,
-            @Param("offset") int offset,
+            @Param("offset") long offset,
             @Param("size") int size);
 
     long countBySearch(
