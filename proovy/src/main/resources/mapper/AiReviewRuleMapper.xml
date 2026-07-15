@@ -30,16 +30,30 @@
         )
         ON CONFLICT (challenge_id)
         DO UPDATE SET
+            host_id = EXCLUDED.host_id,
             rule_text = EXCLUDED.rule_text,
             review_mode = EXCLUDED.review_mode,
             active = true
     </insert>
 
     <select id="findAiReviewRuleByChallengeId" resultMap="AiReviewRuleMap">
-        SELECT *
+        SELECT id,
+               host_id,
+               challenge_id,
+               rule_text,
+               review_mode,
+               active,
+               created_at,
+               updated_at
         FROM ai_review_rules
         WHERE challenge_id = #{challengeId}
             AND active = true
+    </select>
+
+    <select id="findChallengeHostIdByChallengeId" resultType="java.lang.Long">
+        SELECT host_id
+        FROM challenges
+        WHERE id = #{challengeId}
     </select>
 
     <update id="updateAiReviewModeByChallengeId">

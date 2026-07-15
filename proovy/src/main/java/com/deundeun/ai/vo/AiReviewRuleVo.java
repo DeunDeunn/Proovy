@@ -23,4 +23,3 @@ public class AiReviewRuleVo {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
-

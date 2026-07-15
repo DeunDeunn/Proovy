@@ -11,5 +11,7 @@ public interface AiReviewRuleMapper {
 
     AiReviewRuleVo findAiReviewRuleByChallengeId(@Param("challengeId") Long challengeId);
 
-    int updateAiReviewModeByChallengeId(@Param("challengeId") Long challengeId, @Param("reviewMode") String aiReviewMode);
+    Long findChallengeHostIdByChallengeId(@Param("challengeId") Long challengeId);
+
+    int updateAiReviewModeByChallengeId(@Param("challengeId") Long challengeId, @Param("reviewMode") String reviewMode);
 }

@@ -4,13 +4,13 @@ import com.deundeun.ai.dto.AiReviewRuleRequest;
 import com.deundeun.ai.dto.AiReviewRuleResponse;
 import com.deundeun.ai.service.AiReviewRuleService;
 import com.deundeun.global.common.ApiResponse;
+import com.deundeun.global.common.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,30 +24,30 @@ public class AiReviewRuleController {
 
     @GetMapping
     public ApiResponse<AiReviewRuleResponse> findAiReviewRule(
-            @RequestHeader("X-User-Id") Long id,
             @PathVariable Long challengeId
     ) {
-        AiReviewRuleResponse response = aiReviewRuleService.findAiReviewRuleByChallengeId(id, challengeId);
+        Long userId = CurrentUser.getUserId();
+        AiReviewRuleResponse response = aiReviewRuleService.findAiReviewRuleByChallengeId(userId, challengeId);
         return ApiResponse.success(response);
     }
 
     @PutMapping
     public ApiResponse<AiReviewRuleResponse> upsertAiReviewRule(
-            @RequestHeader("X-User-Id") Long id,
             @PathVariable Long challengeId,
             @RequestBody AiReviewRuleRequest request
     ) {
-        AiReviewRuleResponse response = aiReviewRuleService.upsertAiReviewRule(id, challengeId, request);
+        Long userId = CurrentUser.getUserId();
+        AiReviewRuleResponse response = aiReviewRuleService.upsertAiReviewRule(userId, challengeId, request);
         return ApiResponse.success(response);
     }
 
     @PatchMapping("/review-mode")
     public ApiResponse<AiReviewRuleResponse> updateAiReviewMode(
-            @RequestHeader("X-User-Id") Long id,
             @PathVariable Long challengeId,
             @RequestParam String reviewMode
     ) {
-        AiReviewRuleResponse response = aiReviewRuleService.updateAiReviewModeByChallengeId(id, challengeId, reviewMode);
+        Long userId = CurrentUser.getUserId();
+        AiReviewRuleResponse response = aiReviewRuleService.updateAiReviewModeByChallengeId(userId, challengeId, reviewMode);
         return ApiResponse.success(response);
     }
 }
