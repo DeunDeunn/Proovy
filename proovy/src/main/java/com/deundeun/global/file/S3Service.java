@@ -3,21 +3,24 @@ package com.deundeun.global.file;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.IntStream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class S3Service implements FileStorageService {
@@ -56,8 +59,13 @@ public class S3Service implements FileStorageService {
 
     /**
      * 여러 파일을 한 번에 업로드한다. 하나라도 검증(용량/타입)에 실패하면 아무것도
-     * 업로드하지 않고 즉시 예외를 던진다 — 일부만 올라간 채 실패하는 상황을 피하기 위해
-     * 실제 업로드 전에 전체 파일을 먼저 검증한다.
+     * 업로드하지 않고 즉시 예외를 던진다 — 실제 업로드 전에 전체 파일을 먼저 검증해서,
+     * "검증에 걸리는 파일이 있어서" 실패하는 경우는 아무것도 안 올라간 상태로 막는다.
+     *
+     * <p>다만 검증을 통과한 뒤 실제 업로드(S3 PUT) 도중 일부만 성공하고 그다음 파일이
+     * 네트워크 오류 등으로 실패할 수는 있다 — S3는 여러 객체를 하나의 트랜잭션으로
+     * 묶어주지 않기 때문이다. 그 경우 이미 성공한 파일들을 바로 삭제해서, 호출자
+     * 입장에서는 "전부 성공 아니면 전부 실패"에 가깝게 동작하도록 보정한다.</p>
      */
     @Override
     public List<String> uploadAll(List<MultipartFile> files, FileCategory category) {
@@ -68,9 +76,40 @@ public class S3Service implements FileStorageService {
             throw new ApiException(ErrorCode.INVALID_REQUEST);
         }
         List<String> contentTypes = files.stream().map(file -> validate(file, category)).toList();
-        return IntStream.range(0, files.size())
-                .mapToObj(i -> uploadValidated(files.get(i), category, contentTypes.get(i)))
-                .toList();
+
+        List<String> uploadedUrls = new ArrayList<>();
+        try {
+            for (int i = 0; i < files.size(); i++) {
+                uploadedUrls.add(uploadValidated(files.get(i), category, contentTypes.get(i)));
+            }
+        } catch (ApiException e) {
+            uploadedUrls.forEach(this::delete);
+            throw e;
+        }
+        return uploadedUrls;
+    }
+
+    /**
+     * 고아 파일 정리용 best-effort 삭제 — 이미 실패한 도메인 트랜잭션의 롤백 흐름을
+     * 방해하지 않도록, 삭제가 실패해도 예외를 던지지 않고 로그만 남긴다.
+     */
+    @Override
+    public void delete(String url) {
+        String key = extractKey(url);
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        } catch (SdkException e) {
+            log.warn("[S3] 고아 파일 삭제 실패, 수동 정리 필요: bucket={}, key={}", bucket, key, e);
+        }
+    }
+
+    private String extractKey(String url) {
+        String marker = ".amazonaws.com/";
+        int idx = url.indexOf(marker);
+        if (idx < 0) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST);
+        }
+        return url.substring(idx + marker.length());
     }
 
     private String uploadValidated(MultipartFile file, FileCategory category, String contentType) {

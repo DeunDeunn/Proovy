@@ -21,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -218,6 +219,31 @@ class S3ServiceTest {
     }
 
     @Test
+    void uploadAll_secondFileFailsMidUpload_cleansUpAlreadyUploadedFiles() {
+        setBucketAndRegion();
+        // 1번째 파일은 실제 PUT까지 성공하고, 2번째 파일에서 (검증 통과 후) S3 자체 오류가 나는 상황
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build())
+                .thenThrow(S3Exception.builder().message("boom").build());
+        MockMultipartFile file1 = new MockMultipartFile("files", "a.png", "image/png", PNG_BYTES);
+        MockMultipartFile file2 = new MockMultipartFile("files", "b.png", "image/png", PNG_BYTES);
+
+        assertThatThrownBy(() -> s3Service.uploadAll(List.of(file1, file2), FileCategory.CERTIFICATION))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.FILE_UPLOAD_FAILED);
+
+        ArgumentCaptor<PutObjectRequest> putCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client, times(2)).putObject(putCaptor.capture(), any(RequestBody.class));
+        String firstUploadedKey = putCaptor.getAllValues().get(0).key();
+
+        // 이미 성공한 1번째 파일은 실패 이후 자동으로 삭제되어야 orphan이 안 남는다
+        ArgumentCaptor<DeleteObjectRequest> deleteCaptor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client, times(1)).deleteObject(deleteCaptor.capture());
+        assertThat(deleteCaptor.getValue().key()).isEqualTo(firstUploadedKey);
+    }
+
+    @Test
     void uploadAll_oneFileFailsValidation_uploadsNothing() {
         setBucketAndRegion();
         MockMultipartFile valid = new MockMultipartFile("files", "a.png", "image/png", PNG_BYTES);
@@ -255,5 +281,43 @@ class S3ServiceTest {
                 .isEqualTo(ErrorCode.INVALID_REQUEST);
 
         verify(s3Client, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+    }
+
+    @Test
+    void delete_validUrl_deletesExtractedKey() {
+        setBucketAndRegion();
+        String url = "https://proovy-test-bucket.s3.ap-northeast-2.amazonaws.com/profile/some-uuid.png";
+
+        s3Service.delete(url);
+
+        ArgumentCaptor<DeleteObjectRequest> requestCaptor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3Client).deleteObject(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().bucket()).isEqualTo("proovy-test-bucket");
+        assertThat(requestCaptor.getValue().key()).isEqualTo("profile/some-uuid.png");
+    }
+
+    @Test
+    void delete_s3Failure_isSwallowedAndDoesNotThrow() {
+        setBucketAndRegion();
+        when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
+                .thenThrow(S3Exception.builder().message("boom").build());
+        String url = "https://proovy-test-bucket.s3.ap-northeast-2.amazonaws.com/profile/some-uuid.png";
+
+        // 보상(고아 파일 정리) 액션은 실패해도 이미 진행 중인 롤백 흐름을 막으면 안 되므로 예외를 던지지 않는다
+        s3Service.delete(url);
+
+        verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+    }
+
+    @Test
+    void delete_urlWithoutAmazonawsMarker_throwsInvalidRequest() {
+        setBucketAndRegion();
+
+        assertThatThrownBy(() -> s3Service.delete("not-a-valid-url"))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_REQUEST);
+
+        verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
     }
 }
