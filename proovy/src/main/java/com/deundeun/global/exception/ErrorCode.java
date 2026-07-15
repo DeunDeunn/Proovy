@@ -84,7 +84,13 @@ public enum ErrorCode {
     THUMBNAIL_REQUIRED(HttpStatus.BAD_REQUEST, "CF007", "대표 인증 이미지는 필수 항목 입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "CF008", "인증글을 찾을 수 없습니다."),
     NOT_PENDING_POST(HttpStatus.CONFLICT, "CF009", "승인대기 상태의 인증글만 처리 가능합니다."),
-    REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "CF010", "반려 사유는 필수 입력사항입니다.");
+    REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "CF010", "반려 사유는 필수 입력사항입니다."),
+
+    //파일 업로드
+    FILE_EMPTY(HttpStatus.BAD_REQUEST, "F001", "업로드할 파일이 비어 있습니다."),
+    FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "F002", "파일 용량이 허용된 크기를 초과했습니다."),
+    INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "F003", "허용되지 않는 파일 형식입니다."),
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F004", "파일 업로드 중 오류가 발생했습니다.");
 
     private final HttpStatus status;
     private final String code;
