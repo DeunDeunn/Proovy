@@ -85,6 +85,18 @@ class ChatSubscribeChannelInterceptorTest {
                 .isInstanceOf(ApiException.class);
     }
 
+    @Test
+    @DisplayName("Principal이 없으면 SUBSCRIBE가 거부된다")
+    void preSend_subscribeWithoutPrincipal_throwsException() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/topic/chats/rooms/10");
+        accessor.setLeaveMutable(true);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThatThrownBy(() -> interceptor.preSend(message, null))
+                .isInstanceOf(ApiException.class);
+    }
+
     private Message<byte[]> subscribeMessage(String destination, Long userId) {
         return stompMessage(StompCommand.SUBSCRIBE, destination, userId);
     }
