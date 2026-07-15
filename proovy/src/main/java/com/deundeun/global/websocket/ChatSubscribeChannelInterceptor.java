@@ -51,7 +51,7 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
 
     private void validateChatRoomAccess(StompHeaderAccessor accessor, String destination) {
         if (!PATH_MATCHER.match(CHAT_ROOM_DESTINATION_PATTERN, destination)) {
-            return;
+            throw new ApiException(ErrorCode.FORBIDDEN);
         }
 
         Long chatRoomId = Long.valueOf(

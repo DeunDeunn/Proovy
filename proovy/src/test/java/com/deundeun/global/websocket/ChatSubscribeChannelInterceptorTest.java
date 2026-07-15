@@ -49,13 +49,22 @@ class ChatSubscribeChannelInterceptorTest {
     }
 
     @Test
-    @DisplayName("채팅방 destination이 아니면 검증 없이 통과한다")
-    void preSend_subscribeToNonChatRoomDestination_passesThroughWithoutValidation() {
+    @DisplayName("/topic이 아닌 destination은 검증 없이 통과한다")
+    void preSend_subscribeToNonTopicDestination_passesThroughWithoutValidation() {
         Message<byte[]> message = subscribeMessage("/user/queue/errors", 1L);
 
         Message<?> result = interceptor.preSend(message, null);
 
         assertThat(result).isSameAs(message);
+    }
+
+    @Test
+    @DisplayName("화이트리스트에 없는 /topic destination은 거부된다")
+    void preSend_subscribeToNonWhitelistedTopicDestination_throwsException() {
+        Message<byte[]> message = subscribeMessage("/topic/other", 1L);
+
+        assertThatThrownBy(() -> interceptor.preSend(message, null))
+                .isInstanceOf(ApiException.class);
     }
 
     @Test
