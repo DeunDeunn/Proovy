@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deundeun.ai.mapper.AiReviewRuleMapper">
+
+    <resultMap id="AiReviewRuleMap" type="com.deundeun.ai.vo.AiReviewRuleVo">
+        <id property="id" column="id"/>
+        <result property="hostId" column="host_id"/>
+        <result property="challengeId" column="challenge_id"/>
+        <result property="ruleText" column="rule_text"/>
+        <result property="reviewMode" column="review_mode"/>
+        <result property="active" column="active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="upsertAiReviewRule" parameterType="AiReviewRuleVo">
+        INSERT INTO ai_review_rules(
+            host_id,
+            challenge_id,
+            rule_text,
+            review_mode
+        ) VALUES (
+            #{hostId},
+            #{challengeId},
+            #{ruleText},
+            #{reviewMode}
+        )
+        ON CONFLICT (challenge_id)
+        DO UPDATE SET
+            host_id = EXCLUDED.host_id,
+            rule_text = EXCLUDED.rule_text,
+            review_mode = EXCLUDED.review_mode,
+            active = true,
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="findAiReviewRuleByChallengeId" resultMap="AiReviewRuleMap">
+        SELECT id,
+               host_id,
+               challenge_id,
+               rule_text,
+               review_mode,
+               active,
+               created_at,
+               updated_at
+        FROM ai_review_rules
+        WHERE challenge_id = #{challengeId}
+            AND active = true
+    </select>
+
+    <select id="findChallengeHostIdByChallengeId" resultType="java.lang.Long">
+        SELECT host_id
+        FROM challenges
+        WHERE id = #{challengeId}
+    </select>
+
+    <update id="updateAiReviewModeByChallengeId">
+        UPDATE ai_review_rules
+        SET review_mode = #{reviewMode},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE challenge_id = #{challengeId}
+            AND active = true
+    </update>
+
+</mapper>
