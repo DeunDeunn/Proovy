@@ -1,6 +1,8 @@
 package com.deundeun.global.websocket;
 
 import com.deundeun.chat.service.ChatRoomMemberService;
+import com.deundeun.global.exception.ApiException;
+import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.messaging.Message;
@@ -27,16 +29,28 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
     public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        if (accessor != null && StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-            validateChatRoomAccess(accessor);
+        if (accessor == null) {
+            return message;
+        }
+
+        String destination = accessor.getDestination();
+        if (destination != null && destination.startsWith("/topic")) {
+            validateTopicAccess(accessor, destination);
         }
 
         return message;
     }
 
-    private void validateChatRoomAccess(StompHeaderAccessor accessor) {
-        String destination = accessor.getDestination();
-        if (destination == null || !PATH_MATCHER.match(CHAT_ROOM_DESTINATION_PATTERN, destination)) {
+    private void validateTopicAccess(StompHeaderAccessor accessor, String destination) {
+        if (!StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
+        validateChatRoomAccess(accessor, destination);
+    }
+
+    private void validateChatRoomAccess(StompHeaderAccessor accessor, String destination) {
+        if (!PATH_MATCHER.match(CHAT_ROOM_DESTINATION_PATTERN, destination)) {
             return;
         }
 

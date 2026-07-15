@@ -58,8 +58,21 @@ class ChatSubscribeChannelInterceptorTest {
         assertThat(result).isSameAs(message);
     }
 
+    @Test
+    @DisplayName("클라이언트가 /topic으로 직접 SEND하면 거부된다")
+    void preSend_directSendToTopic_throwsException() {
+        Message<byte[]> message = stompMessage(StompCommand.SEND, "/topic/chats/rooms/10", 1L);
+
+        assertThatThrownBy(() -> interceptor.preSend(message, null))
+                .isInstanceOf(ApiException.class);
+    }
+
     private Message<byte[]> subscribeMessage(String destination, Long userId) {
-        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        return stompMessage(StompCommand.SUBSCRIBE, destination, userId);
+    }
+
+    private Message<byte[]> stompMessage(StompCommand command, String destination, Long userId) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(command);
         accessor.setDestination(destination);
         accessor.setUser(() -> String.valueOf(userId));
         accessor.setLeaveMutable(true);
