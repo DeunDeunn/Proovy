@@ -17,9 +17,17 @@ import java.util.List;
  * 커밋 자체가 실패하면, DB에는 참조가 안 남는데 S3 객체는 그대로 남는 고아 파일이 된다.
  * {@code FileStorageService}는 호출자의 트랜잭션이 이후에 성공했는지 알 방법이 없으므로,
  * 이 보상 처리는 호출하는 도메인이 직접 해야 한다. {@link #delete}를 트랜잭션 동기화
- * 콜백에 등록해 롤백(커밋 실패 포함)됐을 때만 지우는 방식을 권장한다 — try/catch로는
+ * 콜백에 등록해 {@code STATUS_ROLLED_BACK}(확실히 롤백된 경우 — 커밋 자체가 실패해서
+ * 롤백으로 처리된 경우도 포함)일 때만 지우는 방식을 권장한다 — try/catch로는
  * updateThumbnail 실패만 잡히고, 메서드 리턴 이후 flush 시점의 커밋 실패는 못 잡기
- * 때문이다:</p>
+ * 때문이다.</p>
+ *
+ * <p>{@code STATUS_UNKNOWN}(커밋이 성공했는지조차 트랜잭션 매니저가 확정하지 못하는
+ * 드문 상황)은 일부러 삭제 대상에서 뺐다 — 실제로는 커밋이 성공했는데 이 콜백만
+ * {@code STATUS_UNKNOWN}으로 불렸을 경우, 여기서 지워버리면 DB row는 파일을 참조하는
+ * 채로 살아있는데 실제 파일만 사라지는 "깨진 링크"가 생겨 orphan 파일보다 더 나쁜
+ * 상태가 된다. 이 경우는 즉시 자동 삭제 대신 별도의 정합성 점검(예: S3 객체와 DB
+ * 참조를 주기적으로 대조하는 배치)으로 다뤄야 한다:</p>
  *
  * <pre>{@code
  * @Transactional
@@ -35,6 +43,8 @@ import java.util.List;
  *             if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
  *                 fileStorageService.delete(url); // 3. 이후 어디서 실패하든(갱신/커밋) 고아 파일 정리
  *             }
+ *             // STATUS_UNKNOWN은 의도적으로 제외 — 실제 커밋 성공 여부가 불확실한 상태라
+ *             // 여기서 지우면 "DB엔 살아있는데 파일만 없는" 더 나쁜 상황이 될 수 있다.
  *         }
  *     });
  *     certificationMapper.updateThumbnail(post.getId(), url); // 4. 확정 — 여기서 실패해도 위 콜백이 정리
@@ -62,8 +72,12 @@ public interface FileStorageService {
      *
      * <p>검증을 통과한 뒤에도 실제 업로드 도중 일부 파일만 성공하고 그다음 파일이 실패할 수
      * 있다(S3는 여러 객체를 하나로 묶어주지 않는다) — 이 경우 이미 성공한 파일들을 내부적으로
-     * 다시 삭제하고 예외를 던지므로, 호출자 입장에서는 항상 "전부 성공 아니면 전부 실패"로
-     * 취급해도 된다.</p>
+     * 다시 삭제하고 예외를 던진다. 다만 "전부 성공 아니면 전부 실패"는 이 메서드가
+     * 반환하는 결과(정상 리스트 또는 예외)에만 해당하는 보장이다 — 이미 성공한 파일을
+     * 지우는 그 삭제 자체도 {@link #delete}와 마찬가지로 best-effort라, 삭제가 실패하면
+     * 예외는 던져지는데 S3에는 그 파일이 그대로 남는 상태가 될 수 있다. 즉 호출자 입장의
+     * 리턴값은 항상 전부-아니면-전무이지만, 실제 스토리지 상태까지 그렇다는 보장은 아니라
+     * 별도의 정합성 점검이 여전히 필요할 수 있다.</p>
      *
      * @throws com.deundeun.global.exception.ApiException FILE_EMPTY — files가 비어있거나, 그 안의 파일 중 하나가 비어있을 때
      * @throws com.deundeun.global.exception.ApiException FILE_TOO_LARGE — 파일 중 하나라도 category별 최대 용량을 초과했을 때
