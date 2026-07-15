@@ -39,6 +39,7 @@ public enum ErrorCode {
     CHALLENGE_FULL(HttpStatus.CONFLICT, "CHL006", "모집 정원이 가득 찼습니다."),
     ALREADY_JOINED_CHALLENGE(HttpStatus.CONFLICT, "CHL007", "이미 참여 중인 챌린지입니다."),
     HOST_CANNOT_LEAVE(HttpStatus.BAD_REQUEST, "CHL008", "방장은 자신의 챌린지에서 탈퇴할 수 없습니다."),
+    CHALLENGE_HAS_PARTICIPANTS(HttpStatus.CONFLICT, "CHL009", "참가자가 있어 챌린지를 취소할 수 없습니다."),
 
     // 결제/캐시/정산
     INVALID_CHARGE_AMOUNT(HttpStatus.BAD_REQUEST, "CG001", "충전 금액은 1,000원 이상 50,000원 이하, 1,000원 단위여야 합니다."),

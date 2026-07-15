@@ -29,6 +29,14 @@ public interface ChallengeMapper {
 
     ChallengeDetailResponse findDetailById(@Param("id") Long id);
 
+    Challenge findById(@Param("id") Long id);
 
+    Challenge findByIdForUpdate(@Param("id") Long id);
+
+    int countActiveParticipantsExceptHost(@Param("challengeId") Long challengeId);
+
+    void update(Challenge challenge);
+
+    void updateStatus(@Param("id") Long id, @Param("status") ChallengeStatus status);
 
 }
