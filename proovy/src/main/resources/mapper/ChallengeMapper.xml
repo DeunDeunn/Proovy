@@ -130,4 +130,10 @@
         WHERE id = #{id}
     </update>
 
+    <update id="updateStatus">
+        UPDATE challenges
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

@@ -136,6 +136,26 @@ public class ChallengeService {
         challengeMapper.update(updateTarget);
     }
 
+    @Transactional
+    public void cancel(Long challengeId, Long userId) {
+        Challenge challenge = challengeMapper.findById(challengeId);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        if (!challenge.getHostId().equals(userId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+        if (challenge.getStatus() != ChallengeStatus.RECRUITING) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
+        }
+        // TODO: 참가 API 구현 후, 거부 대신 참가자 전원의 참가비 홀딩을 해제(cancel)하고 취소 허용으로 교체
+        if (challengeMapper.countActiveParticipantsExceptHost(challengeId) > 0) {
+            throw new ApiException(ErrorCode.CHALLENGE_HAS_PARTICIPANTS);
+        }
+
+        challengeMapper.updateStatus(challengeId, ChallengeStatus.CANCELLED);
+    }
+
     @Transactional(readOnly = true)
     public ChallengeDetailResponse getDetail(Long challengeId) {
         ChallengeDetailResponse detail = challengeMapper.findDetailById(challengeId);

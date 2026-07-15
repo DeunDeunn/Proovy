@@ -35,4 +35,6 @@ public interface ChallengeMapper {
 
     void update(Challenge challenge);
 
+    void updateStatus(@Param("id") Long id, @Param("status") ChallengeStatus status);
+
 }

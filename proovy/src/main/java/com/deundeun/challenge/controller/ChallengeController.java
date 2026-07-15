@@ -49,5 +49,12 @@ public class ChallengeController {
         return ApiResponse.success(null);
     }
 
+    @DeleteMapping("/{challengeId}")
+    public ApiResponse<Void> cancelChallenge(@PathVariable Long challengeId) {
+        Long userId = CurrentUser.getUserId();
+        challengeService.cancel(challengeId, userId);
+        return ApiResponse.success(null);
+    }
+
 
 }
