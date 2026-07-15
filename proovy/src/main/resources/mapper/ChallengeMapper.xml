@@ -91,4 +91,43 @@
         WHERE c.id = #{id}
     </select>
 
+    <select id="findById" resultType="Challenge">
+        SELECT id, host_id, title, description, category_id, entry_fee,
+               verification_method, cert_frequency, daily_cert_limit,
+               success_criteria_rate, ai_review_enabled,
+               start_date, end_date, max_participants, status,
+               created_at, updated_at, cert_start_time, cert_end_time, feed_visibility
+        FROM challenges
+        WHERE id = #{id}
+    </select>
+
+    <!-- 방장 본인은 제외하고 활동 중인 참가자 수를 센다 (핵심 조건 수정 가능 여부 판단용) -->
+    <select id="countActiveParticipantsExceptHost" resultType="int">
+        SELECT COUNT(*)
+        FROM challenge_participants p
+        JOIN challenges c ON c.id = p.challenge_id
+        WHERE p.challenge_id = #{challengeId}
+          AND p.status = 'ACTIVE'
+          AND p.user_id != c.host_id
+    </select>
+
+    <update id="update">
+        UPDATE challenges
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="entryFee != null">entry_fee = #{entryFee},</if>
+            <if test="verificationMethod != null">verification_method = #{verificationMethod},</if>
+            <if test="dailyCertLimit != null">daily_cert_limit = #{dailyCertLimit},</if>
+            <if test="startDate != null">start_date = #{startDate},</if>
+            <if test="endDate != null">end_date = #{endDate},</if>
+            <if test="maxParticipants != null">max_participants = #{maxParticipants},</if>
+            <if test="certStartTime != null">cert_start_time = #{certStartTime},</if>
+            <if test="certEndTime != null">cert_end_time = #{certEndTime},</if>
+            <if test="feedVisibility != null">feed_visibility = #{feedVisibility},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
 </mapper>
