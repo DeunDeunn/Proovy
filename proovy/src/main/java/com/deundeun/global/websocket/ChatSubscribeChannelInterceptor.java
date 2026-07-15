@@ -29,6 +29,10 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
     public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
+        /**
+         * accessor != null : StompHeaderAccessor 형식으로 해석 가능함.
+         * accessor == null : 해석 불가능. 메시지가 STOMP 프레임 구조가 아님. 시스템 정상 작동을 위한 내부 메시지일 가능성.
+         * */
         if (accessor == null) {
             return message;
         }
