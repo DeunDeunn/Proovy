@@ -1,6 +1,7 @@
 package com.deundeun.global.exception;
 
 import com.deundeun.global.common.ApiResponse;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -39,6 +41,34 @@ public class GlobalExceptionHandler {
                 .status(ErrorCode.INVALID_REQUEST.getStatus())
                 .body(ApiResponse.fail(wrapped));
     }
+    // 쿼리 파라미터/PathVariable 타입이 안 맞을 때 (예: enum에 없는 문자열, 숫자 자리에 문자)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.warn("Type mismatch: parameter={}, value={}", e.getName(), e.getValue());
+
+        ApiException wrapped = new ApiException(ErrorCode.INVALID_REQUEST,
+                "'" + e.getName() + "' 파라미터 값이 올바르지 않습니다.");
+        return ResponseEntity
+                .status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ApiResponse.fail(wrapped));
+    }
+
+    // @Validated로 검증한 @RequestParam/@PathVariable 제약(@Min 등) 위반 시
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .findFirst()
+                .map(v -> v.getMessage())
+                .orElse(ErrorCode.INVALID_REQUEST.getMessage());
+
+        log.warn("Constraint violation: {}", message);
+
+        ApiException wrapped = new ApiException(ErrorCode.INVALID_REQUEST, message);
+        return ResponseEntity
+                .status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ApiResponse.fail(wrapped));
+    }
+
     // 요청 body의 JSON이 깨졌거나(문법 오류), 타입이 안 맞을 때 (예: "age": "abc")
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {

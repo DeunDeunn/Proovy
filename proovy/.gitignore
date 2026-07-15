@@ -19,4 +19,5 @@ replay_pid*
 # Backend secret configs
 src/main/resources/application-local.yaml
 src/main/resources/application-prod.yaml
+src/main/resources/application-dev.yaml
 src/test/resources/application.yaml

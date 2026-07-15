@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deundeun.certification.mapper.CertificationMapper">
+    
+    <!-- 인증글 1건 저장 (이미지 컬럼 2개는 아직 임시값) -->
+    <insert id="createCertificationPost" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO
+            certification_posts(
+            user_id,
+            challenge_participant_id,
+            contents,
+            certification_image,
+            certification_image_url
+        )
+        VALUES (
+                  #{userId},
+                  #{challengeParticipantId},
+                  #{contents},
+                  '테스트',            -- TODO: 이미지는 아직 임시. 다음 단계(S3)에서 실제 파일명 교체
+                  #{thumbnailImage} -- TODO: 실제 URL로 교체
+                )
+    </insert>
+
+    <!-- 챌린지 존재하는지 , 상태 조회-->
+    <select id="findChallengeById" resultType="ChallengeForCertification">
+        SELECT id, status, host_id, cert_start_time, cert_end_time
+        FROM challenges
+        WHERE id = #{challengeId}
+    </select>
+
+    <!-- 인증글이 속한 챌린지 조회 (수정 시 시간대 검증용) -->
+    <select id="findChallengeByPostId" resultType="ChallengeForCertification">
+        SELECT c.id, c.status, c.host_id, c.cert_start_time, c.cert_end_time
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE p.id = #{postId}
+    </select>
+
+    <!-- 참가자 조회- 참가 여부 확인-->
+    <select id="findParticipant" resultType="ParticipantForCertification">
+        SELECT id, status
+        FROM challenge_participants
+        WHERE challenge_id = #{challengeId}
+          AND user_id = #{userId}
+    </select>
+
+    <!-- 오늘 이 참가자의 인증글 개수. 하루 1개 제한 확인용 -->
+    <select id="countTodayCertification" resultType="int">
+        SELECT COUNT(*)
+        FROM certification_posts
+        WHERE challenge_participant_id = #{challengeParticipantId}
+          AND created_at::date = CURRENT_DATE
+    </select>
+
+    <!-- 추가 이미지 여러 장 저장 (목록을 반복해서 여러 줄 INSERT) -->
+    <insert id="insertPostImages">
+        INSERT INTO certification_post_images (post_id, stored_filename, image_url, sort_order)
+        VALUES
+        <foreach collection="imageList" item="url" index="i" separator=",">
+            (#{postId}, '임시', #{url}, #{i})
+        </foreach>
+    </insert>
+
+    <!-- 인증글 상세 1건 (삭제된 글 제외) -->
+    <select id="findPostDetail" resultType="CertificationPostDetailResponse">
+        SELECT id                      AS post_id,
+               user_id                 AS author_id,
+               contents,
+               certification_image_url AS thumbnail_url,
+               certification_status    AS status,
+               like_count,
+               comment_count,
+               created_at
+        FROM certification_posts
+        WHERE id = #{postId}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 그 글의 추가 이미지 URL들 (순서대로) -->
+    <select id="findPostImageUrls" resultType="string">
+        SELECT image_url
+        FROM certification_post_images
+        WHERE post_id = #{postId}
+          AND deleted_at IS NULL
+        ORDER BY sort_order
+    </select>
+
+    <!-- 글 작성자 id (삭제 안 된 글만) -->
+    <select id="findPostAuthorId" resultType="long">
+        SELECT user_id FROM certification_posts
+        WHERE id = #{postId} AND deleted_at IS NULL
+    </select>
+
+    <!-- 관리자 여부 (users 테이블 읽기 — 권한 확인용) -->
+    <select id="isAdmin" resultType="int">
+        SELECT COUNT(*) FROM users
+        WHERE id = #{userId} AND role = 'ADMIN' AND deleted_at IS NULL
+    </select>
+
+    <!-- 글 soft delete -->
+    <update id="softDeletePost">
+        UPDATE certification_posts SET deleted_at = now()
+        WHERE id = #{postId}
+    </update>
+
+    <!-- 승인/반려 판단용: 글 상태 + 방장id (글→참가자→챌린지 JOIN) -->
+    <select id="findPostReviewContext" resultType="PostReviewContext">
+        SELECT p.id                   AS post_id,
+               p.certification_status AS status,
+               p.user_id              AS author_id,
+               c.host_id              AS host_id
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
+        WHERE p.id = #{postId}
+          AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 글 승인 (approval_type은 파라미터로: MANUAL/AUTO) -->
+    <!-- 상태 조건: 동시 요청 방어 — PENDING일 때만 갱신, 아니면 0행 -->
+    <update id="approvePost">
+        UPDATE certification_posts
+        SET certification_status = 'APPROVED',
+            approval_type = #{approvalType}
+        WHERE id = #{postId}
+          AND certification_status = 'PENDING'
+    </update>
+
+    <!-- 글 반려 (상태 조건: 동시 요청 방어 — PENDING일 때만 갱신, 아니면 0행) -->
+    <update id="rejectPost">
+        UPDATE certification_posts
+        SET certification_status = 'REJECTED',
+            rejection_reason = #{reason},
+            rejected_at = now()
+        WHERE id = #{postId}
+          AND certification_status = 'PENDING'
+    </update>
+
+    <!-- 특정 챌린지의 검수 대기(PENDING) 목록 (오래된 것부터) -->
+    <select id="findPendingCertifications" resultType="PendingCertificationResponse">
+        SELECT p.id                      AS post_id,
+               p.user_id                 AS author_id,
+               p.certification_image_url AS thumbnail_url,
+               p.contents,
+               p.created_at
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        WHERE cp.challenge_id = #{challengeId}
+          AND p.certification_status = 'PENDING'
+          AND p.deleted_at IS NULL
+        ORDER BY p.created_at ASC
+    </select>
+
+    <!-- 글 수정: 본문·대표이미지 갱신 + PENDING 회귀 + 반려/승인 흔적 초기화 -->
+    <update id="updatePost">
+        UPDATE certification_posts
+        SET contents = #{contents},
+            certification_image_url = #{thumbnailImage},
+            certification_status = 'PENDING',
+            rejection_reason = NULL,
+            rejected_at = NULL,
+            approval_type = NULL
+        WHERE id = #{postId}
+    </update>
+
+    <!-- 추가 이미지 전부 삭제 (수정 시 기존 것 비우기) -->
+    <delete id="deletePostImages">
+        DELETE FROM certification_post_images
+        WHERE post_id = #{postId}
+    </delete>
+
+    <!-- 채팅 메시지의 인증글 공유 카드용 요약 정보 (글→참가자→챌린지, 작성자 JOIN), 배치 조회 -->
+    <select id="findSharedCertifications" resultType="SharedCertificationInfo">
+        SELECT p.id                      AS certification_id,
+               c.id                      AS challenge_id,
+               c.title                   AS challenge_title,
+               p.user_id                 AS author_id,
+               u.nickname                AS author_nickname,
+               p.certification_image_url AS thumbnail_url,
+               p.created_at              AS certified_at
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
+        JOIN users u                   ON u.id = p.user_id
+        WHERE p.id IN
+        <foreach item="postId" collection="postIds" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+        AND p.deleted_at IS NULL -- 삭제된 인증글 조회 채팅 공유 메시지에서 제외
+    </select>
+
+</mapper>

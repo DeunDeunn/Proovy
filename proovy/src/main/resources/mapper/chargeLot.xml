@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.pay.mapper.ChargeLotMapper">
+
+    <!-- withdrawable_at은 GENERATED ALWAYS 컬럼이라 INSERT 대상에서 제외 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO charge_lots (wallet_id, amount, remaining_amount)
+        VALUES (#{walletId}, #{amount}, #{remainingAmount})
+    </insert>
+
+    <select id="selectRemainingByWalletIdOrderByChargedAtAsc" resultType="com.deundeun.pay.domain.ChargeLot">
+        SELECT id, wallet_id, amount, remaining_amount, charged_at, withdrawable_at
+        FROM charge_lots
+        WHERE wallet_id = #{walletId}
+          AND remaining_amount > 0
+        ORDER BY charged_at ASC
+    </select>
+
+    <update id="updateRemainingAmount">
+        UPDATE charge_lots
+        SET remaining_amount = #{remainingAmount}
+        WHERE id = #{id}
+    </update>
+
+    <select id="sumWithdrawableRemainingByWalletId" resultType="long">
+        SELECT COALESCE(SUM(remaining_amount), 0)
+        FROM charge_lots
+        WHERE wallet_id = #{walletId}
+          AND withdrawable_at &lt;= now()
+    </select>
+
+    <update id="incrementRemainingAmount">
+        UPDATE charge_lots
+        SET remaining_amount = remaining_amount + #{amount}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.chat.mapper.ChatMessageMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chat_messages (chat_room_id, sender_id, content, message_type, reference_type, reference_id, created_at)
+        VALUES (#{chatRoomId}, #{senderId}, #{content}, #{messageType}, #{referenceType}, #{referenceId}, #{createdAt})
+    </insert>
+
+    <select id="findLatestByChatRoomId" resultType="com.deundeun.chat.domain.ChatMessage">
+        SELECT id, chat_room_id, sender_id, content, message_type, reference_type, reference_id, deleted_at, created_at
+        FROM chat_messages
+        WHERE chat_room_id = #{chatRoomId}
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findByChatRoomIdBeforeId" resultType="com.deundeun.chat.domain.ChatMessage">
+        SELECT id, chat_room_id, sender_id, content, message_type, reference_type, reference_id, deleted_at, created_at
+        FROM chat_messages
+        WHERE chat_room_id = #{chatRoomId}
+          AND id &lt; #{beforeId}
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countAfterId" resultType="int">
+        SELECT COUNT(*)
+        FROM chat_messages
+        WHERE chat_room_id = #{chatRoomId}
+          AND id > COALESCE(#{afterId}, 0)
+    </select>
+
+    <select id="countUnreadByRooms" resultType="com.deundeun.chat.dto.RoomUnreadCount">
+        SELECT v.chat_room_id AS chat_room_id, COUNT(cm.id) AS unread_count
+        FROM (
+            VALUES
+            <foreach item="cursor" collection="cursors" separator=",">
+                (#{cursor.chatRoomId}::bigint, #{cursor.lastReadMessageId}::bigint)
+            </foreach>
+        ) AS v(chat_room_id, last_read_message_id)
+        LEFT JOIN chat_messages cm
+            ON cm.chat_room_id = v.chat_room_id
+           AND cm.id > COALESCE(v.last_read_message_id, 0)
+        GROUP BY v.chat_room_id
+    </select>
+
+</mapper>

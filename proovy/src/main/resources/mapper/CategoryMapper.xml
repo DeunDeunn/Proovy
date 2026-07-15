@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.challenge.mapper.CategoryMapper">
+
+    <select id="findAll" resultType="Category">
+        SELECT id, name, sort_order
+        FROM categories
+        ORDER BY sort_order, id
+    </select>
+
+    <select id="existsById" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM categories WHERE id = #{id})
+    </select>
+
+</mapper>
