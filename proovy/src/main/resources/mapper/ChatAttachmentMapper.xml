@@ -13,7 +13,6 @@
         WHERE id = #{id}
           AND uploader_id = #{uploaderId}
           AND message_id IS NULL
-          AND file_type = #{fileType}
     </update>
 
     <select id="findByMessageIds" resultType="com.deundeun.chat.domain.ChatAttachment">

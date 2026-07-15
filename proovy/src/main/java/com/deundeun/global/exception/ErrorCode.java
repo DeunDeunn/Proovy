@@ -75,8 +75,6 @@ public enum ErrorCode {
     CHAT_MESSAGE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "CH008", "메시지 내용을 입력해주세요."),
     CHAT_MESSAGE_CONTENT_TOO_LONG(HttpStatus.BAD_REQUEST, "CH009", "메시지 내용은 1000자를 초과할 수 없습니다."),
     CHAT_ATTACHMENT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH010", "텍스트 메시지에는 첨부파일을 첨부할 수 없습니다."),
-    CHAT_ATTACHMENT_COUNT_INVALID(HttpStatus.BAD_REQUEST, "CH011", "이미지/파일 메시지는 첨부파일을 정확히 1개 첨부해야 합니다."),
-    CHAT_ATTACHMENT_NOT_FOUND(HttpStatus.BAD_REQUEST, "CH012", "사용할 수 없는 첨부파일입니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),

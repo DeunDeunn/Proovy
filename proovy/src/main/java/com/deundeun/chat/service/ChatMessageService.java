@@ -6,13 +6,19 @@ import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.mapper.CertificationMapper;
 import com.deundeun.chat.domain.ChatAttachment;
 import com.deundeun.chat.domain.ChatMessage;
+import com.deundeun.chat.domain.ChatMessageType;
 import com.deundeun.chat.domain.ChatReferenceType;
+import com.deundeun.chat.domain.ChatRoomMember;
+import com.deundeun.chat.dto.request.ChatMessageSendRequest;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.dto.response.SharedCertificationResponse;
 import com.deundeun.chat.mapper.ChatAttachmentMapper;
 import com.deundeun.chat.mapper.ChatMessageMapper;
+import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
+import com.deundeun.global.exception.ApiException;
+import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,11 +35,61 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatMessageService {
 
+    private static final int MAX_CONTENT_LENGTH = 1000;
+
     private final ChatMessageMapper chatMessageMapper;
     private final ChatAttachmentMapper chatAttachmentMapper;
+    private final ChatRoomMemberMapper chatRoomMemberMapper;
     private final UserMapper userMapper;
     private final CertificationMapper certificationMapper;
     private final ChatRoomMemberFinder chatRoomMemberFinder;
+
+    @Transactional
+    public ChatMessageResponse send(Long chatRoomId, Long senderId, ChatMessageSendRequest request) {
+        ChatRoomMember member = chatRoomMemberFinder.findMember(chatRoomId, senderId);
+        ChatMessageType messageType = request.messageType();
+
+        validateMessageType(messageType);
+        validateContent(messageType, request.content());
+        validateAttachments(request.attachmentIds());
+
+        ChatMessage message = ChatMessage.create(chatRoomId, senderId, request.content(), messageType, null, null);
+        chatMessageMapper.insert(message);
+
+        updateSenderReadCursor(member, message.getId());
+
+        User sender = userMapper.findById(senderId);
+        log.info("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
+            chatRoomId, senderId, message.getId(), messageType);
+
+        return ChatMessageResponse.of(message, sender, List.of(), null);
+    }
+
+    private void validateMessageType(ChatMessageType messageType) {
+        if (messageType != ChatMessageType.TEXT) {
+            throw new ApiException(ErrorCode.CHAT_INVALID_MESSAGE_TYPE);
+        }
+    }
+
+    private void validateContent(ChatMessageType messageType, String content) {
+        if (messageType == ChatMessageType.TEXT && (content == null || content.isBlank())) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_REQUIRED);
+        }
+        if (content != null && content.length() > MAX_CONTENT_LENGTH) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_TOO_LONG);
+        }
+    }
+
+    private void validateAttachments(List<Long> attachmentIds) {
+        if (attachmentIds != null) {
+            throw new ApiException(ErrorCode.CHAT_ATTACHMENT_NOT_ALLOWED);
+        }
+    }
+
+    private void updateSenderReadCursor(ChatRoomMember member, Long messageId) {
+        member.markRead(messageId);
+        chatRoomMemberMapper.updateLastRead(member);
+    }
 
     @Transactional(readOnly = true)
     public ChatMessageListResponse getMessages(Long chatRoomId, Long userId, Long beforeMessageId, int size) {
