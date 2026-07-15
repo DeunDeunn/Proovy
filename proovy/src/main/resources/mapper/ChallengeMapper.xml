@@ -32,4 +32,43 @@
         </foreach>
     </select>
 
+    <sql id="searchCondition">
+        <where>
+            <if test="categoryId != null">
+                AND c.category_id = #{categoryId}
+            </if>
+            <if test="status != null">
+                AND c.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND c.title LIKE '%' || #{keyword} || '%'
+            </if>
+        </where>
+    </sql>
+
+    <select id="search" resultType="ChallengeSummaryResponse">
+        SELECT
+        c.id,
+        c.title,
+        cat.name AS category_name,
+        c.entry_fee,
+        (SELECT COUNT(*) FROM challenge_participants p
+        WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+        c.max_participants,
+        c.start_date,
+        c.end_date,
+        c.status
+        FROM challenges c
+        JOIN categories cat ON cat.id = c.category_id
+        <include refid="searchCondition"/>
+        ORDER BY c.created_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countBySearch" resultType="long">
+        SELECT COUNT(*)
+        FROM challenges c
+        <include refid="searchCondition"/>
+    </select>
+
 </mapper>

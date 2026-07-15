@@ -4,7 +4,10 @@ import com.deundeun.challenge.domain.CertFrequency;
 import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.domain.ChallengeStatus;
 import com.deundeun.challenge.dto.request.ChallengeCreateRequest;
+import com.deundeun.challenge.dto.request.ChallengeSearchCondition;
 import com.deundeun.challenge.dto.response.ChallengeCreateResponse;
+import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
+import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.mapper.CategoryMapper;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.global.exception.ApiException;
@@ -12,6 +15,8 @@ import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +61,23 @@ public class ChallengeService {
         challengeMapper.insert(challenge);
 
         return ChallengeCreateResponse.from(challenge);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ChallengeSummaryResponse> search(ChallengeSearchCondition condition) {
+        List<ChallengeSummaryResponse> content = challengeMapper.search(
+                condition.categoryId(),
+                condition.status(),
+                condition.keyword(),
+                condition.offset(),
+                condition.size());
+
+        long totalElements = challengeMapper.countBySearch(
+                condition.categoryId(),
+                condition.status(),
+                condition.keyword());
+
+        return PageResponse.of(content, condition.page(), condition.size(), totalElements);
     }
 
 }
