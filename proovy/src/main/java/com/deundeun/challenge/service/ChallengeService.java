@@ -86,7 +86,12 @@ public class ChallengeService {
 
     @Transactional
     public void update(Long challengeId, Long userId, ChallengeUpdateRequest request) {
-        Challenge challenge = challengeMapper.findById(challengeId);
+        if (!request.hasAnyChanges()) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST);
+        }
+
+        // 행 잠금: 참가자 수 확인과 UPDATE 사이에 참가가 끼어드는 경쟁 조건 방지
+        Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
         if (challenge == null) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
         }
@@ -138,7 +143,8 @@ public class ChallengeService {
 
     @Transactional
     public void cancel(Long challengeId, Long userId) {
-        Challenge challenge = challengeMapper.findById(challengeId);
+        // 행 잠금: 상태 확인과 CANCELLED 전이 사이의 동시 요청(참가 등) 방지
+        Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
         if (challenge == null) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
         }

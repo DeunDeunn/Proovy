@@ -39,6 +39,11 @@ public record ChallengeUpdateRequest(
         FeedVisibility feedVisibility
 ) {
 
+    // 수정할 필드가 하나라도 있는지 (전부 null인 빈 요청 거부용)
+    public boolean hasAnyChanges() {
+        return title != null || description != null || hasCoreChanges();
+    }
+
     // 참가자가 있으면 수정할 수 없는 핵심 조건이 하나라도 포함됐는지 (제목/설명 외 전부)
     public boolean hasCoreChanges() {
         return categoryId != null || entryFee != null || verificationMethod != null
