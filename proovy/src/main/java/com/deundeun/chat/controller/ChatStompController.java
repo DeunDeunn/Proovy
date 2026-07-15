@@ -8,6 +8,7 @@ import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class ChatStompController {
@@ -34,7 +36,16 @@ public class ChatStompController {
         Long senderId = resolveSenderId(principal);
         ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request);
 
-        messagingTemplate.convertAndSend(BROADCAST_DESTINATION_PREFIX + chatRoomId, ChatMessageCreatedEvent.of(response));
+        broadcast(chatRoomId, response);
+    }
+
+    private void broadcast(Long chatRoomId, ChatMessageResponse response) {
+        try {
+            messagingTemplate.convertAndSend(BROADCAST_DESTINATION_PREFIX + chatRoomId, ChatMessageCreatedEvent.of(response));
+        } catch (Exception e) {
+            log.error("[Chat] 메시지 저장은 성공했으나 브로드캐스트에 실패했습니다: chatRoomId={}, messageId={}",
+                chatRoomId, response.messageId(), e);
+        }
     }
 
     private Long resolveSenderId(Principal principal) {
