@@ -4,6 +4,7 @@ import java.security.Principal;
 
 import org.springframework.dao.DataAccessException;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
+import org.springframework.messaging.handler.annotation.support.MethodArgumentNotValidException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
@@ -27,6 +28,12 @@ public class ChatStompExceptionHandler {
     public void handleApiException(ApiException e, Principal principal) {
         log.warn("STOMP ApiException: {} - {}", e.getErrorCode().getCode(), e.getMessage(), e);
         sendErrorEvent(principal, e.getErrorCode());
+    }
+
+    @MessageExceptionHandler(MethodArgumentNotValidException.class)
+    public void handleMethodArgumentNotValidException(MethodArgumentNotValidException e, Principal principal) {
+        log.warn("STOMP 페이로드 검증 실패: {}", e.getBindingResult(), e);
+        sendErrorEvent(principal, ErrorCode.CHAT_INVALID_MESSAGE_TYPE);
     }
 
     @MessageExceptionHandler(DataAccessException.class)

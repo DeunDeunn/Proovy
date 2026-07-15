@@ -159,6 +159,25 @@ class ChatMessageServiceTest {
     }
 
     @Test
+    @DisplayName("메시지 내용이 정확히 1000자면 저장에 성공한다")
+    void send_contentExactlyMaxLength_saves() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
+        String maxLengthContent = "a".repeat(1000);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, maxLengthContent, null);
+
+        when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
+        stubMessageInsertAssignsId(100L);
+        when(userMapper.findById(senderId)).thenReturn(null);
+
+        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request);
+
+        assertThat(response.content()).isEqualTo(maxLengthContent);
+        verify(chatMessageMapper).insert(any());
+    }
+
+    @Test
     @DisplayName("TEXT 메시지에 첨부파일 ID를 함께 보내면 거부한다 (빈 배열 포함)")
     void send_textWithAttachments_throws() {
         Long chatRoomId = 1L;

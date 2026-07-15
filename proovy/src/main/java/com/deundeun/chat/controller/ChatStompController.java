@@ -6,6 +6,7 @@ import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.service.ChatMessageService;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -27,7 +28,7 @@ public class ChatStompController {
     @MessageMapping("/chats/rooms/{chatRoomId}/messages")
     public void sendMessage(
         @DestinationVariable Long chatRoomId,
-        @Payload ChatMessageSendRequest request,
+        @Payload @Valid ChatMessageSendRequest request,
         Principal principal
     ) {
         Long senderId = resolveSenderId(principal);

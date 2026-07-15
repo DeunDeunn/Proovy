@@ -59,7 +59,7 @@ public class ChatMessageService {
         updateSenderReadCursor(member, message.getId());
 
         User sender = userMapper.findById(senderId);
-        log.info("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
+        log.debug("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
             chatRoomId, senderId, message.getId(), messageType);
 
         return ChatMessageResponse.of(message, sender, List.of(), null);
