@@ -31,4 +31,18 @@
           AND id > COALESCE(#{afterId}, 0)
     </select>
 
+    <select id="countUnreadByRooms" resultType="com.deundeun.chat.dto.RoomUnreadCount">
+        SELECT v.chat_room_id AS chat_room_id, COUNT(cm.id) AS unread_count
+        FROM (
+            VALUES
+            <foreach item="cursor" collection="cursors" separator=",">
+                (#{cursor.chatRoomId}::bigint, #{cursor.lastReadMessageId}::bigint)
+            </foreach>
+        ) AS v(chat_room_id, last_read_message_id)
+        LEFT JOIN chat_messages cm
+            ON cm.chat_room_id = v.chat_room_id
+           AND cm.id > COALESCE(v.last_read_message_id, 0)
+        GROUP BY v.chat_room_id
+    </select>
+
 </mapper>

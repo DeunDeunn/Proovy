@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     // 기존
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
+    AI_REVIEW_RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "AI 검수 규칙을 찾을 수 없습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "C002", "권한이 없습니다."),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "C001", "잘못된 요청입니다."),
     SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "서버 오류입니다."),
@@ -68,6 +69,7 @@ public enum ErrorCode {
     CHAT_ROOM_ALREADY_JOINED(HttpStatus.CONFLICT, "CH003", "이미 참여 중인 채팅방입니다."),
     CHAT_ROOM_SELF_CHAT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH004", "자기 자신과는 1:1 채팅방을 생성할 수 없습니다."),
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CH005", "존재하지 않는 채팅방입니다."),
+    CHAT_INVALID_READ_CURSOR(HttpStatus.BAD_REQUEST, "CH006", "읽음 처리할 메시지 위치가 올바르지 않습니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
@@ -85,6 +87,7 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "CF008", "인증글을 찾을 수 없습니다."),
     NOT_PENDING_POST(HttpStatus.CONFLICT, "CF009", "승인대기 상태의 인증글만 처리 가능합니다."),
     REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "CF010", "반려 사유는 필수 입력사항입니다."),
+    NOT_IN_CERT_TIME_RANGE(HttpStatus.BAD_REQUEST, "CF011", "인증 등록 가능 시간대가 아닙니다."),
 
     //파일 업로드
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "F001", "업로드할 파일이 비어 있습니다."),

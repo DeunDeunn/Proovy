@@ -1,6 +1,5 @@
 package com.deundeun.chat.mapper;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -8,6 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.deundeun.chat.domain.ChatRoomMember;
+import com.deundeun.chat.dto.ChatRoomListItem;
 
 @Mapper
 public interface ChatRoomMemberMapper {
@@ -19,10 +19,13 @@ public interface ChatRoomMemberMapper {
 
     List<ChatRoomMember> findActiveByChatRoomId(@Param("chatRoomId") Long chatRoomId);
 
-    void updateLastRead(@Param("chatRoomId") Long chatRoomId,
-                         @Param("userId") Long userId,
-                         @Param("lastReadMessageId") Long lastReadMessageId,
-                         @Param("lastReadAt") LocalDateTime lastReadAt);
+    List<ChatRoomListItem> findRoomsByUserId(@Param("userId") Long userId,
+                                              @Param("offset") int offset,
+                                              @Param("limit") int limit);
+
+    int countRoomsByUserId(@Param("userId") Long userId);
+
+    int updateLastRead(ChatRoomMember member);
 
     void leave(ChatRoomMember member);
 

@@ -19,4 +19,17 @@
                  )
     </insert>
 
+    <select id="findByIds" resultType="com.deundeun.challenge.domain.Challenge">
+        SELECT id, host_id, title, description, category_id, entry_fee,
+               verification_method, cert_frequency, daily_cert_limit,
+               success_criteria_rate, ai_review_enabled,
+               start_date, end_date, max_participants, status,
+               created_at, updated_at, cert_start_time, cert_end_time, feed_visibility
+        FROM challenges
+        WHERE id IN
+        <foreach item="challengeId" collection="ids" open="(" separator="," close=")">
+            #{challengeId}
+        </foreach>
+    </select>
+
 </mapper>

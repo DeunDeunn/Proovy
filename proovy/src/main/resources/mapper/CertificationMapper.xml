@@ -25,9 +25,18 @@
 
     <!-- 챌린지 존재하는지 , 상태 조회-->
     <select id="findChallengeById" resultType="ChallengeForCertification">
-        SELECT id, status, host_id
+        SELECT id, status, host_id, cert_start_time, cert_end_time
         FROM challenges
         WHERE id = #{challengeId}
+    </select>
+
+    <!-- 인증글이 속한 챌린지 조회 (수정 시 시간대 검증용) -->
+    <select id="findChallengeByPostId" resultType="ChallengeForCertification">
+        SELECT c.id, c.status, c.host_id, c.cert_start_time, c.cert_end_time
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE p.id = #{postId}
     </select>
 
     <!-- 참가자 조회- 참가 여부 확인-->
@@ -162,5 +171,25 @@
         DELETE FROM certification_post_images
         WHERE post_id = #{postId}
     </delete>
+
+    <!-- 채팅 메시지의 인증글 공유 카드용 요약 정보 (글→참가자→챌린지, 작성자 JOIN), 배치 조회 -->
+    <select id="findSharedCertifications" resultType="SharedCertificationInfo">
+        SELECT p.id                      AS certification_id,
+               c.id                      AS challenge_id,
+               c.title                   AS challenge_title,
+               p.user_id                 AS author_id,
+               u.nickname                AS author_nickname,
+               p.certification_image_url AS thumbnail_url,
+               p.created_at              AS certified_at
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
+        JOIN users u                   ON u.id = p.user_id
+        WHERE p.id IN
+        <foreach item="postId" collection="postIds" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+        AND p.deleted_at IS NULL -- 삭제된 인증글 조회 채팅 공유 메시지에서 제외
+    </select>
 
 </mapper>
