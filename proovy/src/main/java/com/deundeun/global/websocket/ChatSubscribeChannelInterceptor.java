@@ -58,14 +58,22 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
 
-        Long chatRoomId = Long.valueOf(
-            PATH_MATCHER.extractUriTemplateVariables(CHAT_ROOM_DESTINATION_PATTERN, destination)
-                .get("chatRoomId")
-        );
+        String chatRoomIdValue = PATH_MATCHER
+            .extractUriTemplateVariables(CHAT_ROOM_DESTINATION_PATTERN, destination)
+            .get("chatRoomId");
+        Long chatRoomId = parseChatRoomId(chatRoomIdValue);
 
         Principal principal = accessor.getUser();
         Long userId = Long.valueOf(principal.getName());
 
         chatRoomMemberService.getChatRoomMember(chatRoomId, userId);
+    }
+
+    private Long parseChatRoomId(String value) {
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException e) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
     }
 }

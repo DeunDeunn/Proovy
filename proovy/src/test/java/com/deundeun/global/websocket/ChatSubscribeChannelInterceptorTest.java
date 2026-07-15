@@ -76,6 +76,15 @@ class ChatSubscribeChannelInterceptorTest {
                 .isInstanceOf(ApiException.class);
     }
 
+    @Test
+    @DisplayName("chatRoomId가 숫자 형식이 아니면 거부된다")
+    void preSend_subscribeWithNonNumericChatRoomId_throwsException() {
+        Message<byte[]> message = subscribeMessage("/topic/chats/rooms/not-a-number", 1L);
+
+        assertThatThrownBy(() -> interceptor.preSend(message, null))
+                .isInstanceOf(ApiException.class);
+    }
+
     private Message<byte[]> subscribeMessage(String destination, Long userId) {
         return stompMessage(StompCommand.SUBSCRIBE, destination, userId);
     }
