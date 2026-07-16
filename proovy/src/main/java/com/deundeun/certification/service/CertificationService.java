@@ -129,9 +129,8 @@ public class CertificationService {
     }
 
     /**
-     * 읽기 권한 게이트: 뷰어가 이 글을 읽을 수 있는지 검사(못 읽으면 404로 숨김).
-     * detail은 이미 findPostDetail로 조회한 것을 넘김(중복 조회 방지).
-     * 통과 규칙: 작성자 본인 / 관리자 / 그 챌린지 방장 → 상태 무관. 그 외 → APPROVED + 공개범위.
+     * 권한 게이트: 뷰어가 이 글을 읽을 수 있는지 검사
+     * 규칙: 작성자 본인 / 관리자 / 그 챌린지 방장 → 상태 무관. 그 외 → APPROVED + 공개범위.
      */
     private void assertReadable(Long postId, Long viewerId, CertificationPostDetailResponse detail) {
         boolean isAuthor = detail.getAuthorId().equals(viewerId);
@@ -148,7 +147,7 @@ public class CertificationService {
         if (challenge.getHostId().equals(viewerId)) {
             return;
         }
-        // 그 외 뷰어: 승인된 글만 (미승인 글은 존재 자체를 숨김 → 404)
+        // 그 외: 승인된 글만 (미승인글은 존재 숨김)
         if (detail.getStatus() != CertificationStatus.APPROVED) {
             throw new ApiException(ErrorCode.POST_NOT_FOUND);
         }
@@ -177,7 +176,7 @@ public class CertificationService {
             throw new ApiException(ErrorCode.CANNOT_LIKE_UNAPPROVED);
         }
 
-        // 토글: 먼저 삭제 시도 → 지워졌으면 '취소', 아니면 삽입 → '등록'
+        // 토글:삭제 시도 → 지워졌으면 취소, 아니면 삽입 → 등록
         boolean liked;
         int deleted = certificationMapper.deleteLike(postId, viewerId);
         if (deleted > 0) {
@@ -185,7 +184,7 @@ public class CertificationService {
             liked = false;
         } else {
             int inserted = certificationMapper.insertLike(postId, viewerId);
-            // 동시 요청으로 이미 삽입돼 있으면 inserted=0 → 카운트 중복 증가 방지
+            // 동시 요청으로 이미 삽입돼 있으면 inserted=0
             if (inserted > 0) {
                 certificationMapper.incrementLikeCount(postId);
             }
@@ -356,6 +355,13 @@ public class CertificationService {
         return Math.min(size, MAX_SIZE);
     }
 
+    // 인기순 커서는 (cursor, cursorLike) 복합키 → 부분 입력 거부 (하나만 오면 첫 페이지 반복 버그)
+    private void validatePopularCursor(FeedSort sort, Long cursor, Long cursorLike) {
+        if (sort == FeedSort.POPULAR && (cursor == null) != (cursorLike == null)) {
+            throw new ApiException(ErrorCode.INVALID_POPULAR_CURSOR);
+        }
+    }
+
     //챌린지 피드 — 그 챌린지 참가자랑 승인글만
     public List<FeedItemResponse> getChallengeFeed(Long challengeId, Long viewerId,
                                                    Long cursor, Long cursorLike, Integer size,
@@ -374,11 +380,14 @@ public class CertificationService {
             throw new ApiException(ErrorCode.PARTICIPANT_NOT_ACTIVE);
         }
 
+        FeedSort feedSort = FeedSort.from(sort);
+        validatePopularCursor(feedSort, cursor, cursorLike);
+
         FeedQuery q = new FeedQuery();
         q.setChallengeId(challengeId);
         q.setViewerId(viewerId);
         q.setFilter(FeedFilter.from(filter));
-        q.setSort(FeedSort.from(sort));
+        q.setSort(feedSort);
         q.setCursor(cursor);
         q.setCursorLike(cursorLike);   // 인기순 커서 복합키
         q.setSize(clampSize(size));
@@ -388,10 +397,13 @@ public class CertificationService {
     // 전체 피드 — 로그인 누구나, 전체공개 챌린지
     public List<FeedItemResponse> getPublicFeed(Long viewerId, Long cursor, Long cursorLike,
                                                 Integer size, String filter, String sort) {
+        FeedSort feedSort = FeedSort.from(sort);
+        validatePopularCursor(feedSort, cursor, cursorLike);
+
         FeedQuery q = new FeedQuery();
         q.setViewerId(viewerId);
         q.setFilter(FeedFilter.from(filter));
-        q.setSort(FeedSort.from(sort));
+        q.setSort(feedSort);
         q.setPublicOnly(true);
         q.setCursor(cursor);
         q.setCursorLike(cursorLike);
