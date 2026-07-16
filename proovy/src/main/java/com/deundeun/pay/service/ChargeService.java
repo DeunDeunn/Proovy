@@ -19,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -85,8 +87,8 @@ public class ChargeService {
         //MerchantPayKey에서 transactionId 추출
         Long transactionId = parseTransactionId(callback.getMerchantPayKey());
 
-        boolean claimed = chargeTransactionStateService.beginProcessing(transactionId, callback.getPaymentId());
-        if (!claimed) {
+        Optional<Long> claim = chargeTransactionStateService.beginProcessing(transactionId, callback.getPaymentId());
+        if (claim.isEmpty()) {
             CashTransaction existing = cashTransactionMapper.selectById(transactionId);
             if (existing == null) {
                 throw new ApiException(ErrorCode.CHARGE_TRANSACTION_NOT_FOUND);
@@ -97,6 +99,7 @@ public class ChargeService {
                     .status(existing.getStatus())
                     .build();
         }
+        long processingToken = claim.get();
 
         CashTransaction transaction = cashTransactionMapper.selectById(transactionId);
 
@@ -104,12 +107,12 @@ public class ChargeService {
         NaverPayPaymentDetail detail = applyResult.detail();
 
         if (detail == null || !callback.getMerchantPayKey().equals(detail.merchantPayKey())) {
-            chargeTransactionStateService.markFailed(transactionId);
+            chargeTransactionStateService.markFailed(transactionId, processingToken);
             throw new ApiException(ErrorCode.PG_AMOUNT_MISMATCH, "merchantPayKey가 일치하지 않습니다.");
         }
 
         if (!detail.isAdmitted()) {
-            chargeTransactionStateService.markFailed(transactionId);
+            chargeTransactionStateService.markFailed(transactionId, processingToken);
             return NaverPayCallbackResponse.builder()
                     .chargeTransactionId(transactionId)
                     .status(CashTransactionStatus.FAILED)
@@ -117,11 +120,11 @@ public class ChargeService {
         }
 
         if (!transaction.getAmount().equals(detail.totalPayAmount())) {
-            chargeTransactionStateService.markFailed(transactionId);
+            chargeTransactionStateService.markFailed(transactionId, processingToken);
             throw new ApiException(ErrorCode.PG_AMOUNT_MISMATCH);
         }
 
-        chargeTransactionStateService.completeCharge(transaction, detail);
+        chargeTransactionStateService.completeCharge(transaction, detail, processingToken);
 
         return NaverPayCallbackResponse.builder()
                 .chargeTransactionId(transactionId)

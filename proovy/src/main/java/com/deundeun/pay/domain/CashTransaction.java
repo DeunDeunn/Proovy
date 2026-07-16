@@ -26,4 +26,5 @@ public class CashTransaction {
     private Long referenceId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long processingToken;
 }

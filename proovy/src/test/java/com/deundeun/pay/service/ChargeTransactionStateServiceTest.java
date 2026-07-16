@@ -7,6 +7,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,34 +42,35 @@ class ChargeTransactionStateServiceTest {
     }
 
     @Test
-    void beginProcessing_oneRowAffected_returnsTrue() {
-        when(cashTransactionMapper.beginProcessing(7L, "PAY123")).thenReturn(1);
+    void beginProcessing_oneRowAffected_returnsToken() {
+        when(cashTransactionMapper.beginProcessing(anyLong(), any(), anyLong())).thenReturn(1);
 
-        boolean claimed = chargeTransactionStateService.beginProcessing(7L, "PAY123");
+        Optional<Long> claim = chargeTransactionStateService.beginProcessing(7L, "PAY123");
 
-        assertThat(claimed).isTrue();
+        assertThat(claim).isPresent();
     }
 
     @Test
-    void beginProcessing_noRowAffected_returnsFalse() {
-        when(cashTransactionMapper.beginProcessing(7L, "PAY123")).thenReturn(0);
+    void beginProcessing_noRowAffected_returnsEmpty() {
+        when(cashTransactionMapper.beginProcessing(anyLong(), any(), anyLong())).thenReturn(0);
 
-        boolean claimed = chargeTransactionStateService.beginProcessing(7L, "PAY123");
+        Optional<Long> claim = chargeTransactionStateService.beginProcessing(7L, "PAY123");
 
-        assertThat(claimed).isFalse();
+        assertThat(claim).isEmpty();
     }
 
     @Test
     void markFailed_updatesStatusToFailed() {
-        chargeTransactionStateService.markFailed(7L);
+        chargeTransactionStateService.markFailed(7L, 999L);
 
-        verify(cashTransactionMapper).failFromProcessing(7L);
+        verify(cashTransactionMapper).failFromProcessing(7L, 999L);
     }
 
     @Test
-    void completeCharge_stillProcessing_creditsWalletInsertsChargeLotAndCompletesTransaction() {
+    void completeCharge_stillProcessingWithMatchingToken_creditsWalletInsertsChargeLotAndCompletesTransaction() {
         CashTransaction transaction = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
+                .processingToken(999L)
                 .build();
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
                 "PAY123", "hist1", "merchant1", "CHG-7", "SUCCESS", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
@@ -76,7 +79,7 @@ class ChargeTransactionStateServiceTest {
         Wallet wallet = Wallet.builder().id(6L).chargedBalance(5_000L).build();
         when(walletService.getWalletByIdForUpdate(6L)).thenReturn(wallet);
 
-        chargeTransactionStateService.completeCharge(transaction, detail);
+        chargeTransactionStateService.completeCharge(transaction, detail, 999L);
 
         verify(walletService).updateChargedBalance(6L, 15_000L);
         verify(chargeLotMapper).insert(any(ChargeLot.class));
@@ -87,19 +90,71 @@ class ChargeTransactionStateServiceTest {
     void completeCharge_alreadyCompletedByConcurrentCaller_doesNotDoubleApply() {
         CashTransaction transaction = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
+                .processingToken(999L)
                 .build();
         CashTransaction alreadyCompleted = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.COMPLETED)
+                .processingToken(999L)
                 .build();
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
                 "PAY123", "hist1", "merchant1", "CHG-7", "SUCCESS", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
 
         when(cashTransactionMapper.selectByIdForUpdate(7L)).thenReturn(alreadyCompleted);
 
-        chargeTransactionStateService.completeCharge(transaction, detail);
+        chargeTransactionStateService.completeCharge(transaction, detail, 999L);
 
         verify(walletService, never()).updateChargedBalance(any(), anyLong());
         verify(chargeLotMapper, never()).insert(any());
         verify(cashTransactionMapper, never()).completeCharge(any(), any(), anyLong());
+    }
+
+    /**
+     * 원래 콜백이 PG 승인(60초까지 걸릴 수 있음)을 기다리는 중에, 보정 스케줄러가 30초
+     * 임계값을 넘겨 먼저 claimForReconciliation으로 lease를 가져가는(processing_token이
+     * 새 값으로 바뀌는) 경쟁 순서를 재현한다. 그 뒤 원래 콜백이 자신의 옛 토큰으로
+     * completeCharge를 시도해도 반영되지 않아야 한다 - 그렇지 않으면 스케줄러가 이미
+     * 내린 결정(완료/실패)을 원래 요청이 뒤늦게 덮어써버릴 수 있다.
+     */
+    @Test
+    void completeCharge_reconciliationClaimedNewerTokenFirst_originalCallbackDoesNotApply() {
+        long originalToken = 111L;
+        long reconciliationToken = 222L;
+
+        CashTransaction original = CashTransaction.builder()
+                .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
+                .processingToken(originalToken)
+                .build();
+        CashTransaction takenOverByScheduler = CashTransaction.builder()
+                .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
+                .processingToken(reconciliationToken)
+                .build();
+        NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
+                "PAY123", "hist1", "merchant1", "CHG-7", "SUCCESS", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
+
+        when(cashTransactionMapper.selectByIdForUpdate(7L)).thenReturn(takenOverByScheduler);
+
+        chargeTransactionStateService.completeCharge(original, detail, originalToken);
+
+        verify(walletService, never()).updateChargedBalance(any(), anyLong());
+        verify(chargeLotMapper, never()).insert(any());
+        verify(cashTransactionMapper, never()).completeCharge(any(), any(), anyLong());
+    }
+
+    @Test
+    void claimForReconciliation_matchingToken_returnsNewToken() {
+        when(cashTransactionMapper.claimForReconciliation(anyLong(), anyLong(), anyLong())).thenReturn(1);
+
+        Optional<Long> lease = chargeTransactionStateService.claimForReconciliation(7L, 111L);
+
+        assertThat(lease).isPresent();
+    }
+
+    @Test
+    void claimForReconciliation_tokenAlreadyChanged_returnsEmpty() {
+        when(cashTransactionMapper.claimForReconciliation(anyLong(), anyLong(), anyLong())).thenReturn(0);
+
+        Optional<Long> lease = chargeTransactionStateService.claimForReconciliation(7L, 111L);
+
+        assertThat(lease).isEmpty();
     }
 }

@@ -21,9 +21,15 @@ public interface CashTransactionMapper {
                          @Param("pgTransactionId") String pgTransactionId,
                          @Param("balanceAfter") long balanceAfter);
 
-    int failFromProcessing(@Param("id") Long id);
+    int failFromProcessing(@Param("id") Long id, @Param("processingToken") long processingToken);
 
-    int beginProcessing(@Param("id") Long id, @Param("paymentId") String paymentId);
+    int beginProcessing(@Param("id") Long id,
+                         @Param("paymentId") String paymentId,
+                         @Param("processingToken") long processingToken);
+
+    int claimForReconciliation(@Param("id") Long id,
+                                @Param("expectedToken") long expectedToken,
+                                @Param("newToken") long newToken);
 
     List<CashTransaction> selectStuckProcessing(@Param("threshold") LocalDateTime threshold);
 

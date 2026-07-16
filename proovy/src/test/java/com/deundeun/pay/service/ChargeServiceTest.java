@@ -30,6 +30,8 @@ import com.deundeun.pay.dto.naverpay.NaverPayApplyBody;
 import com.deundeun.pay.dto.naverpay.NaverPayPaymentDetail;
 import com.deundeun.pay.mapper.CashTransactionMapper;
 
+import java.util.Optional;
+
 @ExtendWith(MockitoExtension.class)
 class ChargeServiceTest {
 
@@ -66,7 +68,7 @@ class ChargeServiceTest {
         CashTransaction transaction = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
                 .build();
-        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(true);
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.of(999L));
         when(cashTransactionMapper.selectById(7L)).thenReturn(transaction);
 
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
@@ -78,12 +80,12 @@ class ChargeServiceTest {
 
         assertThat(response.getChargeTransactionId()).isEqualTo(7L);
         assertThat(response.getStatus()).isEqualTo(CashTransactionStatus.COMPLETED);
-        verify(chargeTransactionStateService).completeCharge(transaction, detail);
+        verify(chargeTransactionStateService).completeCharge(transaction, detail, 999L);
     }
 
     @Test
     void handlePaymentCompleted_alreadyProcessedOrProcessing_doesNotReprocess() {
-        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(false);
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.empty());
         CashTransaction existing = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.COMPLETED)
                 .build();
@@ -94,12 +96,12 @@ class ChargeServiceTest {
 
         assertThat(response.getStatus()).isEqualTo(CashTransactionStatus.COMPLETED);
         verify(naverPayApiClient, never()).applyPayment(any());
-        verify(chargeTransactionStateService, never()).completeCharge(any(), any());
+        verify(chargeTransactionStateService, never()).completeCharge(any(), any(), anyLong());
     }
 
     @Test
     void handlePaymentCompleted_transactionNotFound_throwsNotFound() {
-        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(false);
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.empty());
         when(cashTransactionMapper.selectById(7L)).thenReturn(null);
 
         assertThatThrownBy(() -> chargeService.handlePaymentCompleted(callbackRequest()))
@@ -113,7 +115,7 @@ class ChargeServiceTest {
         CashTransaction transaction = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
                 .build();
-        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(true);
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.of(999L));
         when(cashTransactionMapper.selectById(7L)).thenReturn(transaction);
 
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
@@ -125,7 +127,7 @@ class ChargeServiceTest {
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PG_AMOUNT_MISMATCH);
 
-        verify(chargeTransactionStateService).markFailed(7L);
+        verify(chargeTransactionStateService).markFailed(7L, 999L);
     }
 
     @Test
@@ -133,7 +135,7 @@ class ChargeServiceTest {
         CashTransaction transaction = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
                 .build();
-        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(true);
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.of(999L));
         when(cashTransactionMapper.selectById(7L)).thenReturn(transaction);
 
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
@@ -145,7 +147,7 @@ class ChargeServiceTest {
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PG_AMOUNT_MISMATCH);
 
-        verify(chargeTransactionStateService).markFailed(7L);
+        verify(chargeTransactionStateService).markFailed(7L, 999L);
     }
 
     @Test
@@ -153,7 +155,7 @@ class ChargeServiceTest {
         CashTransaction transaction = CashTransaction.builder()
                 .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
                 .build();
-        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(true);
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.of(999L));
         when(cashTransactionMapper.selectById(7L)).thenReturn(transaction);
 
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
@@ -164,8 +166,8 @@ class ChargeServiceTest {
                 chargeService.handlePaymentCompleted(callbackRequest());
 
         assertThat(response.getStatus()).isEqualTo(CashTransactionStatus.FAILED);
-        verify(chargeTransactionStateService).markFailed(7L);
-        verify(chargeTransactionStateService, never()).completeCharge(any(), any());
+        verify(chargeTransactionStateService).markFailed(7L, 999L);
+        verify(chargeTransactionStateService, never()).completeCharge(any(), any(), anyLong());
     }
 
     @Test
