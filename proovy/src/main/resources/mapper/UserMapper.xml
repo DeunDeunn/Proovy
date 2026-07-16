@@ -4,7 +4,7 @@
 
     <select id="findByProviderAndProviderId" resultType="com.deundeun.auth.domain.User">
         SELECT id, provider, provider_id, email, nickname, profile_image_url, role,
-               created_at, updated_at, deleted_at, suspended_from, suspended_until
+               created_at, updated_at, deleted_at, suspended_from, suspended_until, demoted_at
         FROM users
         WHERE provider = #{provider}
           AND provider_id = #{providerId}
@@ -13,7 +13,7 @@
 
     <select id="findById" resultType="com.deundeun.auth.domain.User">
         SELECT id, provider, provider_id, email, nickname, profile_image_url, role,
-               created_at, updated_at, deleted_at, suspended_from, suspended_until
+               created_at, updated_at, deleted_at, suspended_from, suspended_until, demoted_at
         FROM users
         WHERE id = #{id}
           AND deleted_at IS NULL
@@ -21,7 +21,7 @@
 
     <select id="findByIds" resultType="com.deundeun.auth.domain.User">
         SELECT id, provider, provider_id, email, nickname, profile_image_url, role,
-               created_at, updated_at, deleted_at, suspended_from, suspended_until
+               created_at, updated_at, deleted_at, suspended_from, suspended_until, demoted_at
         FROM users
         WHERE
         <choose>

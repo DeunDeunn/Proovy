@@ -34,6 +34,14 @@ public enum ErrorCode {
     ALREADY_FOLLOWING(HttpStatus.CONFLICT, "U021", "이미 팔로우 중인 사용자입니다."),
     NOT_FOLLOWING(HttpStatus.BAD_REQUEST, "U022", "팔로우하지 않은 사용자입니다."),
 
+    //회원-우수 사용자 인증
+    VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "U023", "이미 심사 중인 신청 건이 있습니다."),
+    VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "U024", "신청 내역을 찾을 수 없습니다."),
+    VERIFICATION_ALREADY_PROCESSED(HttpStatus.CONFLICT, "U025", "이미 처리된 신청 건입니다."),
+    VERIFICATION_REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "U026", "반려 사유는 필수 입력사항입니다."),
+    VERIFICATION_INELIGIBLE(HttpStatus.BAD_REQUEST, "U027", "성공한 챌린지가 20개 미만이라 신청할 수 없습니다."),
+    WITHDRAWAL_SUSPENDED(HttpStatus.BAD_REQUEST, "U028", "정지 중에는 탈퇴할 수 없습니다."),
+
     //challenge
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CHL001", "존재하지 않는 카테고리입니다."),
     INVALID_CHALLENGE_PERIOD(HttpStatus.BAD_REQUEST, "CHL002", "종료일은 시작일 이후여야 합니다."),
