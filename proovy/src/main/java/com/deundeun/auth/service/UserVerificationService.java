@@ -70,16 +70,16 @@ public class UserVerificationService {
         if (verification == null) {
             throw new ApiException(ErrorCode.VERIFICATION_NOT_FOUND);
         }
-        if (verification.getStatus() != UserVerificationStatus.PENDING) {
-            throw new ApiException(ErrorCode.VERIFICATION_ALREADY_PROCESSED);
-        }
         if (newStatus == UserVerificationStatus.REJECTED && (rejectionReason == null || rejectionReason.isBlank())) {
             throw new ApiException(ErrorCode.VERIFICATION_REJECTION_REASON_REQUIRED);
         }
 
         LocalDateTime approvedAt = newStatus == UserVerificationStatus.APPROVED ? LocalDateTime.now() : null;
         String reason = newStatus == UserVerificationStatus.REJECTED ? rejectionReason : null;
-        userVerificationMapper.updateStatus(id, newStatus, approvedAt, reason);
+        int updated = userVerificationMapper.updateStatus(id, newStatus, approvedAt, reason);
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.VERIFICATION_ALREADY_PROCESSED);
+        }
     }
 
     private boolean isUniqueViolation(DataIntegrityViolationException e) {

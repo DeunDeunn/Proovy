@@ -35,7 +35,7 @@
         WHERE cp.user_id = #{userId}
           AND cp.result = 'SUCCESS'
         <if test="since != null">
-            AND c.end_date &gt;= CAST(#{since} AS DATE)
+            AND c.end_date &gt; CAST(#{since} AS DATE)
         </if>
     </select>
 
@@ -63,7 +63,7 @@
         SET status = #{status},
             approved_at = #{approvedAt},
             rejection_reason = #{rejectionReason}
-        WHERE id = #{id}
+        WHERE id = #{id} AND status = 'PENDING'
     </update>
 
 </mapper>

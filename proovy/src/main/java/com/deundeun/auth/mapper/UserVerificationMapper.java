@@ -27,6 +27,6 @@ public interface UserVerificationMapper {
 
     long countByStatus(@Param("status") UserVerificationStatus status);
 
-    void updateStatus(@Param("id") Long id, @Param("status") UserVerificationStatus status,
-                       @Param("approvedAt") LocalDateTime approvedAt, @Param("rejectionReason") String rejectionReason);
+    int updateStatus(@Param("id") Long id, @Param("status") UserVerificationStatus status,
+                      @Param("approvedAt") LocalDateTime approvedAt, @Param("rejectionReason") String rejectionReason);
 }
