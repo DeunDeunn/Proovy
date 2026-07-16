@@ -32,4 +32,120 @@
         </foreach>
     </select>
 
+    <sql id="searchCondition">
+        <where>
+            <if test="categoryId != null">
+                AND c.category_id = #{categoryId}
+            </if>
+            <if test="status != null">
+                AND c.status = #{status}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND c.title LIKE '%' || #{keyword} || '%'
+            </if>
+        </where>
+    </sql>
+
+    <select id="search" resultType="ChallengeSummaryResponse">
+        SELECT
+        c.id,
+        c.title,
+        cat.name AS category_name,
+        c.entry_fee,
+        (SELECT COUNT(*) FROM challenge_participants p
+        WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+        c.max_participants,
+        c.start_date,
+        c.end_date,
+        c.status
+        FROM challenges c
+        JOIN categories cat ON cat.id = c.category_id
+        <include refid="searchCondition"/>
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countBySearch" resultType="long">
+        SELECT COUNT(*)
+        FROM challenges c
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="findDetailById" resultType="ChallengeDetailResponse">
+        SELECT
+            c.id, c.host_id,
+            u.nickname AS host_nickname,
+            c.title, c.description,
+            cat.name AS category_name,
+            c.entry_fee, c.verification_method, c.daily_cert_limit,
+            c.success_criteria_rate, c.ai_review_enabled,
+            c.start_date, c.end_date,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+            c.max_participants, c.status,
+            c.cert_start_time, c.cert_end_time, c.feed_visibility,
+            c.created_at
+        FROM challenges c
+                 JOIN categories cat ON cat.id = c.category_id
+                 LEFT JOIN users u ON u.id = c.host_id
+        WHERE c.id = #{id}
+    </select>
+
+    <select id="findById" resultType="Challenge">
+        SELECT id, host_id, title, description, category_id, entry_fee,
+               verification_method, cert_frequency, daily_cert_limit,
+               success_criteria_rate, ai_review_enabled,
+               start_date, end_date, max_participants, status,
+               created_at, updated_at, cert_start_time, cert_end_time, feed_visibility
+        FROM challenges
+        WHERE id = #{id}
+    </select>
+
+    <!-- 행 잠금 조회: 확인-변경 사이에 참가/상태 변경이 끼어드는 경쟁 조건 방지 (수정/취소/참가에서 사용) -->
+    <select id="findByIdForUpdate" resultType="Challenge">
+        SELECT id, host_id, title, description, category_id, entry_fee,
+               verification_method, cert_frequency, daily_cert_limit,
+               success_criteria_rate, ai_review_enabled,
+               start_date, end_date, max_participants, status,
+               created_at, updated_at, cert_start_time, cert_end_time, feed_visibility
+        FROM challenges
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <!-- 방장 본인은 제외하고 활동 중인 참가자 수를 센다 (핵심 조건 수정 가능 여부 판단용) -->
+    <select id="countActiveParticipantsExceptHost" resultType="int">
+        SELECT COUNT(*)
+        FROM challenge_participants p
+        JOIN challenges c ON c.id = p.challenge_id
+        WHERE p.challenge_id = #{challengeId}
+          AND p.status = 'ACTIVE'
+          AND p.user_id != c.host_id
+    </select>
+
+    <update id="update">
+        UPDATE challenges
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="entryFee != null">entry_fee = #{entryFee},</if>
+            <if test="verificationMethod != null">verification_method = #{verificationMethod},</if>
+            <if test="dailyCertLimit != null">daily_cert_limit = #{dailyCertLimit},</if>
+            <if test="startDate != null">start_date = #{startDate},</if>
+            <if test="endDate != null">end_date = #{endDate},</if>
+            <if test="maxParticipants != null">max_participants = #{maxParticipants},</if>
+            <if test="certStartTime != null">cert_start_time = #{certStartTime},</if>
+            <if test="certEndTime != null">cert_end_time = #{certEndTime},</if>
+            <if test="feedVisibility != null">feed_visibility = #{feedVisibility},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE challenges
+        SET status = #{status}
+        WHERE id = #{id}
+    </update>
+
 </mapper>
