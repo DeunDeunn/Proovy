@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -15,14 +16,16 @@ import com.deundeun.chat.domain.ChatMessage;
 import com.deundeun.chat.domain.ChatMessageType;
 import com.deundeun.chat.domain.ChatReferenceType;
 
+@DisplayName("ChatMessageResponse")
 class ChatMessageResponseTest {
 
     @Test
+    @DisplayName("삭제되지 않은 메시지는 모든 필드를 포함한다")
     void of_activeMessage_includesAllFields() {
         ChatMessage message = ChatMessage.create(1L, 10L, "안녕하세요", ChatMessageType.TEXT, null, null);
         ReflectionTestUtils.setField(message, "id", 100L);
         User sender = User.builder().id(10L).nickname("민기").profileImageUrl("https://example.com/p.png").build();
-        ChatAttachment attachment = ChatAttachment.upload(10L, "https://example.com/f.png", "f.png", ChatFileType.IMAGE, 1024L);
+        ChatAttachment attachment = ChatAttachment.create(100L, 10L, "https://example.com/f.png", "f.png", ChatFileType.IMAGE, 1024L);
         ReflectionTestUtils.setField(attachment, "id", 5L);
 
         ChatMessageResponse response = ChatMessageResponse.of(message, sender, List.of(attachment), null);
@@ -39,12 +42,13 @@ class ChatMessageResponseTest {
     }
 
     @Test
+    @DisplayName("삭제된 메시지는 content/참조/공유정보/첨부파일을 비운다")
     void of_deletedMessage_nullsContentReferenceAndAttachments() {
         ChatMessage message = ChatMessage.create(1L, 10L, "삭제될 메시지", ChatMessageType.CERTIFICATION_SHARE,
             ChatReferenceType.CHALLENGE_CERTIFICATION, 50L);
         ReflectionTestUtils.setField(message, "id", 100L);
         ReflectionTestUtils.setField(message, "deletedAt", LocalDateTime.now());
-        ChatAttachment attachment = ChatAttachment.upload(10L, "https://example.com/f.png", "f.png", ChatFileType.IMAGE, 1024L);
+        ChatAttachment attachment = ChatAttachment.create(100L, 10L, "https://example.com/f.png", "f.png", ChatFileType.IMAGE, 1024L);
         SharedCertificationResponse sharedCertification = new SharedCertificationResponse(
             50L, 7L, "매일 아침 7시 기상", 10L, "민기", "https://example.com/thumb.png", LocalDateTime.now());
 
@@ -59,6 +63,7 @@ class ChatMessageResponseTest {
     }
 
     @Test
+    @DisplayName("발신자가 없으면 닉네임/프로필 이미지는 null이다")
     void of_senderNull_leavesNicknameAndProfileNull() {
         ChatMessage message = ChatMessage.create(1L, 10L, "hi", ChatMessageType.TEXT, null, null);
         ReflectionTestUtils.setField(message, "id", 100L);

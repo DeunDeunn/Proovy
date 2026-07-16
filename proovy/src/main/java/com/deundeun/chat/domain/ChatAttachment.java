@@ -19,8 +19,9 @@ public class ChatAttachment {
     private Long fileSize;
     private LocalDateTime createdAt;
 
-    private ChatAttachment(Long uploaderId, String fileUrl, String originalFileName,
-                           ChatFileType fileType, Long fileSize) {
+    private ChatAttachment(Long messageId, Long uploaderId, String fileUrl,
+                           String originalFileName, ChatFileType fileType, Long fileSize) {
+        this.messageId = messageId;
         this.uploaderId = uploaderId;
         this.fileUrl = fileUrl;
         this.originalFileName = originalFileName;
@@ -29,8 +30,8 @@ public class ChatAttachment {
         this.createdAt = LocalDateTime.now();
     }
 
-    public static ChatAttachment upload(Long uploaderId, String fileUrl, String originalFileName,
-                                        ChatFileType fileType, Long fileSize) {
-        return new ChatAttachment(uploaderId, fileUrl, originalFileName, fileType, fileSize);
+    public static ChatAttachment create(Long messageId, Long uploaderId, String fileUrl,
+                                        String originalFileName, ChatFileType fileType, Long fileSize) {
+        return new ChatAttachment(messageId, uploaderId, fileUrl, originalFileName, fileType, fileSize);
     }
 }
