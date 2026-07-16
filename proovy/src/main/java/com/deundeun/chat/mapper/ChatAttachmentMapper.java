@@ -12,7 +12,5 @@ public interface ChatAttachmentMapper {
 
     void insert(ChatAttachment attachment);
 
-    int linkToMessage(@Param("id") Long id, @Param("messageId") Long messageId, @Param("uploaderId") Long uploaderId);
-
     List<ChatAttachment> findByMessageIds(@Param("messageIds") List<Long> messageIds);
 }
