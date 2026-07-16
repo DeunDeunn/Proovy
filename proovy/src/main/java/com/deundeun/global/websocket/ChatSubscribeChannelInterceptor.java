@@ -1,5 +1,6 @@
 package com.deundeun.global.websocket;
 
+import com.deundeun.chat.constant.ChatStompDestinations;
 import com.deundeun.chat.dto.response.ChatSubscribeFailedEvent;
 import com.deundeun.chat.service.ChatRoomMemberService;
 import com.deundeun.global.exception.ApiException;
@@ -24,8 +25,6 @@ import java.security.Principal;
 @RequiredArgsConstructor
 public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
 
-    private static final String CHAT_ROOM_DESTINATION_PATTERN = "/topic/chats/rooms/{chatRoomId}";
-    private static final String ERROR_DESTINATION = "/queue/errors";
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
     private final ChatRoomMemberService chatRoomMemberService;
@@ -69,7 +68,8 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
         if (principal == null) {
             return;
         }
-        messagingTemplate.convertAndSendToUser(principal.getName(), ERROR_DESTINATION, ChatSubscribeFailedEvent.of(errorCode));
+        messagingTemplate.convertAndSendToUser(
+            principal.getName(), ChatStompDestinations.PERSONAL_ERROR_QUEUE, ChatSubscribeFailedEvent.of(errorCode));
     }
 
     private void validateTopicAccess(StompHeaderAccessor accessor, String destination) {
@@ -81,12 +81,12 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
     }
 
     private void validateChatRoomAccess(StompHeaderAccessor accessor, String destination) {
-        if (!PATH_MATCHER.match(CHAT_ROOM_DESTINATION_PATTERN, destination)) {
+        if (!PATH_MATCHER.match(ChatStompDestinations.ROOM_TOPIC_PATTERN, destination)) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
 
         String chatRoomIdValue = PATH_MATCHER
-            .extractUriTemplateVariables(CHAT_ROOM_DESTINATION_PATTERN, destination)
+            .extractUriTemplateVariables(ChatStompDestinations.ROOM_TOPIC_PATTERN, destination)
             .get("chatRoomId");
         Long chatRoomId = parseChatRoomId(chatRoomIdValue);
         Long userId = resolveUserId(accessor);
