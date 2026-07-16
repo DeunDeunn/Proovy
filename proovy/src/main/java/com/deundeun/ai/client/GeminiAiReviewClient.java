@@ -246,6 +246,7 @@ public class GeminiAiReviewClient implements AiReviewClient {
         if (!(text instanceof String value) || value.isBlank()) {
             throw new ApiException(ErrorCode.GEMINI_RESPONSE_EMPTY);
         }
+
         return value;
     }
 
