@@ -12,6 +12,7 @@ import com.deundeun.chat.dto.response.SharedCertificationResponse;
 import com.deundeun.chat.mapper.ChatAttachmentMapper;
 import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
+import com.deundeun.chat.service.support.ChatCertificationShareValidator;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 public class ChatMessageService {
 
     private static final int MAX_CONTENT_LENGTH = 1000;
+    private static final String CERTIFICATION_SHARE_CONTENT = "인증 글 공유합니다!";
 
     private final ChatMessageMapper chatMessageMapper;
     private final ChatAttachmentMapper chatAttachmentMapper;
@@ -43,15 +45,24 @@ public class ChatMessageService {
     private final CertificationMapper certificationMapper;
     private final ChatRoomMemberFinder chatRoomMemberFinder;
     private final TransactionalFileUploader fileUploader;
+    private final ChatCertificationShareValidator certificationShareValidator;
 
     @Transactional
     public ChatMessageResponse send(Long chatRoomId, Long senderId, ChatMessageSendRequest request, MultipartFile file) {
         ChatRoomMember member = chatRoomMemberFinder.findMember(chatRoomId, senderId);
         ChatMessageType messageType = request.messageType();
 
-        validateMessage(messageType, request.content(), file);
+        validateMessage(messageType, request.content(), request.referenceType(), request.referenceId(), file);
 
-        ChatMessage message = ChatMessage.create(chatRoomId, senderId, request.content(), messageType, null, null);
+        if (messageType == ChatMessageType.CERTIFICATION_SHARE) {
+            certificationShareValidator.validateShareable(request.referenceId(), senderId);
+        }
+
+        String content = resolveContent(messageType, request.content());
+        ChatReferenceType referenceType = messageType == ChatMessageType.CERTIFICATION_SHARE ? request.referenceType() : null;
+        Long referenceId = messageType == ChatMessageType.CERTIFICATION_SHARE ? request.referenceId() : null;
+
+        ChatMessage message = ChatMessage.create(chatRoomId, senderId, content, messageType, referenceType, referenceId);
         chatMessageMapper.insert(message);
 
         List<ChatAttachment> attachments = List.of();
@@ -63,13 +74,17 @@ public class ChatMessageService {
             attachments = List.of(attachment);
         }
 
+        SharedCertificationResponse sharedCertification = messageType == ChatMessageType.CERTIFICATION_SHARE
+            ? findSharedCertification(referenceId)
+            : null;
+
         updateSenderReadCursor(member, message.getId());
 
         User sender = userMapper.findById(senderId);
         log.debug("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
             chatRoomId, senderId, message.getId(), messageType);
 
-        return ChatMessageResponse.of(message, sender, attachments, null);
+        return ChatMessageResponse.of(message, sender, attachments, sharedCertification);
     }
 
     @Transactional(readOnly = true)
@@ -137,25 +152,51 @@ public class ChatMessageService {
             .collect(Collectors.toMap(SharedCertificationInfo::certificationId, SharedCertificationResponse::of));
     }
 
-    private void validateMessage(ChatMessageType messageType, String content, MultipartFile file) {
+    private void validateMessage(ChatMessageType messageType, String content, ChatReferenceType referenceType,
+                                  Long referenceId, MultipartFile file) {
         validateMessageType(messageType);
         validateContent(messageType, content);
         validateFile(messageType, file);
+        validateReference(messageType, referenceType, referenceId);
     }
 
     private void validateMessageType(ChatMessageType messageType) {
-        if (messageType != ChatMessageType.TEXT && messageType != ChatMessageType.IMAGE && messageType != ChatMessageType.FILE) {
+        if (messageType != ChatMessageType.TEXT && messageType != ChatMessageType.IMAGE
+            && messageType != ChatMessageType.FILE && messageType != ChatMessageType.CERTIFICATION_SHARE) {
             throw new ApiException(ErrorCode.CHAT_INVALID_MESSAGE_TYPE);
         }
     }
 
     private void validateContent(ChatMessageType messageType, String content) {
+        if (messageType == ChatMessageType.CERTIFICATION_SHARE) {
+            return; // 서버가 고정 문자열로 대체하므로 클라이언트가 보낸 값은 검증하지 않는다
+        }
         if (messageType == ChatMessageType.TEXT && (content == null || content.isBlank())) {
             throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_REQUIRED);
         }
         if (content != null && content.length() > MAX_CONTENT_LENGTH) {
             throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_TOO_LONG);
         }
+    }
+
+    private void validateReference(ChatMessageType messageType, ChatReferenceType referenceType, Long referenceId) {
+        if (messageType != ChatMessageType.CERTIFICATION_SHARE) {
+            return;
+        }
+        if (referenceType != ChatReferenceType.CHALLENGE_CERTIFICATION || referenceId == null) {
+            throw new ApiException(ErrorCode.CHAT_REFERENCE_REQUIRED);
+        }
+    }
+
+    private String resolveContent(ChatMessageType messageType, String content) {
+        return messageType == ChatMessageType.CERTIFICATION_SHARE ? CERTIFICATION_SHARE_CONTENT : content;
+    }
+
+    private SharedCertificationResponse findSharedCertification(Long postId) {
+        return certificationMapper.findSharedCertifications(List.of(postId)).stream()
+            .findFirst()
+            .map(SharedCertificationResponse::of)
+            .orElse(null);
     }
 
     private void validateFile(ChatMessageType messageType, MultipartFile file) {

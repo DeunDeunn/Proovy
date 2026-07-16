@@ -45,7 +45,7 @@ public class ChatMessageController {
         @RequestPart(required = false) MultipartFile file
     ) {
         Long senderId = CurrentUser.getUserId();
-        ChatMessageSendRequest request = new ChatMessageSendRequest(messageType, content);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(messageType, content, null, null);
         
         ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, file);
         chatMessageBroadcaster.broadcast(chatRoomId, response);
