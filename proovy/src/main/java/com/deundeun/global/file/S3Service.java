@@ -114,7 +114,7 @@ public class S3Service implements FileStorageService {
 
     private String uploadValidated(MultipartFile file, FileCategory category, String contentType) {
         String key = buildKey(category, contentType);
-        try (InputStream inputStream = file.getInputStream()) {
+        try {
             s3Client.putObject(
                     PutObjectRequest.builder()
                             .bucket(bucket)
@@ -122,13 +122,26 @@ public class S3Service implements FileStorageService {
                             .contentType(contentType)
                             .contentLength(file.getSize())
                             .build(),
-                    RequestBody.fromInputStream(inputStream, file.getSize())
+                    RequestBody.fromContentProvider(() -> openStream(file), file.getSize(), contentType)
             );
-        } catch (IOException | SdkException e) {
+        } catch (SdkException e) {
             throw new ApiException(ErrorCode.FILE_UPLOAD_FAILED);
         }
 
         return "https://%s.s3.%s.amazonaws.com/%s".formatted(bucket, region, key);
+    }
+
+    /**
+     * {@link RequestBody#fromContentProvider}가 재시도 시마다 새로 호출해서 처음부터 다시
+     * 읽을 수 있도록, 매번 새 스트림을 여는 공급자. {@code RequestBody.fromInputStream}과
+     * 달리 SDK가 스트림 열기/닫기를 관리하므로 여기서 별도로 닫지 않는다.
+     */
+    private InputStream openStream(MultipartFile file) {
+        try {
+            return file.getInputStream();
+        } catch (IOException e) {
+            throw new ApiException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
     }
 
     /**
