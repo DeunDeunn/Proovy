@@ -89,15 +89,7 @@ public class ChargeService {
 
         Optional<Long> claim = chargeTransactionStateService.beginProcessing(transactionId, callback.getPaymentId());
         if (claim.isEmpty()) {
-            CashTransaction existing = cashTransactionMapper.selectById(transactionId);
-            if (existing == null) {
-                throw new ApiException(ErrorCode.CHARGE_TRANSACTION_NOT_FOUND);
-            }
-            log.info("이미 처리(중)인 충전 - transactionId={}, status={}", transactionId, existing.getStatus());
-            return NaverPayCallbackResponse.builder()
-                    .chargeTransactionId(transactionId)
-                    .status(existing.getStatus())
-                    .build();
+            return currentStatusResponse(transactionId);
         }
         long processingToken = claim.get();
 
@@ -107,12 +99,16 @@ public class ChargeService {
         NaverPayPaymentDetail detail = applyResult.detail();
 
         if (detail == null || !callback.getMerchantPayKey().equals(detail.merchantPayKey())) {
-            chargeTransactionStateService.markFailed(transactionId, processingToken);
+            if (!chargeTransactionStateService.markFailed(transactionId, processingToken)) {
+                return currentStatusResponse(transactionId);
+            }
             throw new ApiException(ErrorCode.PG_AMOUNT_MISMATCH, "merchantPayKey가 일치하지 않습니다.");
         }
 
         if (!detail.isAdmitted()) {
-            chargeTransactionStateService.markFailed(transactionId, processingToken);
+            if (!chargeTransactionStateService.markFailed(transactionId, processingToken)) {
+                return currentStatusResponse(transactionId);
+            }
             return NaverPayCallbackResponse.builder()
                     .chargeTransactionId(transactionId)
                     .status(CashTransactionStatus.FAILED)
@@ -120,15 +116,36 @@ public class ChargeService {
         }
 
         if (!transaction.getAmount().equals(detail.totalPayAmount())) {
-            chargeTransactionStateService.markFailed(transactionId, processingToken);
+            if (!chargeTransactionStateService.markFailed(transactionId, processingToken)) {
+                return currentStatusResponse(transactionId);
+            }
             throw new ApiException(ErrorCode.PG_AMOUNT_MISMATCH);
         }
 
-        chargeTransactionStateService.completeCharge(transaction, detail, processingToken);
+        if (!chargeTransactionStateService.completeCharge(transaction, detail, processingToken)) {
+            return currentStatusResponse(transactionId);
+        }
 
         return NaverPayCallbackResponse.builder()
                 .chargeTransactionId(transactionId)
                 .status(CashTransactionStatus.COMPLETED)
+                .build();
+    }
+
+    /**
+     * beginProcessing/markFailed/completeCharge가 토큰 불일치로 거부됐을 때(이미 보정
+     * 스케줄러 등 다른 쪽이 이 거래를 다른 결과로 확정한 뒤일 수 있음) 호출자가 그 결과를
+     * 그대로 응답하지 않고, 실제 현재 상태를 다시 조회해서 돌려주기 위한 헬퍼.
+     */
+    private NaverPayCallbackResponse currentStatusResponse(Long transactionId) {
+        CashTransaction existing = cashTransactionMapper.selectById(transactionId);
+        if (existing == null) {
+            throw new ApiException(ErrorCode.CHARGE_TRANSACTION_NOT_FOUND);
+        }
+        log.info("이미 처리(중)인 충전 - transactionId={}, status={}", transactionId, existing.getStatus());
+        return NaverPayCallbackResponse.builder()
+                .chargeTransactionId(transactionId)
+                .status(existing.getStatus())
                 .build();
     }
 

@@ -60,10 +60,22 @@ class ChargeTransactionStateServiceTest {
     }
 
     @Test
-    void markFailed_updatesStatusToFailed() {
-        chargeTransactionStateService.markFailed(7L, 999L);
+    void markFailed_tokenMatches_updatesStatusToFailedAndReturnsTrue() {
+        when(cashTransactionMapper.failFromProcessing(7L, 999L)).thenReturn(1);
 
+        boolean applied = chargeTransactionStateService.markFailed(7L, 999L);
+
+        assertThat(applied).isTrue();
         verify(cashTransactionMapper).failFromProcessing(7L, 999L);
+    }
+
+    @Test
+    void markFailed_tokenMismatch_returnsFalse() {
+        when(cashTransactionMapper.failFromProcessing(7L, 999L)).thenReturn(0);
+
+        boolean applied = chargeTransactionStateService.markFailed(7L, 999L);
+
+        assertThat(applied).isFalse();
     }
 
     @Test
@@ -79,8 +91,9 @@ class ChargeTransactionStateServiceTest {
         Wallet wallet = Wallet.builder().id(6L).chargedBalance(5_000L).build();
         when(walletService.getWalletByIdForUpdate(6L)).thenReturn(wallet);
 
-        chargeTransactionStateService.completeCharge(transaction, detail, 999L);
+        boolean applied = chargeTransactionStateService.completeCharge(transaction, detail, 999L);
 
+        assertThat(applied).isTrue();
         verify(walletService).updateChargedBalance(6L, 15_000L);
         verify(chargeLotMapper).insert(any(ChargeLot.class));
         verify(cashTransactionMapper).completeCharge(7L, "PAY123", 15_000L);
@@ -101,8 +114,9 @@ class ChargeTransactionStateServiceTest {
 
         when(cashTransactionMapper.selectByIdForUpdate(7L)).thenReturn(alreadyCompleted);
 
-        chargeTransactionStateService.completeCharge(transaction, detail, 999L);
+        boolean applied = chargeTransactionStateService.completeCharge(transaction, detail, 999L);
 
+        assertThat(applied).isFalse();
         verify(walletService, never()).updateChargedBalance(any(), anyLong());
         verify(chargeLotMapper, never()).insert(any());
         verify(cashTransactionMapper, never()).completeCharge(any(), any(), anyLong());
@@ -133,8 +147,9 @@ class ChargeTransactionStateServiceTest {
 
         when(cashTransactionMapper.selectByIdForUpdate(7L)).thenReturn(takenOverByScheduler);
 
-        chargeTransactionStateService.completeCharge(original, detail, originalToken);
+        boolean applied = chargeTransactionStateService.completeCharge(original, detail, originalToken);
 
+        assertThat(applied).isFalse();
         verify(walletService, never()).updateChargedBalance(any(), anyLong());
         verify(chargeLotMapper, never()).insert(any());
         verify(cashTransactionMapper, never()).completeCharge(any(), any(), anyLong());

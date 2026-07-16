@@ -41,23 +41,26 @@ public class ChargeTransactionStateService {
     /**
      * 자신이 쥔 processingToken이 여전히 유효할 때만(즉 그 사이 보정 스케줄러가 가져가지 않았을 때만)
      * PROCESSING을 FAILED로 전환한다 - 그렇지 않으면 이미 다른 쪽이 처리 중이거나 끝낸 것이므로 무시.
+     * 반환값은 이 호출로 실제 전환이 일어났는지를 알려준다 - 호출부가 그 결과를 그대로 응답에
+     * 반영하면 안 되고(이미 다른 결과로 끝났을 수 있음), false면 실제 현재 상태를 다시 조회해야 한다.
      */
     @Transactional
-    public void markFailed(Long transactionId, long processingToken) {
-        cashTransactionMapper.failFromProcessing(transactionId, processingToken);
+    public boolean markFailed(Long transactionId, long processingToken) {
+        return cashTransactionMapper.failFromProcessing(transactionId, processingToken) == 1;
     }
 
     /**
      * row를 잠그고, 여전히 PROCESSING이면서 자신이 쥔 processingToken이 그대로인지 재확인한 뒤에만
      * 잔액 반영을 진행한다 - 아니면 이미 보정 스케줄러가 가져갔거나 다른 쪽이 끝낸 것.
+     * 반환값은 markFailed와 마찬가지로 실제 반영 여부를 알려준다.
      */
     @Transactional
-    public void completeCharge(CashTransaction transaction, NaverPayPaymentDetail detail, long processingToken) {
+    public boolean completeCharge(CashTransaction transaction, NaverPayPaymentDetail detail, long processingToken) {
         CashTransaction locked = cashTransactionMapper.selectByIdForUpdate(transaction.getId());
         if (locked.getStatus() != CashTransactionStatus.PROCESSING
                 || locked.getProcessingToken() == null
                 || locked.getProcessingToken() != processingToken) {
-            return;
+            return false;
         }
 
         Wallet wallet = walletService.getWalletByIdForUpdate(transaction.getWalletId());
@@ -72,6 +75,7 @@ public class ChargeTransactionStateService {
         chargeLotMapper.insert(chargeLot);
 
         cashTransactionMapper.completeCharge(transaction.getId(), detail.paymentId(), newChargedBalance);
+        return true;
     }
 
     /**

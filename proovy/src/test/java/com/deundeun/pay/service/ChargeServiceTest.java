@@ -74,6 +74,7 @@ class ChargeServiceTest {
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
                 "PAY123", "hist1", "merchant1", "CHG-7", "SUCCESS", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
         when(naverPayApiClient.applyPayment("PAY123")).thenReturn(new NaverPayApplyBody("PAY123", detail));
+        when(chargeTransactionStateService.completeCharge(transaction, detail, 999L)).thenReturn(true);
 
         NaverPayCallbackResponse response =
                 chargeService.handlePaymentCompleted(callbackRequest());
@@ -81,6 +82,30 @@ class ChargeServiceTest {
         assertThat(response.getChargeTransactionId()).isEqualTo(7L);
         assertThat(response.getStatus()).isEqualTo(CashTransactionStatus.COMPLETED);
         verify(chargeTransactionStateService).completeCharge(transaction, detail, 999L);
+    }
+
+    @Test
+    void handlePaymentCompleted_completeChargeRejectedByTokenMismatch_returnsActualCurrentStatus() {
+        CashTransaction transaction = CashTransaction.builder()
+                .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
+                .build();
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.of(999L));
+        when(cashTransactionMapper.selectById(7L))
+                .thenReturn(transaction)
+                .thenReturn(CashTransaction.builder()
+                        .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.FAILED)
+                        .build());
+
+        NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
+                "PAY123", "hist1", "merchant1", "CHG-7", "SUCCESS", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
+        when(naverPayApiClient.applyPayment("PAY123")).thenReturn(new NaverPayApplyBody("PAY123", detail));
+        // 보정 스케줄러가 먼저 lease를 가져가 FAILED로 확정한 뒤라 토큰이 안 맞아 거부됨
+        when(chargeTransactionStateService.completeCharge(transaction, detail, 999L)).thenReturn(false);
+
+        NaverPayCallbackResponse response =
+                chargeService.handlePaymentCompleted(callbackRequest());
+
+        assertThat(response.getStatus()).isEqualTo(CashTransactionStatus.FAILED);
     }
 
     @Test
@@ -121,6 +146,7 @@ class ChargeServiceTest {
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
                 "PAY123", "hist1", "merchant1", "CHG-999", "SUCCESS", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
         when(naverPayApiClient.applyPayment("PAY123")).thenReturn(new NaverPayApplyBody("PAY123", detail));
+        when(chargeTransactionStateService.markFailed(7L, 999L)).thenReturn(true);
 
         assertThatThrownBy(() -> chargeService.handlePaymentCompleted(callbackRequest()))
                 .isInstanceOf(ApiException.class)
@@ -128,6 +154,30 @@ class ChargeServiceTest {
                 .isEqualTo(ErrorCode.PG_AMOUNT_MISMATCH);
 
         verify(chargeTransactionStateService).markFailed(7L, 999L);
+    }
+
+    @Test
+    void handlePaymentCompleted_markFailedRejectedByTokenMismatch_returnsActualCurrentStatusInsteadOfThrowing() {
+        CashTransaction transaction = CashTransaction.builder()
+                .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.PROCESSING)
+                .build();
+        when(chargeTransactionStateService.beginProcessing(7L, "PAY123")).thenReturn(Optional.of(999L));
+        when(cashTransactionMapper.selectById(7L))
+                .thenReturn(transaction)
+                .thenReturn(CashTransaction.builder()
+                        .id(7L).walletId(6L).amount(10_000L).status(CashTransactionStatus.COMPLETED)
+                        .build());
+
+        NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
+                "PAY123", "hist1", "merchant1", "CHG-999", "SUCCESS", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
+        when(naverPayApiClient.applyPayment("PAY123")).thenReturn(new NaverPayApplyBody("PAY123", detail));
+        // 보정 스케줄러가 먼저 lease를 가져가 COMPLETED로 확정한 뒤라 토큰이 안 맞아 거부됨
+        when(chargeTransactionStateService.markFailed(7L, 999L)).thenReturn(false);
+
+        NaverPayCallbackResponse response =
+                chargeService.handlePaymentCompleted(callbackRequest());
+
+        assertThat(response.getStatus()).isEqualTo(CashTransactionStatus.COMPLETED);
     }
 
     @Test
@@ -141,6 +191,7 @@ class ChargeServiceTest {
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
                 "PAY123", "hist1", "merchant1", "CHG-7", "SUCCESS", 5_000L, 5_000L, 0L, "프루비 캐시 충전");
         when(naverPayApiClient.applyPayment("PAY123")).thenReturn(new NaverPayApplyBody("PAY123", detail));
+        when(chargeTransactionStateService.markFailed(7L, 999L)).thenReturn(true);
 
         assertThatThrownBy(() -> chargeService.handlePaymentCompleted(callbackRequest()))
                 .isInstanceOf(ApiException.class)
@@ -161,6 +212,7 @@ class ChargeServiceTest {
         NaverPayPaymentDetail detail = new NaverPayPaymentDetail(
                 "PAY123", "hist1", "merchant1", "CHG-7", "FAIL", 10_000L, 10_000L, 0L, "프루비 캐시 충전");
         when(naverPayApiClient.applyPayment("PAY123")).thenReturn(new NaverPayApplyBody("PAY123", detail));
+        when(chargeTransactionStateService.markFailed(7L, 999L)).thenReturn(true);
 
         NaverPayCallbackResponse response =
                 chargeService.handlePaymentCompleted(callbackRequest());
