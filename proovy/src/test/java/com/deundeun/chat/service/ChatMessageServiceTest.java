@@ -249,6 +249,55 @@ class ChatMessageServiceTest {
     }
 
     @Test
+    @DisplayName("sendAttachment은 IMAGE 메시지를 정상 전송한다")
+    void sendAttachment_image_uploadsAndReturnsAttachment() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
+        MultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "content".getBytes());
+
+        when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
+        stubMessageInsertAssignsId(100L);
+        when(fileUploader.upload(file, FileCategory.CHAT)).thenReturn("https://bucket.s3.region.amazonaws.com/chat/uuid.png");
+        when(userMapper.findById(senderId)).thenReturn(null);
+
+        ChatMessageResponse response = chatMessageService.sendAttachment(chatRoomId, senderId, ChatMessageType.IMAGE, null, file);
+
+        assertThat(response.attachments()).hasSize(1);
+        verify(chatAttachmentMapper).insert(any(ChatAttachment.class));
+    }
+
+    @Test
+    @DisplayName("sendAttachment은 TEXT 메시지를 거부한다")
+    void sendAttachment_textType_throws() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+
+        assertThatThrownBy(() -> chatMessageService.sendAttachment(chatRoomId, senderId, ChatMessageType.TEXT, "안녕", null))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ATTACHMENT_ENDPOINT_TYPE_NOT_ALLOWED);
+
+        verify(chatRoomMemberFinder, never()).findMember(any(), any());
+        verify(chatMessageMapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("sendAttachment은 CERTIFICATION_SHARE 메시지를 거부한다")
+    void sendAttachment_certificationShareType_throws() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+
+        assertThatThrownBy(() -> chatMessageService.sendAttachment(chatRoomId, senderId, ChatMessageType.CERTIFICATION_SHARE, null, null))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ATTACHMENT_ENDPOINT_TYPE_NOT_ALLOWED);
+
+        verify(chatRoomMemberFinder, never()).findMember(any(), any());
+        verify(chatMessageMapper, never()).insert(any());
+    }
+
+    @Test
     @DisplayName("인증글 공유 메시지는 content를 고정 문자열로 저장하고 공유 정보를 응답에 포함한다")
     void send_certificationShare_savesWithFixedContentAndSharedCertification() {
         Long chatRoomId = 1L;

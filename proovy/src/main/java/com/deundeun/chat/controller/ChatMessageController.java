@@ -1,7 +1,6 @@
 package com.deundeun.chat.controller;
 
 import com.deundeun.chat.domain.ChatMessageType;
-import com.deundeun.chat.dto.request.ChatMessageSendRequest;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.service.ChatMessageService;
@@ -45,9 +44,7 @@ public class ChatMessageController {
         @RequestPart(required = false) MultipartFile file
     ) {
         Long senderId = CurrentUser.getUserId();
-        ChatMessageSendRequest request = new ChatMessageSendRequest(messageType, content, null, null);
-        
-        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, file);
+        ChatMessageResponse response = chatMessageService.sendAttachment(chatRoomId, senderId, messageType, content, file);
         chatMessageBroadcaster.broadcast(chatRoomId, response);
 
         return ApiResponse.success(response);

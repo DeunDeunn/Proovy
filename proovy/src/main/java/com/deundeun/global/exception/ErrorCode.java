@@ -107,6 +107,7 @@ public enum ErrorCode {
     CHAT_ATTACHMENT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH010", "텍스트 메시지에는 첨부파일을 첨부할 수 없습니다."),
     CHAT_ATTACHMENT_REQUIRED(HttpStatus.BAD_REQUEST, "CH011", "이미지/파일 메시지에는 첨부파일이 필요합니다."),
     CHAT_REFERENCE_REQUIRED(HttpStatus.BAD_REQUEST, "CH012", "인증 글 공유 메시지는 참조 정보가 필요합니다."),
+    CHAT_ATTACHMENT_ENDPOINT_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH013", "이 엔드포인트는 이미지/파일 메시지만 전송할 수 있습니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),

@@ -49,6 +49,21 @@ public class ChatMessageService {
 
     @Transactional
     public ChatMessageResponse send(Long chatRoomId, Long senderId, ChatMessageSendRequest request, MultipartFile file) {
+        return doSend(chatRoomId, senderId, request, file);
+    }
+
+    @Transactional
+    public ChatMessageResponse sendAttachment(Long chatRoomId, Long senderId, ChatMessageType messageType,
+                                               String content, MultipartFile file) {
+        if (messageType != ChatMessageType.IMAGE && messageType != ChatMessageType.FILE) {
+            throw new ApiException(ErrorCode.CHAT_ATTACHMENT_ENDPOINT_TYPE_NOT_ALLOWED);
+        }
+
+        ChatMessageSendRequest request = new ChatMessageSendRequest(messageType, content, null, null);
+        return doSend(chatRoomId, senderId, request, file);
+    }
+
+    private ChatMessageResponse doSend(Long chatRoomId, Long senderId, ChatMessageSendRequest request, MultipartFile file) {
         ChatRoomMember member = chatRoomMemberFinder.findMember(chatRoomId, senderId);
         ChatMessageType messageType = request.messageType();
 
