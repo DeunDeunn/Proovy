@@ -93,6 +93,7 @@ public enum ErrorCode {
     NOT_PENDING_POST(HttpStatus.CONFLICT, "CF009", "승인대기 상태의 인증글만 처리 가능합니다."),
     REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "CF010", "반려 사유는 필수 입력사항입니다."),
     NOT_IN_CERT_TIME_RANGE(HttpStatus.BAD_REQUEST, "CF011", "인증 등록 가능 시간대가 아닙니다."),
+    CANNOT_LIKE_UNAPPROVED(HttpStatus.CONFLICT, "CF012", "승인된 인증글에만 좋아요할 수 있습니다."), //TODO 개발 완료 후 확인
 
     //파일 업로드
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "F001", "업로드할 파일이 비어 있습니다."),

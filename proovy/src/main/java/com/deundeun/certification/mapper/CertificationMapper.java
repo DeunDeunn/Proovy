@@ -3,6 +3,8 @@ package com.deundeun.certification.mapper;
 import com.deundeun.certification.dto.CertificationPostDetailResponse;
 import com.deundeun.certification.dto.ChallengeForCertification;
 import com.deundeun.certification.dto.CreateCertificationPostSqlParam;
+import com.deundeun.certification.dto.FeedItemResponse;
+import com.deundeun.certification.dto.FeedQuery;
 import com.deundeun.certification.dto.ParticipantForCertification;
 import com.deundeun.certification.dto.PendingCertificationResponse;
 import com.deundeun.certification.dto.PostReviewContext;
@@ -74,4 +76,22 @@ public interface CertificationMapper {
 
    // 채팅 메시지의 인증글 공유 카드용 요약 정보 (챌린지 제목/작성자 닉네임 포함), 배치 조회
    List<SharedCertificationInfo> findSharedCertifications(@Param("postIds") List<Long> postIds);
+
+   // 피드 목록 조회 (챌린지/전체/내/타인 피드 공통).
+   List<FeedItemResponse> findFeed(FeedQuery query);
+
+   // 좋아요 삭제, 0 or 1
+   int deleteLike(@Param("postId") Long postId, @Param("userId") Long userId);
+
+   // 좋아요 등록, 중복 X / 0 or 1
+   int insertLike(@Param("postId") Long postId, @Param("userId") Long userId);
+
+   // 좋아요 +1
+   void incrementLikeCount(Long postId);
+
+   // 좋아요 -1
+   void decrementLikeCount(Long postId);
+
+   // 해당글 좋아요집계
+   long findLikeCount(Long postId);
 }
