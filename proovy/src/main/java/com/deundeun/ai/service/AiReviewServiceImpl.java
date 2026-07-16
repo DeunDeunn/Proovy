@@ -25,6 +25,8 @@ public class AiReviewServiceImpl implements AiReviewService {
 
     private static final String COMPLETED = "COMPLETED";
     private static final double AUTO_DECISION_CONFIDENCE_THRESHOLD = 0.85;
+    private static final String LOW_CONFIDENCE_REASON_FORMAT =
+            "AI 신뢰도가 0.85 미만이라 추가 검증이 필요합니다. 원래 AI 판단: %s. 원래 사유: %s";
 
     private final AiReviewMapper aiReviewMapper;
     private final AiReviewRuleMapper aiReviewRuleMapper;
@@ -102,6 +104,7 @@ public class AiReviewServiceImpl implements AiReviewService {
 
     private AiReviewResultVo toResult(AiReviewContext context, AiReviewRuleVo rule, AiReviewAiResult aiResult) {
         AiReviewDecision decision = resolveDecision(aiResult);
+        String reason = resolveReason(aiResult, decision);
         return AiReviewResultVo.builder()
                 .challengeId(context.getChallengeId())
                 .hostId(context.getHostId())
@@ -110,7 +113,7 @@ public class AiReviewServiceImpl implements AiReviewService {
                 .reviewMode(rule.getReviewMode())
                 .decision(decision.name())
                 .confidence(BigDecimal.valueOf(aiResult.getConfidence()))
-                .reason(aiResult.getReason())
+                .reason(reason)
                 .rawResponse(aiResult.getRawResponse())
                 .status(COMPLETED)
                 .previousPostStatus(context.getPreviousPostStatus())
@@ -126,5 +129,14 @@ public class AiReviewServiceImpl implements AiReviewService {
             return AiReviewDecision.NEEDS_REVIEW;
         }
         return aiResult.getDecision();
+    }
+
+    private String resolveReason(AiReviewAiResult aiResult, AiReviewDecision decision) {
+        if (decision == AiReviewDecision.NEEDS_REVIEW
+                && aiResult.getDecision() != AiReviewDecision.NEEDS_REVIEW
+                && aiResult.getConfidence() < AUTO_DECISION_CONFIDENCE_THRESHOLD) {
+            return LOW_CONFIDENCE_REASON_FORMAT.formatted(aiResult.getDecision().name(), aiResult.getReason());
+        }
+        return aiResult.getReason();
     }
 }

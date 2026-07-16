@@ -159,6 +159,10 @@ class AiReviewServiceImplTest {
         ArgumentCaptor<AiReviewResultVo> captor = ArgumentCaptor.forClass(AiReviewResultVo.class);
         verify(aiReviewMapper).insertAiReviewResult(captor.capture());
         assertThat(captor.getValue().getDecision()).isEqualTo("NEEDS_REVIEW");
+        assertThat(captor.getValue().getReason())
+                .contains("AI 신뢰도가 0.85 미만")
+                .contains("APPROVED")
+                .contains("AI confidence below threshold");
         assertThat(response.getDecision()).isEqualTo("NEEDS_REVIEW");
     }
 

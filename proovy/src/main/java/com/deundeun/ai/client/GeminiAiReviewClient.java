@@ -8,7 +8,9 @@ import com.deundeun.global.exception.ErrorCode;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -18,6 +20,7 @@ import org.springframework.web.client.RestClient;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +37,18 @@ public class GeminiAiReviewClient implements AiReviewClient {
     private final RestClient geminiRestClient;
     private final RestClient imageRestClient;
     private final ObjectMapper objectMapper;
+    private final String s3Bucket;
+    private final boolean localImageUrlAllowed;
 
-    public GeminiAiReviewClient(GeminiProperties properties) {
+    public GeminiAiReviewClient(
+            GeminiProperties properties,
+            Environment environment,
+            @Value("${aws.s3.bucket:}") String s3Bucket
+    ) {
         this.properties = properties;
         this.objectMapper = new ObjectMapper();
+        this.s3Bucket = s3Bucket;
+        this.localImageUrlAllowed = Arrays.asList(environment.getActiveProfiles()).contains("local");
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
@@ -110,8 +121,11 @@ public class GeminiAiReviewClient implements AiReviewClient {
     }
 
     private ImageData downloadImage(String imageUrl) {
+        URI uri = parseImageUri(imageUrl);
+        validateImageUrl(uri);
+
         byte[] bytes = imageRestClient.get()
-                .uri(URI.create(imageUrl))
+                .uri(uri)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (req, res) -> {
                     throw new ApiException(ErrorCode.SERVER_ERROR, "AI 검수 이미지 다운로드에 실패했습니다.");
@@ -122,6 +136,43 @@ public class GeminiAiReviewClient implements AiReviewClient {
             throw new ApiException(ErrorCode.SERVER_ERROR, "AI 검수 이미지가 비어 있습니다.");
         }
         return new ImageData(detectMimeType(imageUrl), bytes);
+    }
+
+    private URI parseImageUri(String imageUrl) {
+        try {
+            return URI.create(imageUrl);
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    private void validateImageUrl(URI uri) {
+        if (uri.getScheme() == null || uri.getHost() == null) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST);
+        }
+        if (isAllowedS3Url(uri) || isAllowedLocalUrl(uri)) {
+            return;
+        }
+        throw new ApiException(ErrorCode.INVALID_REQUEST);
+    }
+
+    private boolean isAllowedS3Url(URI uri) {
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || s3Bucket == null || s3Bucket.isBlank()) {
+            return false;
+        }
+        String host = uri.getHost().toLowerCase();
+        return host.startsWith(s3Bucket.toLowerCase() + ".s3.")
+                && host.endsWith(".amazonaws.com");
+    }
+
+    private boolean isAllowedLocalUrl(URI uri) {
+        if (!localImageUrlAllowed) {
+            return false;
+        }
+        String host = uri.getHost();
+        return "localhost".equalsIgnoreCase(host)
+                || "127.0.0.1".equals(host)
+                || "::1".equals(host);
     }
 
     private String detectMimeType(String imageUrl) {

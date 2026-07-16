@@ -1,0 +1,67 @@
+package com.deundeun.ai.client;
+
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.deundeun.ai.config.GeminiProperties;
+import com.deundeun.global.exception.ApiException;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.net.URI;
+
+@DisplayName("GeminiAiReviewClient")
+class GeminiAiReviewClientTest {
+
+    @Test
+    @DisplayName("S3 이미지 URL은 허용한다")
+    void validateImageUrl_s3Url_allows() {
+        GeminiAiReviewClient client = client(new MockEnvironment());
+        URI uri = URI.create("https://deundeun-s3-2026.s3.ap-northeast-2.amazonaws.com/certifications/test.png");
+
+        assertThatCode(() -> ReflectionTestUtils.invokeMethod(client, "validateImageUrl", uri))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("local 프로필에서는 로컬 이미지 URL을 허용한다")
+    void validateImageUrl_localProfileLocalhost_allows() {
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("local");
+        GeminiAiReviewClient client = client(environment);
+        URI uri = URI.create("http://127.0.0.1:8099/test.png");
+
+        assertThatCode(() -> ReflectionTestUtils.invokeMethod(client, "validateImageUrl", uri))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("local 프로필이 아니면 로컬 이미지 URL을 거부한다")
+    void validateImageUrl_nonLocalProfileLocalhost_rejects() {
+        GeminiAiReviewClient client = client(new MockEnvironment());
+        URI uri = URI.create("http://127.0.0.1:8099/test.png");
+
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(client, "validateImageUrl", uri))
+                .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    @DisplayName("S3나 로컬 테스트 URL이 아닌 이미지는 거부한다")
+    void validateImageUrl_externalUrl_rejects() {
+        GeminiAiReviewClient client = client(new MockEnvironment());
+        URI uri = URI.create("https://example.com/test.png");
+
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(client, "validateImageUrl", uri))
+                .isInstanceOf(ApiException.class);
+    }
+
+    private GeminiAiReviewClient client(MockEnvironment environment) {
+        GeminiProperties properties = new GeminiProperties(
+                new GeminiProperties.Api("test-api-key", null),
+                "gemini-2.5-flash-lite"
+        );
+        return new GeminiAiReviewClient(properties, environment, "deundeun-s3-2026");
+    }
+}
