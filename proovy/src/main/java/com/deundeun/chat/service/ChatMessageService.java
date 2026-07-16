@@ -4,11 +4,7 @@ import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.mapper.CertificationMapper;
-import com.deundeun.chat.domain.ChatAttachment;
-import com.deundeun.chat.domain.ChatMessage;
-import com.deundeun.chat.domain.ChatMessageType;
-import com.deundeun.chat.domain.ChatReferenceType;
-import com.deundeun.chat.domain.ChatRoomMember;
+import com.deundeun.chat.domain.*;
 import com.deundeun.chat.dto.request.ChatMessageSendRequest;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
@@ -19,10 +15,13 @@ import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.global.file.FileCategory;
+import com.deundeun.global.file.TransactionalFileUploader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collections;
 import java.util.List;
@@ -43,18 +42,26 @@ public class ChatMessageService {
     private final UserMapper userMapper;
     private final CertificationMapper certificationMapper;
     private final ChatRoomMemberFinder chatRoomMemberFinder;
+    private final TransactionalFileUploader fileUploader;
 
     @Transactional
-    public ChatMessageResponse send(Long chatRoomId, Long senderId, ChatMessageSendRequest request) {
+    public ChatMessageResponse send(Long chatRoomId, Long senderId, ChatMessageSendRequest request, MultipartFile file) {
         ChatRoomMember member = chatRoomMemberFinder.findMember(chatRoomId, senderId);
         ChatMessageType messageType = request.messageType();
 
-        validateMessageType(messageType);
-        validateContent(messageType, request.content());
-        validateAttachments(request.attachmentIds());
+        validateMessage(messageType, request.content(), file);
 
         ChatMessage message = ChatMessage.create(chatRoomId, senderId, request.content(), messageType, null, null);
         chatMessageMapper.insert(message);
+
+        List<ChatAttachment> attachments = List.of();
+        if (file != null && !file.isEmpty()) {
+            String url = fileUploader.upload(file, FileCategory.CHAT);
+            ChatAttachment attachment = ChatAttachment.create(
+                message.getId(), senderId, url, file.getOriginalFilename(), toChatFileType(messageType), file.getSize());
+            chatAttachmentMapper.insert(attachment);
+            attachments = List.of(attachment);
+        }
 
         updateSenderReadCursor(member, message.getId());
 
@@ -62,33 +69,7 @@ public class ChatMessageService {
         log.debug("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
             chatRoomId, senderId, message.getId(), messageType);
 
-        return ChatMessageResponse.of(message, sender, List.of(), null);
-    }
-
-    private void validateMessageType(ChatMessageType messageType) {
-        if (messageType != ChatMessageType.TEXT) {
-            throw new ApiException(ErrorCode.CHAT_INVALID_MESSAGE_TYPE);
-        }
-    }
-
-    private void validateContent(ChatMessageType messageType, String content) {
-        if (messageType == ChatMessageType.TEXT && (content == null || content.isBlank())) {
-            throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_REQUIRED);
-        }
-        if (content != null && content.length() > MAX_CONTENT_LENGTH) {
-            throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_TOO_LONG);
-        }
-    }
-
-    private void validateAttachments(List<Long> attachmentIds) {
-        if (attachmentIds != null) {
-            throw new ApiException(ErrorCode.CHAT_ATTACHMENT_NOT_ALLOWED);
-        }
-    }
-
-    private void updateSenderReadCursor(ChatRoomMember member, Long messageId) {
-        member.markRead(messageId);
-        chatRoomMemberMapper.updateLastRead(member);
+        return ChatMessageResponse.of(message, sender, attachments, null);
     }
 
     @Transactional(readOnly = true)
@@ -154,5 +135,47 @@ public class ChatMessageService {
 
         return certificationMapper.findSharedCertifications(postIds).stream()
             .collect(Collectors.toMap(SharedCertificationInfo::certificationId, SharedCertificationResponse::of));
+    }
+
+    private void validateMessage(ChatMessageType messageType, String content, MultipartFile file) {
+        validateMessageType(messageType);
+        validateContent(messageType, content);
+        validateFile(messageType, file);
+    }
+
+    private void validateMessageType(ChatMessageType messageType) {
+        if (messageType != ChatMessageType.TEXT && messageType != ChatMessageType.IMAGE && messageType != ChatMessageType.FILE) {
+            throw new ApiException(ErrorCode.CHAT_INVALID_MESSAGE_TYPE);
+        }
+    }
+
+    private void validateContent(ChatMessageType messageType, String content) {
+        if (messageType == ChatMessageType.TEXT && (content == null || content.isBlank())) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_REQUIRED);
+        }
+        if (content != null && content.length() > MAX_CONTENT_LENGTH) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_CONTENT_TOO_LONG);
+        }
+    }
+
+    private void validateFile(ChatMessageType messageType, MultipartFile file) {
+        boolean hasFile = file != null && !file.isEmpty();
+        boolean requiresFile = messageType == ChatMessageType.IMAGE || messageType == ChatMessageType.FILE;
+
+        if (requiresFile && !hasFile) {
+            throw new ApiException(ErrorCode.CHAT_ATTACHMENT_REQUIRED);
+        }
+        if (!requiresFile && hasFile) {
+            throw new ApiException(ErrorCode.CHAT_ATTACHMENT_NOT_ALLOWED);
+        }
+    }
+
+    private ChatFileType toChatFileType(ChatMessageType messageType) {
+        return messageType == ChatMessageType.IMAGE ? ChatFileType.IMAGE : ChatFileType.FILE;
+    }
+
+    private void updateSenderReadCursor(ChatRoomMember member, Long messageId) {
+        member.markRead(messageId);
+        chatRoomMemberMapper.updateLastRead(member);
     }
 }
