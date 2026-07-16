@@ -1,14 +1,12 @@
 package com.deundeun.chat.controller;
 
 import com.deundeun.chat.domain.ChatMessageType;
-import com.deundeun.chat.dto.request.ChatMessageSendRequest;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.service.ChatMessageService;
 import com.deundeun.chat.service.support.ChatMessageBroadcaster;
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.global.common.CurrentUser;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -41,11 +39,12 @@ public class ChatMessageController {
     @PostMapping(value = "/rooms/{chatRoomId}/attachments/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<ChatMessageResponse> sendWithAttachment(
         @PathVariable Long chatRoomId,
-        @Valid @RequestPart ChatMessageSendRequest request,
+        @RequestParam ChatMessageType messageType,
+        @RequestParam(required = false) String content,
         @RequestPart(required = false) MultipartFile file
     ) {
         Long senderId = CurrentUser.getUserId();
-        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, file);
+        ChatMessageResponse response = chatMessageService.sendAttachment(chatRoomId, senderId, messageType, content, file);
         chatMessageBroadcaster.broadcast(chatRoomId, response);
 
         return ApiResponse.success(response);

@@ -8,6 +8,7 @@ import org.springframework.messaging.handler.annotation.support.MethodArgumentNo
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 
+import com.deundeun.chat.constant.ChatStompDestinations;
 import com.deundeun.chat.dto.response.ChatMessageSendFailedEvent;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
@@ -19,8 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @ControllerAdvice(assignableTypes = ChatStompController.class)
 public class ChatStompExceptionHandler {
-
-    private static final String ERROR_DESTINATION = "/queue/errors";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -53,6 +52,7 @@ public class ChatStompExceptionHandler {
             return;
         }
 
-        messagingTemplate.convertAndSendToUser(principal.getName(), ERROR_DESTINATION, ChatMessageSendFailedEvent.of(errorCode));
+        messagingTemplate.convertAndSendToUser(
+            principal.getName(), ChatStompDestinations.PERSONAL_ERROR_QUEUE, ChatMessageSendFailedEvent.of(errorCode));
     }
 }
