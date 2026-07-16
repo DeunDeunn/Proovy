@@ -16,10 +16,11 @@
         ORDER BY charged_at ASC
     </select>
 
-    <update id="updateRemainingAmount">
+    <update id="decrementRemainingAmount">
         UPDATE charge_lots
-        SET remaining_amount = #{remainingAmount}
+        SET remaining_amount = remaining_amount - #{deduct}
         WHERE id = #{id}
+          AND remaining_amount &gt;= #{deduct}
     </update>
 
     <select id="sumWithdrawableRemainingByWalletId" resultType="long">

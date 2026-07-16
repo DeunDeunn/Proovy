@@ -18,7 +18,13 @@ public interface ChargeLotMapper {
      */
     List<ChargeLot> selectRemainingByWalletIdOrderByChargedAtAsc(@Param("walletId") Long walletId);
 
-    void updateRemainingAmount(@Param("id") Long id, @Param("remainingAmount") long remainingAmount);
+    /**
+     * remaining_amount에서 deduct만큼 상대적으로 차감한다(자바에서 계산한 절대값을 덮어쓰지 않음).
+     * remaining_amount가 deduct보다 작으면(음수가 될 상황) 조건에 걸려 아무 row도 갱신하지 않는다.
+     *
+     * @return 실제로 갱신된 row 수 (0이면 잔여액 부족 또는 대상 없음)
+     */
+    int decrementRemainingAmount(@Param("id") Long id, @Param("deduct") long deduct);
 
     /**
      * 충전일로부터 7일이 지나(withdrawable_at <= now()) 지금 당장 출금 가능한 lot들의 remaining_amount 합.

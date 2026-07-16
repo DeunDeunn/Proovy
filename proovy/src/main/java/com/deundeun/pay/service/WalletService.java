@@ -53,7 +53,11 @@ public class WalletService implements WalletHoldService {
 
     /**
      * walletId를 이미 알고 있을 때(PG 콜백 등) 지갑 row를 잠그고 조회한다.
+     * FOR UPDATE 락은 트랜잭션이 끝날 때까지만 유지되므로, 호출부가 트랜잭션을 깜빡해도
+     * 락이 조용히 무력화되지 않도록 이 메서드 자체에도 방어적으로 @Transactional을 건다
+     * (기본 전파 방식이 REQUIRED라, 이미 트랜잭션 안에서 호출되면 거기에 그대로 편승한다).
      */
+    @Transactional
     public Wallet getWalletByIdForUpdate(Long walletId) {
         return walletMapper.selectByIdForUpdate(walletId);
     }
@@ -81,6 +85,12 @@ public class WalletService implements WalletHoldService {
     @Transactional
     public Long hold(Long userId, long amount, Long referenceId) {
         Wallet wallet = getWalletForUpdate(userId);
+
+        boolean alreadyHeld = cashTransactionMapper.selectByWalletIdAndReferenceIdAndType(
+                wallet.getId(), referenceId, CashTransactionType.CHALLENGE_HOLD) != null;
+        if (alreadyHeld) {
+            throw new ApiException(ErrorCode.HOLD_ALREADY_EXISTS);
+        }
 
         if (wallet.getAvailableBalance() < amount) {
             throw new ApiException(ErrorCode.INSUFFICIENT_BALANCE);
@@ -154,7 +164,7 @@ public class WalletService implements WalletHoldService {
                 break;
             }
             long deduct = Math.min(lot.getRemainingAmount(), remaining);
-            chargeLotMapper.updateRemainingAmount(lot.getId(), lot.getRemainingAmount() - deduct);
+            decrementRemainingAmount(lot.getId(), deduct);
             remaining -= deduct;
         }
     }
@@ -171,7 +181,7 @@ public class WalletService implements WalletHoldService {
                 break;
             }
             long deduct = Math.min(lot.getRemainingAmount(), remaining);
-            chargeLotMapper.updateRemainingAmount(lot.getId(), lot.getRemainingAmount() - deduct);
+            decrementRemainingAmount(lot.getId(), deduct);
             chargeLotAllocationMapper.insert(ChargeLotAllocation.builder()
                     .chargeLotId(lot.getId())
                     .walletId(walletId)
@@ -181,6 +191,18 @@ public class WalletService implements WalletHoldService {
             remaining -= deduct;
         }
         return amount - remaining;
+    }
+
+    /**
+     * lot의 remaining_amount를 DB가 현재 값 기준으로 상대적으로 차감하게 한다(자바에서 계산한
+     * 절대값으로 덮어쓰지 않음). 지갑 락 덕분에 지금은 항상 성공해야 하는 호출이라, 0 row가
+     * 갱신되면(잔여액 부족 등으로 조건에 걸린 경우) 락 보호가 깨진 것으로 보고 즉시 실패시킨다.
+     */
+    private void decrementRemainingAmount(Long lotId, long deduct) {
+        int updated = chargeLotMapper.decrementRemainingAmount(lotId, deduct);
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.DATABASE_ERROR);
+        }
     }
 
     /**
@@ -216,7 +238,8 @@ public class WalletService implements WalletHoldService {
         return WalletResponse.builder()
                 .chargedBalance(wallet.getChargedBalance())
                 .rewardBalance(wallet.getRewardBalance())
-                .lockedBalance(wallet.getLockedBalance())
+                .lockedChargedBalance(wallet.getLockedChargedBalance())
+                .lockedRewardBalance(wallet.getLockedRewardBalance())
                 .availableBalance(wallet.getAvailableBalance())
                 .build();
     }
