@@ -29,6 +29,11 @@ public enum ErrorCode {
     NICKNAME_DUPLICATE(HttpStatus.CONFLICT, "U002", "이미 사용 중인 닉네임입니다."),
     NICKNAME_INVALID(HttpStatus.BAD_REQUEST, "U003", "닉네임은 2자 이상 10자 이하로 입력해주세요."),
 
+    //회원-팔로우
+    SELF_FOLLOW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "U020", "자기 자신을 팔로우할 수 없습니다."),
+    ALREADY_FOLLOWING(HttpStatus.CONFLICT, "U021", "이미 팔로우 중인 사용자입니다."),
+    NOT_FOLLOWING(HttpStatus.BAD_REQUEST, "U022", "팔로우하지 않은 사용자입니다."),
+
     //회원-우수 사용자 인증
     VERIFICATION_ALREADY_PENDING(HttpStatus.CONFLICT, "U023", "이미 심사 중인 신청 건이 있습니다."),
     VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "U024", "신청 내역을 찾을 수 없습니다."),
@@ -99,6 +104,7 @@ public enum ErrorCode {
     CHAT_MESSAGE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "CH008", "메시지 내용을 입력해주세요."),
     CHAT_MESSAGE_CONTENT_TOO_LONG(HttpStatus.BAD_REQUEST, "CH009", "메시지 내용은 1000자를 초과할 수 없습니다."),
     CHAT_ATTACHMENT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH010", "텍스트 메시지에는 첨부파일을 첨부할 수 없습니다."),
+    CHAT_ATTACHMENT_REQUIRED(HttpStatus.BAD_REQUEST, "CH011", "이미지/파일 메시지에는 첨부파일이 필요합니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),

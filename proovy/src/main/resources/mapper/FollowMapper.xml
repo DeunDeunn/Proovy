@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.follow.mapper.FollowMapper">
+
+    <insert id="insert">
+        INSERT INTO follows (follower_id, following_id) VALUES (#{followerId}, #{followingId})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM follows WHERE follower_id = #{followerId} AND following_id = #{followingId}
+    </delete>
+
+    <select id="exists" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM follows
+            WHERE follower_id = #{followerId} AND following_id = #{followingId}
+        )
+    </select>
+
+    <select id="findFollowers" resultType="com.deundeun.follow.dto.FollowUserItem">
+        SELECT u.id AS user_id, u.nickname AS nickname, u.profile_image_url AS profile_image_url,
+               f.created_at AS followed_at
+        FROM follows f
+        JOIN users u ON u.id = f.follower_id
+        WHERE f.following_id = #{followingId}
+          AND u.deleted_at IS NULL
+        ORDER BY f.created_at DESC, f.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countFollowers" resultType="long">
+        SELECT COUNT(*)
+        FROM follows f
+        JOIN users u ON u.id = f.follower_id
+        WHERE f.following_id = #{followingId}
+          AND u.deleted_at IS NULL
+    </select>
+
+    <select id="findFollowing" resultType="com.deundeun.follow.dto.FollowUserItem">
+        SELECT u.id AS user_id, u.nickname AS nickname, u.profile_image_url AS profile_image_url,
+               f.created_at AS followed_at
+        FROM follows f
+        JOIN users u ON u.id = f.following_id
+        WHERE f.follower_id = #{followerId}
+          AND u.deleted_at IS NULL
+        ORDER BY f.created_at DESC, f.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countFollowing" resultType="long">
+        SELECT COUNT(*)
+        FROM follows f
+        JOIN users u ON u.id = f.following_id
+        WHERE f.follower_id = #{followerId}
+          AND u.deleted_at IS NULL
+    </select>
+
+</mapper>

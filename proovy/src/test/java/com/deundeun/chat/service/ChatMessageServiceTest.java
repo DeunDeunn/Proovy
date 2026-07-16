@@ -16,7 +16,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
@@ -37,6 +39,8 @@ import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.global.file.FileCategory;
+import com.deundeun.global.file.TransactionalFileUploader;
 
 @DisplayName("ChatMessageService")
 @ExtendWith(MockitoExtension.class)
@@ -60,6 +64,9 @@ class ChatMessageServiceTest {
     @Mock
     private ChatRoomMemberFinder chatRoomMemberFinder;
 
+    @Mock
+    private TransactionalFileUploader fileUploader;
+
     @InjectMocks
     private ChatMessageService chatMessageService;
 
@@ -69,14 +76,14 @@ class ChatMessageServiceTest {
         Long chatRoomId = 1L;
         Long senderId = 20L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
-        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요", null);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요");
         User sender = User.builder().id(senderId).nickname("민기").profileImageUrl("url").build();
 
         when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
         stubMessageInsertAssignsId(100L);
         when(userMapper.findById(senderId)).thenReturn(sender);
 
-        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request);
+        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, null);
 
         assertThat(response.messageId()).isEqualTo(100L);
         assertThat(response.messageType()).isEqualTo(ChatMessageType.TEXT);
@@ -91,12 +98,12 @@ class ChatMessageServiceTest {
     void send_notMember_doesNotSaveMessage() {
         Long chatRoomId = 1L;
         Long senderId = 20L;
-        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요", null);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요");
 
         when(chatRoomMemberFinder.findMember(chatRoomId, senderId))
             .thenThrow(new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
 
-        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request))
+        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request, null))
             .isInstanceOf(ApiException.class)
             .extracting(e -> ((ApiException) e).getErrorCode())
             .isEqualTo(ErrorCode.CHAT_ROOM_FORBIDDEN);
@@ -105,16 +112,16 @@ class ChatMessageServiceTest {
     }
 
     @Test
-    @DisplayName("TEXT가 아닌 메시지 타입은 거부한다")
+    @DisplayName("TEXT/IMAGE/FILE이 아닌 메시지 타입은 거부한다")
     void send_unsupportedMessageType_throws() {
         Long chatRoomId = 1L;
         Long senderId = 20L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
-        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.IMAGE, null, List.of(1L));
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.CERTIFICATION_SHARE, null);
 
         when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
 
-        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request))
+        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request, null))
             .isInstanceOf(ApiException.class)
             .extracting(e -> ((ApiException) e).getErrorCode())
             .isEqualTo(ErrorCode.CHAT_INVALID_MESSAGE_TYPE);
@@ -128,11 +135,11 @@ class ChatMessageServiceTest {
         Long chatRoomId = 1L;
         Long senderId = 20L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
-        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "   ", null);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "   ");
 
         when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
 
-        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request))
+        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request, null))
             .isInstanceOf(ApiException.class)
             .extracting(e -> ((ApiException) e).getErrorCode())
             .isEqualTo(ErrorCode.CHAT_MESSAGE_CONTENT_REQUIRED);
@@ -146,11 +153,11 @@ class ChatMessageServiceTest {
         Long chatRoomId = 1L;
         Long senderId = 20L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
-        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "a".repeat(1001), null);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "a".repeat(1001));
 
         when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
 
-        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request))
+        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request, null))
             .isInstanceOf(ApiException.class)
             .extracting(e -> ((ApiException) e).getErrorCode())
             .isEqualTo(ErrorCode.CHAT_MESSAGE_CONTENT_TOO_LONG);
@@ -165,34 +172,75 @@ class ChatMessageServiceTest {
         Long senderId = 20L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
         String maxLengthContent = "a".repeat(1000);
-        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, maxLengthContent, null);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, maxLengthContent);
 
         when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
         stubMessageInsertAssignsId(100L);
         when(userMapper.findById(senderId)).thenReturn(null);
 
-        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request);
+        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, null);
 
         assertThat(response.content()).isEqualTo(maxLengthContent);
         verify(chatMessageMapper).insert(any());
     }
 
     @Test
-    @DisplayName("TEXT 메시지에 첨부파일 ID를 함께 보내면 거부한다 (빈 배열 포함)")
-    void send_textWithAttachments_throws() {
+    @DisplayName("TEXT 메시지에 파일이 같이 오면 거부한다")
+    void send_textWithFile_throws() {
         Long chatRoomId = 1L;
         Long senderId = 20L;
         ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
-        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요", List.of());
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요");
+        MultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "content".getBytes());
 
         when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
 
-        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request))
+        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request, file))
             .isInstanceOf(ApiException.class)
             .extracting(e -> ((ApiException) e).getErrorCode())
             .isEqualTo(ErrorCode.CHAT_ATTACHMENT_NOT_ALLOWED);
 
         verify(chatMessageMapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("IMAGE 메시지인데 파일이 없으면 거부한다")
+    void send_imageWithoutFile_throws() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.IMAGE, null);
+
+        when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
+
+        assertThatThrownBy(() -> chatMessageService.send(chatRoomId, senderId, request, null))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ATTACHMENT_REQUIRED);
+
+        verify(chatMessageMapper, never()).insert(any());
+    }
+
+    @Test
+    @DisplayName("IMAGE 메시지는 파일을 업로드하고 첨부파일과 함께 응답한다")
+    void send_imageWithFile_uploadsAndReturnsAttachment() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.IMAGE, null);
+        MultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", "content".getBytes());
+
+        when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
+        stubMessageInsertAssignsId(100L);
+        when(fileUploader.upload(file, FileCategory.CHAT)).thenReturn("https://bucket.s3.region.amazonaws.com/chat/uuid.png");
+        when(userMapper.findById(senderId)).thenReturn(null);
+
+        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, file);
+
+        assertThat(response.attachments()).hasSize(1);
+        assertThat(response.attachments().get(0).fileUrl()).isEqualTo("https://bucket.s3.region.amazonaws.com/chat/uuid.png");
+        assertThat(response.attachments().get(0).fileType()).isEqualTo(ChatFileType.IMAGE);
+        verify(chatAttachmentMapper).insert(any(ChatAttachment.class));
     }
 
     @Test
@@ -282,8 +330,7 @@ class ChatMessageServiceTest {
         ChatMessage message = ChatMessage.create(chatRoomId, senderId, "hi", ChatMessageType.TEXT, null, null);
         ReflectionTestUtils.setField(message, "id", 100L);
         User sender = User.builder().id(senderId).nickname("민기").profileImageUrl("url").build();
-        ChatAttachment attachment = ChatAttachment.upload(senderId, "file-url", "file.png", ChatFileType.IMAGE, 100L);
-        ReflectionTestUtils.setField(attachment, "messageId", 100L);
+        ChatAttachment attachment = ChatAttachment.create(100L, senderId, "file-url", "file.png", ChatFileType.IMAGE, 100L);
 
         when(chatMessageMapper.findLatestByChatRoomId(chatRoomId, 31)).thenReturn(List.of(message));
         when(userMapper.findByIds(List.of(senderId))).thenReturn(List.of(sender));

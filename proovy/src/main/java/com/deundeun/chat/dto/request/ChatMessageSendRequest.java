@@ -9,7 +9,6 @@ public record ChatMessageSendRequest(
     @NotNull(message = "메시지 타입을 입력해주세요.")
     ChatMessageType messageType,
 
-    String content,
-    List<Long> attachmentIds
+    String content
 ) {
 }
