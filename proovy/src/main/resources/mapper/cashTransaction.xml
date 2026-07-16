@@ -8,13 +8,13 @@
     </insert>
 
     <select id="selectById" resultType="com.deundeun.pay.domain.CashTransaction">
-        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at, updated_at
         FROM cash_transactions
         WHERE id = #{id}
     </select>
 
     <select id="selectByIdForUpdate" resultType="com.deundeun.pay.domain.CashTransaction">
-        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at, updated_at
         FROM cash_transactions
         WHERE id = #{id}
         FOR UPDATE
@@ -24,18 +24,36 @@
         UPDATE cash_transactions
         SET status = 'COMPLETED',
             pg_transaction_id = #{pgTransactionId},
-            balance_after = #{balanceAfter}
+            balance_after = #{balanceAfter},
+            updated_at = now()
         WHERE id = #{id}
     </update>
 
     <update id="updateStatus">
         UPDATE cash_transactions
-        SET status = #{status}
+        SET status = #{status},
+            updated_at = now()
         WHERE id = #{id}
     </update>
 
+    <update id="beginProcessing">
+        UPDATE cash_transactions
+        SET status = 'PROCESSING',
+            pg_transaction_id = #{paymentId},
+            updated_at = now()
+        WHERE id = #{id}
+          AND status = 'PENDING'
+    </update>
+
+    <select id="selectStuckProcessing" resultType="com.deundeun.pay.domain.CashTransaction">
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at, updated_at
+        FROM cash_transactions
+        WHERE status = 'PROCESSING'
+          AND updated_at &lt; #{threshold}
+    </select>
+
     <select id="selectByWalletId" resultType="com.deundeun.pay.domain.CashTransaction">
-        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at, updated_at
         FROM cash_transactions
         WHERE wallet_id = #{walletId}
         <if test="type != null">
@@ -64,7 +82,7 @@
     </select>
 
     <select id="selectByWalletIdAndReferenceIdAndType" resultType="com.deundeun.pay.domain.CashTransaction">
-        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at
+        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at, updated_at
         FROM cash_transactions
         WHERE wallet_id = #{walletId}
           AND reference_id = #{referenceId}

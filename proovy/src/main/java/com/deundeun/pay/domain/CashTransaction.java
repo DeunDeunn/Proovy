@@ -25,4 +25,5 @@ public class CashTransaction {
     private CashTransactionStatus status;
     private Long referenceId;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

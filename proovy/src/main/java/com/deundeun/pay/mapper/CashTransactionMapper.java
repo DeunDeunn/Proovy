@@ -6,6 +6,7 @@ import com.deundeun.pay.enums.CashTransactionType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -22,6 +23,10 @@ public interface CashTransactionMapper {
                          @Param("balanceAfter") long balanceAfter);
 
     void updateStatus(@Param("id") Long id, @Param("status") CashTransactionStatus status);
+
+    int beginProcessing(@Param("id") Long id, @Param("paymentId") String paymentId);
+
+    List<CashTransaction> selectStuckProcessing(@Param("threshold") LocalDateTime threshold);
 
     List<CashTransaction> selectByWalletId(@Param("walletId") Long walletId,
                                             @Param("type") CashTransactionType type,
