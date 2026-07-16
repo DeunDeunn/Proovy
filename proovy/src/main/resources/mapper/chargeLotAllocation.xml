@@ -7,6 +7,14 @@
         VALUES (#{chargeLotId}, #{walletId}, #{referenceId}, #{amount})
     </insert>
 
+    <insert id="insertAll">
+        INSERT INTO charge_lot_allocations (charge_lot_id, wallet_id, reference_id, amount)
+        VALUES
+        <foreach collection="allocations" item="a" separator=",">
+            (#{a.chargeLotId}, #{a.walletId}, #{a.referenceId}, #{a.amount})
+        </foreach>
+    </insert>
+
     <select id="selectByWalletIdAndReferenceId" resultType="com.deundeun.pay.domain.ChargeLotAllocation">
         SELECT id, charge_lot_id, wallet_id, reference_id, amount, created_at, released_at
         FROM charge_lot_allocations
