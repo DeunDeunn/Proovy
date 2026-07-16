@@ -32,7 +32,7 @@
 
     <!-- 인증글이 속한 챌린지 조회 (수정 시 시간대 검증용) -->
     <select id="findChallengeByPostId" resultType="ChallengeForCertification">
-        SELECT c.id, c.status, c.host_id, c.cert_start_time, c.cert_end_time
+        SELECT c.id, c.status, c.host_id, c.cert_start_time, c.cert_end_time, c.feed_visibility
         FROM certification_posts p
         JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
         JOIN challenges c ON c.id = cp.challenge_id
@@ -190,6 +190,129 @@
             #{postId}
         </foreach>
         AND p.deleted_at IS NULL -- 삭제된 인증글 조회 채팅 공유 메시지에서 제외
+    </select>
+
+    <!-- 피드 목록 (피드 4개 공통) -->
+    <select id="findFeed" resultType="FeedItemResponse">
+        SELECT p.id                      AS post_id,
+               p.user_id                 AS author_id,
+               u.nickname                AS author_nickname,
+               cp.challenge_id           AS challenge_id,
+               p.certification_image_url AS thumbnail_url,
+               p.contents,
+               p.like_count,
+               p.comment_count,
+               p.created_at
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
+        JOIN users u                   ON u.id = p.user_id
+        <where>
+            p.deleted_at IS NULL
+
+            <!-- 상태: 내 피드만 전체, 나머지는 APPROVED만 -->
+            <if test="!includeAllStatus">
+                AND p.certification_status = 'APPROVED'
+            </if>
+
+            <!-- 커서  페이징 -->
+            <choose>
+                <!-- 인기순: 복합키 아이디랑 족아요 수 같이 있어야함 -->
+                <when test="sort != null and sort.name() == 'POPULAR'">
+                    <if test="cursor != null and cursorLike != null">
+                        AND (p.like_count &lt; #{cursorLike}
+                             OR (p.like_count = #{cursorLike} AND p.id &lt; #{cursor}))
+                    </if>
+                </when>
+                <!--기본 최신순 정렬 -->
+                <otherwise>
+                    <if test="cursor != null">
+                        AND p.id &lt; #{cursor}
+                    </if>
+                </otherwise>
+            </choose>
+
+            <!-- 챌린지 피드-->
+            <if test="challengeId != null">
+                AND cp.challenge_id = #{challengeId}
+            </if>
+
+            <!-- 내 피드,타인 피드: 대상의 유저 글만 -->
+            <if test="targetUserId != null">
+                AND p.user_id = #{targetUserId}
+            </if>
+
+            <!-- 전체 피드 -->
+            <if test="publicOnly">
+                AND c.feed_visibility = 'PUBLIC'
+            </if>
+
+            <!-- 타인 피드: 모두 공개거나 보는 사용자가 같이 참가 중인 챌린지 글만 -->
+            <if test="applyViewerVisibility">
+                AND (
+                    c.feed_visibility = 'PUBLIC'
+                    OR cp.challenge_id IN (
+                        SELECT vp.challenge_id
+                        FROM challenge_participants vp
+                        WHERE vp.user_id = #{viewerId}
+                          AND vp.status = 'ACTIVE'
+                    )
+                )
+            </if>
+
+            <!-- mine 필터 내 글만 -->
+            <if test="filter != null and filter.name() == 'MINE'">
+                AND p.user_id = #{viewerId}
+            </if>
+
+            <!-- today 필터 오늘 글만 -->
+            <if test="filter != null and filter.name() == 'TODAY'">
+                AND p.created_at::date = CURRENT_DATE
+            </if>
+        </where>
+        <choose>
+            <when test="sort != null and sort.name() == 'POPULAR'">
+                ORDER BY p.like_count DESC, p.id DESC
+            </when>
+            <otherwise>
+                ORDER BY p.id DESC
+            </otherwise>
+        </choose>
+        LIMIT #{size}
+    </select>
+
+    <!-- ── 좋아요(토글) ── -->
+
+    <!-- 좋아요 취소-->
+    <delete id="deleteLike">
+        DELETE FROM certification_post_like
+        WHERE post_id = #{postId} AND user_id = #{userId}
+    </delete>
+
+    <!-- 좋아요 등록 ,중복x -->
+    <insert id="insertLike">
+        INSERT INTO certification_post_like (post_id, user_id)
+        VALUES (#{postId}, #{userId})
+        ON CONFLICT (post_id, user_id) DO NOTHING
+    </insert>
+
+    <!-- 카운터 +1 -->
+    <update id="incrementLikeCount">
+        UPDATE certification_posts
+        SET like_count = like_count + 1
+        WHERE id = #{postId}
+    </update>
+
+    <!-- 카운터 -1 /0보단 작을 수 없음 -->
+    <update id="decrementLikeCount">
+        UPDATE certification_posts
+        SET like_count = GREATEST(like_count - 1, 0)
+        WHERE id = #{postId}
+    </update>
+
+    <!-- 현재 좋아요 갯수 -->
+    <select id="findLikeCount" resultType="long">
+        SELECT like_count FROM certification_posts WHERE id = #{postId}
     </select>
 
 </mapper>
