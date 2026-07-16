@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #2563eb; /* 메인 파랑 (버튼, 활성 메뉴, 로고) */
+  --color-primary-hover: #1d4ed8; /* 호버 시 진한 파랑 */
+  --color-primary-light: #eff6ff; /* 활성 메뉴 배경, 연한 강조 */
+
+  /* 상태 컬러 */
+  --color-success: #16a34a; /* 성공/모집중 뱃지 */
+  --color-danger: #dc2626; /* 에러, 회원탈퇴 같은 위험 동작 */
+
+  --color-surface: #ffffff; /* 카드, 사이드바 배경 */
+  --color-canvas: #f9fafb; /* 페이지 전체 배경 */
+}
+
+body {
+  background: var(--color-canvas);
+  color: #171717;
+}
