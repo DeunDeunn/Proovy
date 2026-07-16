@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -31,13 +32,43 @@ public class S3Service implements FileStorageService {
     private static final byte[] PNG_SIGNATURE = {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
     private static final byte[] JPEG_SIGNATURE = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
     private static final byte[] GIF_SIGNATURE = {'G', 'I', 'F', '8'}; // GIF87a/GIF89a 공통 접두사
+    private static final byte[] PDF_SIGNATURE = {'%', 'P', 'D', 'F', '-'};
+    // ZIP 로컬 파일 헤더 — DOCX/XLSX도 내부적으로 ZIP 컨테이너라 이 시그니처를 그대로 공유한다
+    private static final byte[] ZIP_SIGNATURE = {'P', 'K', 0x03, 0x04};
+    // OLE2 복합 파일 시그니처 — 옛날 포맷 DOC/XLS가 같은 컨테이너 포맷이라 이것도 공유한다
+    private static final byte[] OLE2_SIGNATURE = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
     private static final int HEADER_PROBE_BYTES = 12; // WEBP(RIFF....WEBP) 판별에 필요한 최대 바이트 수
+    private static final int TEXT_PROBE_BYTES = 1024; // TXT 판별용 샘플 크기 — 매직 넘버가 없어 느슨하게만 확인
 
-    private static final Map<String, String> EXTENSION_BY_CONTENT_TYPE = Map.of(
-            "image/png", ".png",
-            "image/jpeg", ".jpg",
-            "image/gif", ".gif",
-            "image/webp", ".webp"
+    /**
+     * ZIP/OLE2는 매직 넘버만으로 내부 포맷(zip vs docx vs xlsx, doc vs xls)까지는 구분이
+     * 안 된다 — 컨테이너 시그니처가 같기 때문이다. 그래서 바이트로는 "이 그룹에 속하는
+     * 컨테이너다"라는 것까지만 확인하고, 그 그룹 안에서 정확히 뭔지는 클라이언트가 보낸
+     * Content-Type을 신뢰한다 — 그룹 밖으로 위장하는 건 여전히 막히고, 그룹 안에서의
+     * 위장(docx를 xlsx라고 하는 등)만 허용하는 절충이다.
+     */
+    private static final Set<String> ZIP_FAMILY = Set.of(
+            "application/zip",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    private static final Set<String> OLE2_FAMILY = Set.of(
+            "application/msword",
+            "application/vnd.ms-excel"
+    );
+
+    private static final Map<String, String> EXTENSION_BY_CONTENT_TYPE = Map.ofEntries(
+            Map.entry("image/png", ".png"),
+            Map.entry("image/jpeg", ".jpg"),
+            Map.entry("image/gif", ".gif"),
+            Map.entry("image/webp", ".webp"),
+            Map.entry("application/pdf", ".pdf"),
+            Map.entry("text/plain", ".txt"),
+            Map.entry("application/msword", ".doc"),
+            Map.entry("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx"),
+            Map.entry("application/vnd.ms-excel", ".xls"),
+            Map.entry("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx"),
+            Map.entry("application/zip", ".zip")
     );
 
     private final S3Client s3Client;
@@ -170,8 +201,9 @@ public class S3Service implements FileStorageService {
     }
 
     /**
-     * 파일 앞부분 바이트(매직 넘버)를 읽어 실제 이미지 형식을 판별한다. 클라이언트가 선언한
-     * Content-Type이나 파일명 확장자는 위조 가능해서 신뢰하지 않는다.
+     * 파일 앞부분 바이트(매직 넘버)를 읽어 실제 파일 형식을 판별한다. 클라이언트가 선언한
+     * Content-Type이나 파일명 확장자는 위조 가능해서 신뢰하지 않는 게 원칙이지만, ZIP/OLE2
+     * 계열은 내부 포맷까지 바이트만으로 구분이 안 돼서 {@link #resolveAmbiguous}로 넘어간다.
      */
     private String detectContentType(MultipartFile file) {
         byte[] header = readHeader(file);
@@ -187,12 +219,58 @@ public class S3Service implements FileStorageService {
         if (isWebp(header)) {
             return "image/webp";
         }
+        if (startsWith(header, PDF_SIGNATURE)) {
+            return "application/pdf";
+        }
+        if (startsWith(header, ZIP_SIGNATURE)) {
+            return resolveAmbiguous(file, ZIP_FAMILY);
+        }
+        if (startsWith(header, OLE2_SIGNATURE)) {
+            return resolveAmbiguous(file, OLE2_FAMILY);
+        }
+        if (looksLikeText(file)) {
+            return "text/plain";
+        }
         return null;
     }
 
+    /**
+     * 바이트로는 "이 그룹(zip 계열/OLE2 계열)에 속한다"는 것만 확인된 상태에서, 그룹 안의
+     * 정확한 타입은 클라이언트가 보낸 Content-Type을 신뢰해서 고른다. 선언된 타입이 그
+     * 그룹에 속하지 않으면(예: 그룹은 확인됐는데 엉뚱한 타입을 선언한 경우) 거부한다.
+     */
+    private String resolveAmbiguous(MultipartFile file, Set<String> family) {
+        String declared = file.getContentType();
+        return family.contains(declared) ? declared : null;
+    }
+
+    /**
+     * TXT는 고정된 매직 넘버가 없어 정확한 판별이 불가능하다 — 대신 샘플 바이트에
+     * NUL이나 그 외 제어 문자가 없는지(탭/개행/CR 제외)만 느슨하게 확인해서, 명백한
+     * 바이너리 파일이 텍스트로 위장하는 것 정도만 걸러낸다.
+     */
+    private boolean looksLikeText(MultipartFile file) {
+        byte[] sample = readSample(file, TEXT_PROBE_BYTES);
+        if (sample.length == 0) {
+            return false;
+        }
+        for (byte b : sample) {
+            int unsigned = b & 0xFF;
+            boolean isDisallowedControl = unsigned < 0x20 && unsigned != '\t' && unsigned != '\n' && unsigned != '\r';
+            if (isDisallowedControl || unsigned == 0x7F) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private byte[] readHeader(MultipartFile file) {
+        return readSample(file, HEADER_PROBE_BYTES);
+    }
+
+    private byte[] readSample(MultipartFile file, int maxBytes) {
         try (InputStream is = file.getInputStream()) {
-            return is.readNBytes(HEADER_PROBE_BYTES);
+            return is.readNBytes(maxBytes);
         } catch (IOException e) {
             throw new ApiException(ErrorCode.FILE_UPLOAD_FAILED);
         }

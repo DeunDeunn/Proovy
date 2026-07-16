@@ -38,6 +38,11 @@ class S3ServiceTest {
     private static final byte[] GIF_BYTES = "GIF89a".getBytes();
     private static final byte[] WEBP_BYTES = {'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
     private static final byte[] NOT_AN_IMAGE = "<html><script>alert(1)</script></html>".getBytes();
+    private static final byte[] PDF_BYTES = "%PDF-1.7\n%".getBytes();
+    private static final byte[] ZIP_BYTES = {'P', 'K', 0x03, 0x04, 0, 0, 0, 0};
+    private static final byte[] OLE2_BYTES = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
+    private static final byte[] TEXT_BYTES = "hello world\nsecond line\ttabbed".getBytes();
+    private static final byte[] BINARY_GARBAGE = {0x00, 0x01, 0x02, (byte) 0xFE, (byte) 0xFF, 0x00, 0x00};
 
     @Mock
     private S3Client s3Client;
@@ -319,5 +324,138 @@ class S3ServiceTest {
                 .isEqualTo(ErrorCode.INVALID_REQUEST);
 
         verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
+    }
+
+    @Test
+    void upload_pdfBytes_detectedAndUploaded() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "doc.pdf", "application/pdf", PDF_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).contains("/chat/").endsWith(".pdf");
+    }
+
+    @Test
+    void upload_zipBytesWithDocxDeclaredType_resolvesToDocx() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "report.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ZIP_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).endsWith(".docx");
+    }
+
+    @Test
+    void upload_zipBytesWithXlsxDeclaredType_resolvesToXlsx() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "sheet.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ZIP_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).endsWith(".xlsx");
+    }
+
+    @Test
+    void upload_zipBytesWithPlainZipDeclaredType_resolvesToZip() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "archive.zip", "application/zip", ZIP_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).endsWith(".zip");
+    }
+
+    @Test
+    void upload_zipBytesWithDeclaredTypeOutsideFamily_throwsInvalidFileType() {
+        setBucketAndRegion();
+        // 실제 바이트는 zip 계열인데, 그 그룹에 속하지 않는 타입을 선언한 경우 — 거부돼야 함
+        MockMultipartFile file = new MockMultipartFile("file", "fake.png", "image/png", ZIP_BYTES);
+
+        assertThatThrownBy(() -> s3Service.upload(file, FileCategory.CHAT))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_TYPE);
+    }
+
+    @Test
+    void upload_ole2BytesWithDocDeclaredType_resolvesToDoc() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "legacy.doc", "application/msword", OLE2_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).endsWith(".doc");
+    }
+
+    @Test
+    void upload_ole2BytesWithXlsDeclaredType_resolvesToXls() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "legacy.xls", "application/vnd.ms-excel", OLE2_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).endsWith(".xls");
+    }
+
+    @Test
+    void upload_ole2BytesWithDeclaredTypeOutsideFamily_throwsInvalidFileType() {
+        setBucketAndRegion();
+        MockMultipartFile file = new MockMultipartFile("file", "fake.pdf", "application/pdf", OLE2_BYTES);
+
+        assertThatThrownBy(() -> s3Service.upload(file, FileCategory.CHAT))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_TYPE);
+    }
+
+    @Test
+    void upload_plainTextBytes_detectedAsTextPlain() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        MockMultipartFile file = new MockMultipartFile("file", "notes.txt", "text/plain", TEXT_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).endsWith(".txt");
+    }
+
+    @Test
+    void upload_binaryGarbageMatchingNoKnownFormat_throwsInvalidFileType() {
+        setBucketAndRegion();
+        // 어떤 시그니처와도 안 맞고, NUL/제어문자가 섞여 있어 텍스트로도 통과하면 안 됨
+        MockMultipartFile file = new MockMultipartFile("file", "notes.txt", "text/plain", BINARY_GARBAGE);
+
+        assertThatThrownBy(() -> s3Service.upload(file, FileCategory.CHAT))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_TYPE);
+    }
+
+    @Test
+    void upload_profileRejectsPdfEvenThoughBytesAreValidPdf() {
+        setBucketAndRegion();
+        // PDF 자체는 진짜 PDF지만, PROFILE 카테고리는 문서 타입을 허용하지 않음
+        MockMultipartFile file = new MockMultipartFile("file", "doc.pdf", "application/pdf", PDF_BYTES);
+
+        assertThatThrownBy(() -> s3Service.upload(file, FileCategory.PROFILE))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_TYPE);
     }
 }
