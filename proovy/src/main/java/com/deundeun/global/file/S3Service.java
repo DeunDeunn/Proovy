@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.ContentStreamProvider;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -122,7 +123,10 @@ public class S3Service implements FileStorageService {
                             .contentType(contentType)
                             .contentLength(file.getSize())
                             .build(),
-                    RequestBody.fromContentProvider(() -> openStream(file), file.getSize(), contentType)
+                    RequestBody.fromContentProvider(
+                            ContentStreamProvider.fromInputStreamSupplier(() -> openStream(file)),
+                            file.getSize(),
+                            contentType)
             );
         } catch (SdkException e) {
             throw new ApiException(ErrorCode.FILE_UPLOAD_FAILED);
@@ -132,9 +136,10 @@ public class S3Service implements FileStorageService {
     }
 
     /**
-     * {@link RequestBody#fromContentProvider}가 재시도 시마다 새로 호출해서 처음부터 다시
-     * 읽을 수 있도록, 매번 새 스트림을 여는 공급자. {@code RequestBody.fromInputStream}과
-     * 달리 SDK가 스트림 열기/닫기를 관리하므로 여기서 별도로 닫지 않는다.
+     * 재시도 시마다 {@link ContentStreamProvider#fromInputStreamSupplier}가 다시 호출해서
+     * 처음부터 다시 읽을 수 있도록, 매번 새 스트림을 여는 공급자. 이전 시도에서 열어둔
+     * 스트림을 닫는 것도 {@code fromInputStreamSupplier}가 알아서 해주므로 여기서
+     * 별도로 닫지 않는다.
      */
     private InputStream openStream(MultipartFile file) {
         try {
