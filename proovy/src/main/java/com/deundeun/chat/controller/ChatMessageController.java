@@ -42,7 +42,7 @@ public class ChatMessageController {
     public ApiResponse<ChatMessageResponse> sendWithAttachment(
         @PathVariable Long chatRoomId,
         @Valid @RequestPart ChatMessageSendRequest request,
-        @RequestPart MultipartFile file
+        @RequestPart(required = false) MultipartFile file
     ) {
         Long senderId = CurrentUser.getUserId();
         ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, file);
