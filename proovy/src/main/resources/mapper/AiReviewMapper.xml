@@ -9,7 +9,6 @@
         <id property="id" column="id"/>
         <result property="challengeId" column="challenge_id"/>
         <result property="hostId" column="host_id"/>
-        <result property="reviewImageId" column="review_image_id"/>
         <result property="verificationPostId" column="verification_post_id"/>
         <result property="reviewMode" column="review_mode"/>
         <result property="decision" column="decision"/>
@@ -26,15 +25,6 @@
         SELECT p.id AS verification_post_id,
                c.id AS challenge_id,
                c.host_id AS host_id,
-               COALESCE(
-                   (
-                       SELECT MIN(i.id)
-                       FROM certification_post_images i
-                       WHERE i.post_id = p.id
-                         AND i.deleted_at IS NULL
-                   ),
-                   p.id
-               ) AS review_image_id,
                c.title AS challenge_title,
                c.verification_method AS verification_method,
                p.certification_status AS previous_post_status,
@@ -55,49 +45,42 @@
         ORDER BY sort_order ASC, id ASC
     </select>
 
-    <select id="existsReviewResultByPostId" resultType="boolean">
-        SELECT EXISTS (
-            SELECT 1
-            FROM ai_review_results
-            WHERE verification_post_id = #{postId}
-        )
-    </select>
-
-    <insert id="insertAiReviewResult" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertProcessingAiReviewResult" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO ai_review_results (
             challenge_id,
             host_id,
-            review_image_id,
             verification_post_id,
             review_mode,
-            decision,
-            confidence,
-            reason,
-            raw_response,
             status,
             previous_post_status,
             new_post_status
         ) VALUES (
             #{challengeId},
             #{hostId},
-            #{reviewImageId},
             #{verificationPostId},
             #{reviewMode},
-            #{decision},
-            #{confidence},
-            #{reason},
-            CAST(#{rawResponse} AS jsonb),
             #{status},
             #{previousPostStatus},
             #{newPostStatus}
         )
     </insert>
 
+    <update id="updateAiReviewResultCompleted">
+        UPDATE ai_review_results
+        SET decision = #{decision},
+            confidence = #{confidence},
+            reason = #{reason},
+            raw_response = CAST(#{rawResponse} AS jsonb),
+            status = #{status},
+            new_post_status = #{newPostStatus}
+        WHERE id = #{id}
+          AND status = 'PROCESSING'
+    </update>
+
     <select id="findReviewResultById" resultMap="AiReviewResultMap">
         SELECT id,
                challenge_id,
                host_id,
-               review_image_id,
                verification_post_id,
                review_mode,
                decision,

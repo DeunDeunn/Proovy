@@ -14,9 +14,9 @@ public interface AiReviewMapper {
 
     List<String> findImageUrlsByPostId(@Param("postId") Long postId);
 
-    boolean existsReviewResultByPostId(@Param("postId") Long postId);
+    int insertProcessingAiReviewResult(AiReviewResultVo result);
 
-    int insertAiReviewResult(AiReviewResultVo result);
+    int updateAiReviewResultCompleted(AiReviewResultVo result);
 
     AiReviewResultVo findReviewResultById(@Param("id") Long id);
 }

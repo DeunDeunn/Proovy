@@ -119,7 +119,7 @@ class AiReviewRuleServiceImplTest {
         assertThatThrownBy(() -> aiReviewRuleService.upsertAiReviewRule(hostId, challengeId, request))
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
-                .isEqualTo(ErrorCode.INVALID_REQUEST);
+                .isEqualTo(ErrorCode.AI_REVIEW_MODE_INVALID);
 
         verify(aiReviewRuleMapper, never()).upsertAiReviewRule(any());
     }

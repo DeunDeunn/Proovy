@@ -18,6 +18,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +35,9 @@ public class GeminiAiReviewClient implements AiReviewClient {
 
     private static final int CONNECT_TIMEOUT_MILLIS = 10_000;
     private static final int READ_TIMEOUT_MILLIS = 60_000;
+    private static final int MAX_IMAGE_COUNT = 4;
+    private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
+    private static final long MAX_TOTAL_IMAGE_BYTES = 20L * 1024 * 1024;
 
     private final GeminiProperties properties;
     private final RestClient geminiRestClient;
@@ -76,7 +82,7 @@ public class GeminiAiReviewClient implements AiReviewClient {
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (req, res) -> {
                         log.warn("Gemini API 실패 응답 - status={}", res.getStatusCode());
-                        throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini API 호출에 실패했습니다.");
+                        throw new ApiException(ErrorCode.GEMINI_API_FAILED);
                     })
                     .body(GeminiResponse.class);
 
@@ -93,10 +99,10 @@ public class GeminiAiReviewClient implements AiReviewClient {
             throw e;
         } catch (ResourceAccessException e) {
             log.error("Gemini API 호출 중 타임아웃/연결 오류", e);
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini API 응답이 지연되고 있습니다.");
+            throw new ApiException(ErrorCode.GEMINI_API_TIMEOUT);
         } catch (Exception e) {
             log.error("Gemini AI 검수 처리 실패", e);
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini AI 검수 처리에 실패했습니다.");
+            throw new ApiException(ErrorCode.GEMINI_REVIEW_FAILED);
         }
     }
 
@@ -105,11 +111,19 @@ public class GeminiAiReviewClient implements AiReviewClient {
         parts.add(Map.of("text", prompt));
 
         if (imageUrls != null) {
+            validateImageCount(imageUrls);
+            long totalImageBytes = 0L;
             for (String imageUrl : imageUrls) {
                 if (imageUrl == null || imageUrl.isBlank()) {
                     continue;
                 }
-                ImageData imageData = downloadImage(imageUrl);
+                long remainingBytes = MAX_TOTAL_IMAGE_BYTES - totalImageBytes;
+                if (remainingBytes <= 0) {
+                    throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_TOTAL_TOO_LARGE);
+                }
+
+                ImageData imageData = downloadImage(imageUrl, Math.min(MAX_IMAGE_BYTES, remainingBytes));
+                totalImageBytes += imageData.bytes().length;
                 parts.add(Map.of("inline_data", Map.of(
                         "mime_type", imageData.mimeType(),
                         "data", Base64.getEncoder().encodeToString(imageData.bytes())
@@ -120,40 +134,72 @@ public class GeminiAiReviewClient implements AiReviewClient {
         return new GeminiRequest(List.of(new GeminiContent(parts)));
     }
 
-    private ImageData downloadImage(String imageUrl) {
+    private void validateImageCount(List<String> imageUrls) {
+        long imageCount = imageUrls.stream()
+                .filter(imageUrl -> imageUrl != null && !imageUrl.isBlank())
+                .count();
+        if (imageCount > MAX_IMAGE_COUNT) {
+            throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_COUNT_EXCEEDED);
+        }
+    }
+
+    private ImageData downloadImage(String imageUrl, long maxBytes) {
         URI uri = parseImageUri(imageUrl);
         validateImageUrl(uri);
 
         byte[] bytes = imageRestClient.get()
                 .uri(uri)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (req, res) -> {
-                    throw new ApiException(ErrorCode.SERVER_ERROR, "AI 검수 이미지 다운로드에 실패했습니다.");
-                })
-                .body(byte[].class);
+                .exchange((req, res) -> {
+                    if (res.getStatusCode().isError()) {
+                        throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_DOWNLOAD_FAILED);
+                    }
+                    return readImageBytes(res.getBody(), maxBytes);
+                });
 
         if (bytes == null || bytes.length == 0) {
-            throw new ApiException(ErrorCode.SERVER_ERROR, "AI 검수 이미지가 비어 있습니다.");
+            throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_EMPTY);
         }
         return new ImageData(detectMimeType(imageUrl), bytes);
+    }
+
+    private byte[] readImageBytes(InputStream inputStream, long maxBytes) {
+        if (maxBytes <= 0) {
+            throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_TOTAL_TOO_LARGE);
+        }
+
+        try (InputStream is = inputStream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            long totalBytes = 0L;
+            int readBytes;
+            while ((readBytes = is.read(buffer, 0, (int) Math.min(buffer.length, maxBytes - totalBytes + 1))) != -1) {
+                totalBytes += readBytes;
+                if (totalBytes > maxBytes) {
+                    throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_TOO_LARGE);
+                }
+                output.write(buffer, 0, readBytes);
+            }
+            return output.toByteArray();
+        } catch (IOException e) {
+            throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_DOWNLOAD_FAILED);
+        }
     }
 
     private URI parseImageUri(String imageUrl) {
         try {
             return URI.create(imageUrl);
         } catch (IllegalArgumentException e) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST);
+            throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_INVALID_URL);
         }
     }
 
     private void validateImageUrl(URI uri) {
         if (uri.getScheme() == null || uri.getHost() == null) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST);
+            throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_INVALID_URL);
         }
         if (isAllowedS3Url(uri) || isAllowedLocalUrl(uri)) {
             return;
         }
-        throw new ApiException(ErrorCode.INVALID_REQUEST);
+        throw new ApiException(ErrorCode.AI_REVIEW_IMAGE_INVALID_URL);
     }
 
     private boolean isAllowedS3Url(URI uri) {
@@ -188,31 +234,41 @@ public class GeminiAiReviewClient implements AiReviewClient {
 
     private String extractText(GeminiResponse response) {
         if (response == null || response.candidates() == null || response.candidates().isEmpty()) {
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini 응답이 비어 있습니다.");
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_EMPTY);
         }
 
         GeminiContent content = response.candidates().getFirst().content();
         if (content == null || content.parts() == null || content.parts().isEmpty()) {
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini 응답 본문이 비어 있습니다.");
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_EMPTY);
         }
 
         Object text = content.parts().getFirst().get("text");
         if (!(text instanceof String value) || value.isBlank()) {
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini 응답 텍스트가 비어 있습니다.");
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_EMPTY);
         }
         return value;
     }
 
-    private GeminiDecision parseDecision(String rawText) throws Exception {
-        String json = stripMarkdownFence(rawText);
-        GeminiDecision decision = objectMapper.readValue(json, GeminiDecision.class);
-        validateDecision(decision);
-        return decision;
+    private GeminiDecision parseDecision(String rawText) {
+        try {
+            String json = stripMarkdownFence(rawText);
+            GeminiDecision decision = objectMapper.readValue(json, GeminiDecision.class);
+            validateDecision(decision);
+            return decision;
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_INVALID);
+        }
     }
 
-    private String normalizeRawResponse(String rawText) throws Exception {
-        String json = stripMarkdownFence(rawText);
-        return objectMapper.writeValueAsString(objectMapper.readTree(json));
+    private String normalizeRawResponse(String rawText) {
+        try {
+            String json = stripMarkdownFence(rawText);
+            return objectMapper.writeValueAsString(objectMapper.readTree(json));
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_INVALID);
+        }
     }
 
     private String stripMarkdownFence(String rawText) {
@@ -228,15 +284,15 @@ public class GeminiAiReviewClient implements AiReviewClient {
 
     private void validateDecision(GeminiDecision decision) {
         if (decision == null || decision.decision() == null || decision.reason() == null) {
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini 응답 형식이 올바르지 않습니다.");
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_INVALID);
         }
         try {
             AiReviewDecision.valueOf(decision.decision());
         } catch (IllegalArgumentException e) {
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini decision 값이 올바르지 않습니다.");
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_INVALID);
         }
         if (decision.confidence() < 0.0 || decision.confidence() > 1.0) {
-            throw new ApiException(ErrorCode.SERVER_ERROR, "Gemini confidence 값이 올바르지 않습니다.");
+            throw new ApiException(ErrorCode.GEMINI_RESPONSE_INVALID);
         }
     }
 

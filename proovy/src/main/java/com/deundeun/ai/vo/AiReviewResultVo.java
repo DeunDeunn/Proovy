@@ -18,7 +18,6 @@ public class AiReviewResultVo {
     private Long id;
     private Long challengeId;
     private Long hostId;
-    private Long reviewImageId;
     private Long verificationPostId;
     private String reviewMode;
     private String decision;

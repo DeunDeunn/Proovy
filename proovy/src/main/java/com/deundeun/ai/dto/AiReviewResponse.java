@@ -14,7 +14,6 @@ public class AiReviewResponse {
     private Long id;
     private Long challengeId;
     private Long hostId;
-    private Long reviewImageId;
     private Long verificationPostId;
     private String reviewMode;
     private String decision;
@@ -30,7 +29,6 @@ public class AiReviewResponse {
                 .id(result.getId())
                 .challengeId(result.getChallengeId())
                 .hostId(result.getHostId())
-                .reviewImageId(result.getReviewImageId())
                 .verificationPostId(result.getVerificationPostId())
                 .reviewMode(result.getReviewMode())
                 .decision(result.getDecision())
