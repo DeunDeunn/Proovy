@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.ContentStreamProvider;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -122,13 +123,30 @@ public class S3Service implements FileStorageService {
                             .contentType(contentType)
                             .contentLength(file.getSize())
                             .build(),
-                    RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+                    RequestBody.fromContentProvider(
+                            ContentStreamProvider.fromInputStreamSupplier(() -> openStream(file)),
+                            file.getSize(),
+                            contentType)
             );
-        } catch (IOException | SdkException e) {
+        } catch (SdkException e) {
             throw new ApiException(ErrorCode.FILE_UPLOAD_FAILED);
         }
 
         return "https://%s.s3.%s.amazonaws.com/%s".formatted(bucket, region, key);
+    }
+
+    /**
+     * 재시도 시마다 {@link ContentStreamProvider#fromInputStreamSupplier}가 다시 호출해서
+     * 처음부터 다시 읽을 수 있도록, 매번 새 스트림을 여는 공급자. 이전 시도에서 열어둔
+     * 스트림을 닫는 것도 {@code fromInputStreamSupplier}가 알아서 해주므로 여기서
+     * 별도로 닫지 않는다.
+     */
+    private InputStream openStream(MultipartFile file) {
+        try {
+            return file.getInputStream();
+        } catch (IOException e) {
+            throw new ApiException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
     }
 
     /**
@@ -145,7 +163,7 @@ public class S3Service implements FileStorageService {
             throw new ApiException(ErrorCode.FILE_TOO_LARGE);
         }
         String detectedContentType = detectContentType(file);
-        if (detectedContentType == null || !category.isAllowedContentType(detectedContentType)) {
+        if (!category.isAllowedContentType(detectedContentType)) {
             throw new ApiException(ErrorCode.INVALID_FILE_TYPE);
         }
         return detectedContentType;
