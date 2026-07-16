@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deundeun.ai.mapper.AiReviewMapper">
+
+    <resultMap id="AiReviewResultMap" type="com.deundeun.ai.vo.AiReviewResultVo">
+        <id property="id" column="id"/>
+        <result property="challengeId" column="challenge_id"/>
+        <result property="hostId" column="host_id"/>
+        <result property="verificationPostId" column="verification_post_id"/>
+        <result property="reviewMode" column="review_mode"/>
+        <result property="decision" column="decision"/>
+        <result property="confidence" column="confidence"/>
+        <result property="reason" column="reason"/>
+        <result property="rawResponse" column="raw_response"/>
+        <result property="status" column="status"/>
+        <result property="previousPostStatus" column="previous_post_status"/>
+        <result property="newPostStatus" column="new_post_status"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findReviewContextByPostId" resultType="com.deundeun.ai.dto.AiReviewContext">
+        SELECT p.id AS verification_post_id,
+               c.id AS challenge_id,
+               c.host_id AS host_id,
+               c.title AS challenge_title,
+               c.verification_method AS verification_method,
+               p.certification_status AS previous_post_status,
+               p.contents AS post_content,
+               p.certification_image_url AS thumbnail_url
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE p.id = #{postId}
+          AND p.deleted_at IS NULL
+    </select>
+
+    <select id="findImageUrlsByPostId" resultType="java.lang.String">
+        SELECT image_url
+        FROM certification_post_images
+        WHERE post_id = #{postId}
+          AND deleted_at IS NULL
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <insert id="insertProcessingAiReviewResult" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_review_results (
+            challenge_id,
+            host_id,
+            verification_post_id,
+            review_mode,
+            status,
+            previous_post_status,
+            new_post_status
+        ) VALUES (
+            #{challengeId},
+            #{hostId},
+            #{verificationPostId},
+            #{reviewMode},
+            #{status},
+            #{previousPostStatus},
+            #{newPostStatus}
+        )
+    </insert>
+
+    <update id="updateAiReviewResultCompleted">
+        UPDATE ai_review_results
+        SET decision = #{decision},
+            confidence = #{confidence},
+            reason = #{reason},
+            raw_response = CAST(#{rawResponse} AS jsonb),
+            status = #{status},
+            new_post_status = #{newPostStatus}
+        WHERE id = #{id}
+          AND status = 'PROCESSING'
+    </update>
+
+    <select id="findReviewResultById" resultMap="AiReviewResultMap">
+        SELECT id,
+               challenge_id,
+               host_id,
+               verification_post_id,
+               review_mode,
+               decision,
+               confidence,
+               reason,
+               raw_response,
+               status,
+               previous_post_status,
+               new_post_status,
+               created_at
+        FROM ai_review_results
+        WHERE id = #{id}
+    </select>
+
+</mapper>

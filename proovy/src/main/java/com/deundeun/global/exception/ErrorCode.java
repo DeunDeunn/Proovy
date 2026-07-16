@@ -9,14 +9,13 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     // 기존
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
-    AI_REVIEW_RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "AI 검수 규칙을 찾을 수 없습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "C002", "권한이 없습니다."),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "C001", "잘못된 요청입니다."),
     SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "서버 오류입니다."),
     INVALID_JSON_FORMAT(HttpStatus.BAD_REQUEST, "C003", "요청 본문의 JSON 형식이 올바르지 않습니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "C004", "로그인이 필요합니다."),
     DATABASE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "데이터베이스 처리 중 오류가 발생했습니다."),
-    
+
     //회원-OAuth 로그인
     OAUTH_INVALID_REQUEST(HttpStatus.BAD_REQUEST, "U010", "잘못된 OAuth 요청입니다."),
     GOOGLE_PROFILE_FETCH_FAILED(HttpStatus.BAD_GATEWAY, "U011", "Google 사용자 정보를 가져올 수 없습니다."),
@@ -40,6 +39,23 @@ public enum ErrorCode {
     ALREADY_JOINED_CHALLENGE(HttpStatus.CONFLICT, "CHL007", "이미 참여 중인 챌린지입니다."),
     HOST_CANNOT_LEAVE(HttpStatus.BAD_REQUEST, "CHL008", "방장은 자신의 챌린지에서 탈퇴할 수 없습니다."),
     CHALLENGE_HAS_PARTICIPANTS(HttpStatus.CONFLICT, "CHL009", "참가자가 있어 챌린지를 취소할 수 없습니다."),
+
+    // AI
+    AI_REVIEW_RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "AI 검수 규칙을 찾을 수 없습니다."),
+    AI_REVIEW_INVALID_REQUEST(HttpStatus.BAD_REQUEST, "A002", "AI 검수 요청이 올바르지 않습니다."),
+    AI_REVIEW_RESULT_ALREADY_EXISTS(HttpStatus.CONFLICT, "A003", "이미 AI 검수 결과가 존재합니다."),
+    AI_REVIEW_MODE_INVALID(HttpStatus.BAD_REQUEST, "A004", "AI 검수 모드가 올바르지 않습니다."),
+    AI_REVIEW_IMAGE_COUNT_EXCEEDED(HttpStatus.BAD_REQUEST, "A005", "AI 검수 이미지는 최대 4개까지 요청할 수 있습니다."),
+    AI_REVIEW_IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "A006", "AI 검수 이미지 용량이 허용 범위를 초과했습니다."),
+    AI_REVIEW_IMAGE_TOTAL_TOO_LARGE(HttpStatus.BAD_REQUEST, "A007", "AI 검수 이미지 전체 용량이 허용 범위를 초과했습니다."),
+    AI_REVIEW_IMAGE_INVALID_URL(HttpStatus.BAD_REQUEST, "A008", "AI 검수 이미지 URL이 올바르지 않습니다."),
+    AI_REVIEW_IMAGE_DOWNLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A009", "AI 검수 이미지 다운로드에 실패했습니다."),
+    AI_REVIEW_IMAGE_EMPTY(HttpStatus.INTERNAL_SERVER_ERROR, "A010", "AI 검수 이미지가 비어 있습니다."),
+    GEMINI_API_FAILED(HttpStatus.BAD_GATEWAY, "A011", "Gemini API 호출에 실패했습니다."),
+    GEMINI_API_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "A012", "Gemini API 응답이 지연되고 있습니다."),
+    GEMINI_RESPONSE_EMPTY(HttpStatus.BAD_GATEWAY, "A013", "Gemini 응답이 비어 있습니다."),
+    GEMINI_RESPONSE_INVALID(HttpStatus.BAD_GATEWAY, "A014", "Gemini 응답 형식이 올바르지 않습니다."),
+    GEMINI_REVIEW_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A015", "Gemini AI 검수 처리에 실패했습니다."),
 
     // 결제/캐시/정산
     INVALID_CHARGE_AMOUNT(HttpStatus.BAD_REQUEST, "CG001", "충전 금액은 1,000원 이상 50,000원 이하, 1,000원 단위여야 합니다."),

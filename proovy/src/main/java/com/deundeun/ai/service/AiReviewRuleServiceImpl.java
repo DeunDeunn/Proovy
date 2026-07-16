@@ -81,13 +81,13 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
 
     private void validateIds(Long userId, Long challengeId) {
         if (userId == null || challengeId == null) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST);
+            throw new ApiException(ErrorCode.AI_REVIEW_INVALID_REQUEST);
         }
     }
 
     private void validateRequest(AiReviewRuleRequest request) {
         if (request == null || isBlank(request.getRuleText()) || isBlank(request.getReviewMode())) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST);
+            throw new ApiException(ErrorCode.AI_REVIEW_INVALID_REQUEST);
         }
     }
 
@@ -95,7 +95,7 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
         try {
             return AiReviewMode.normalize(reviewMode);
         } catch (IllegalArgumentException e) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST);
+            throw new ApiException(ErrorCode.AI_REVIEW_MODE_INVALID);
         }
     }
 
