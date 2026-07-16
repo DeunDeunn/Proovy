@@ -40,6 +40,11 @@ class S3ServiceTest {
     private static final byte[] NOT_AN_IMAGE = "<html><script>alert(1)</script></html>".getBytes();
     private static final byte[] PDF_BYTES = "%PDF-1.7\n%".getBytes();
     private static final byte[] ZIP_BYTES = {'P', 'K', 0x03, 0x04, 0, 0, 0, 0};
+    // 엔트리 0개짜리 빈 zip — 로컬 파일 헤더 없이 22바이트 EOCD 레코드만 존재
+    private static final byte[] EMPTY_ZIP_BYTES = {
+            'P', 'K', 0x05, 0x06,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
     private static final byte[] OLE2_BYTES = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
     private static final byte[] TEXT_BYTES = "hello world\nsecond line\ttabbed".getBytes();
     private static final byte[] BINARY_GARBAGE = {0x00, 0x01, 0x02, (byte) 0xFE, (byte) 0xFF, 0x00, 0x00};
@@ -370,6 +375,19 @@ class S3ServiceTest {
         when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenReturn(PutObjectResponse.builder().build());
         MockMultipartFile file = new MockMultipartFile("file", "archive.zip", "application/zip", ZIP_BYTES);
+
+        String url = s3Service.upload(file, FileCategory.CHAT);
+
+        assertThat(url).endsWith(".zip");
+    }
+
+    @Test
+    void upload_emptyZipEocdSignature_resolvesToZip() {
+        setBucketAndRegion();
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        // 엔트리 0개짜리 빈 zip은 PK\x03\x04가 아니라 PK\x05\x06(EOCD)로 시작한다
+        MockMultipartFile file = new MockMultipartFile("file", "empty.zip", "application/zip", EMPTY_ZIP_BYTES);
 
         String url = s3Service.upload(file, FileCategory.CHAT);
 

@@ -35,6 +35,8 @@ public class S3Service implements FileStorageService {
     private static final byte[] PDF_SIGNATURE = {'%', 'P', 'D', 'F', '-'};
     // ZIP 로컬 파일 헤더 — DOCX/XLSX도 내부적으로 ZIP 컨테이너라 이 시그니처를 그대로 공유한다
     private static final byte[] ZIP_SIGNATURE = {'P', 'K', 0x03, 0x04};
+    // 엔트리가 0개인 빈 zip은 로컬 파일 헤더 없이 EOCD 레코드로만 이루어져 있어 별도로 인식해야 한다
+    private static final byte[] ZIP_EMPTY_SIGNATURE = {'P', 'K', 0x05, 0x06};
     // OLE2 복합 파일 시그니처 — 옛날 포맷 DOC/XLS가 같은 컨테이너 포맷이라 이것도 공유한다
     private static final byte[] OLE2_SIGNATURE = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
     private static final int HEADER_PROBE_BYTES = 12; // WEBP(RIFF....WEBP) 판별에 필요한 최대 바이트 수
@@ -222,7 +224,7 @@ public class S3Service implements FileStorageService {
         if (startsWith(header, PDF_SIGNATURE)) {
             return "application/pdf";
         }
-        if (startsWith(header, ZIP_SIGNATURE)) {
+        if (startsWith(header, ZIP_SIGNATURE) || startsWith(header, ZIP_EMPTY_SIGNATURE)) {
             return resolveAmbiguous(file, ZIP_FAMILY);
         }
         if (startsWith(header, OLE2_SIGNATURE)) {
