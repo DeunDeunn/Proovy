@@ -24,7 +24,7 @@
         JOIN users u ON u.id = f.follower_id
         WHERE f.following_id = #{followingId}
           AND u.deleted_at IS NULL
-        ORDER BY f.created_at DESC
+        ORDER BY f.created_at DESC, f.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
@@ -43,7 +43,7 @@
         JOIN users u ON u.id = f.following_id
         WHERE f.follower_id = #{followerId}
           AND u.deleted_at IS NULL
-        ORDER BY f.created_at DESC
+        ORDER BY f.created_at DESC, f.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 

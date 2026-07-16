@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.sql.SQLException;
 import java.util.List;
 
 @Service
@@ -32,21 +33,24 @@ public class FollowService {
         try {
             followMapper.insert(followerId, followingId);
         } catch (DataIntegrityViolationException e) {
+            if (!isUniqueViolation(e)) {
+                throw e;
+            }
             throw new ApiException(ErrorCode.ALREADY_FOLLOWING);
         }
     }
 
     public void unfollow(Long followerId, Long followingId) {
         getUserOrThrow(followingId);
-        if (!followMapper.exists(followerId, followingId)) {
+        int deleted = followMapper.delete(followerId, followingId);
+        if (deleted == 0) {
             throw new ApiException(ErrorCode.NOT_FOLLOWING);
         }
-        followMapper.delete(followerId, followingId);
     }
 
     public FollowListResponse getFollowers(Long userId, int page, int size) {
         getUserOrThrow(userId);
-        int offset = page * size;
+        long offset = (long) page * size;
         List<FollowUserItem> content = followMapper.findFollowers(userId, size, offset);
         long totalElements = followMapper.countFollowers(userId);
         return FollowListResponse.of(content, page, size, totalElements);
@@ -54,10 +58,15 @@ public class FollowService {
 
     public FollowListResponse getFollowing(Long userId, int page, int size) {
         getUserOrThrow(userId);
-        int offset = page * size;
+        long offset = (long) page * size;
         List<FollowUserItem> content = followMapper.findFollowing(userId, size, offset);
         long totalElements = followMapper.countFollowing(userId);
         return FollowListResponse.of(content, page, size, totalElements);
+    }
+
+    private boolean isUniqueViolation(DataIntegrityViolationException e) {
+        Throwable cause = e.getRootCause();
+        return cause instanceof SQLException sqlException && "23505".equals(sqlException.getSQLState());
     }
 
     public FollowStatusResponse getFollowStatus(Long followerId, Long followingId) {
