@@ -18,5 +18,4 @@ public class UserVerification {
     private LocalDateTime appliedAt;
     private LocalDateTime approvedAt;
     private String rejectionReason;
-    private LocalDateTime demotedAt;
 }

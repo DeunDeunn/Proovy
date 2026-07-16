@@ -20,8 +20,6 @@ public interface UserVerificationMapper {
 
     UserVerification findById(@Param("id") Long id);
 
-    LocalDateTime findLatestDemotedAt(@Param("userId") Long userId);
-
     long countSuccessfulChallenges(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
     List<UserVerificationListItem> findByStatus(@Param("status") UserVerificationStatus status,

@@ -28,12 +28,11 @@ public class UserVerificationService {
     private final UserMapper userMapper;
 
     public void apply(Long userId) {
-        getUserOrThrow(userId);
+        User user = getUserOrThrow(userId);
         if (userVerificationMapper.existsPending(userId)) {
             throw new ApiException(ErrorCode.VERIFICATION_ALREADY_PENDING);
         }
-        LocalDateTime since = userVerificationMapper.findLatestDemotedAt(userId);
-        long successCount = userVerificationMapper.countSuccessfulChallenges(userId, since);
+        long successCount = userVerificationMapper.countSuccessfulChallenges(userId, user.getDemotedAt());
         if (successCount < MIN_SUCCESSFUL_CHALLENGES) {
             throw new ApiException(ErrorCode.VERIFICATION_INELIGIBLE);
         }

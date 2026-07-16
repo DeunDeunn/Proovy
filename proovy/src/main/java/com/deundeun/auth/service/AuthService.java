@@ -19,6 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -105,7 +106,13 @@ public class AuthService {
             throw new ApiException(ErrorCode.REAUTH_FAILED);
         }
 
-        getUserOrThrow(userId);
+        User user = getUserOrThrow(userId);
+
+        LocalDateTime now = LocalDateTime.now();
+        if (user.getSuspendedUntil() != null && now.isBefore(user.getSuspendedUntil())
+                && (user.getSuspendedFrom() == null || !now.isBefore(user.getSuspendedFrom()))) {
+            throw new ApiException(ErrorCode.WITHDRAWAL_SUSPENDED);
+        }
 
         if (userMapper.existsActiveChallengeParticipation(userId)) {
             throw new ApiException(ErrorCode.WITHDRAWAL_ACTIVE_CHALLENGE);

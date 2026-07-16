@@ -15,7 +15,7 @@
     </select>
 
     <select id="findLatestByUserId" resultType="com.deundeun.auth.domain.UserVerification">
-        SELECT id, user_id, status, applied_at, approved_at, rejection_reason, demoted_at
+        SELECT id, user_id, status, applied_at, approved_at, rejection_reason
         FROM user_verifications
         WHERE user_id = #{userId}
         ORDER BY applied_at DESC, id DESC
@@ -23,18 +23,9 @@
     </select>
 
     <select id="findById" resultType="com.deundeun.auth.domain.UserVerification">
-        SELECT id, user_id, status, applied_at, approved_at, rejection_reason, demoted_at
+        SELECT id, user_id, status, applied_at, approved_at, rejection_reason
         FROM user_verifications
         WHERE id = #{id}
-    </select>
-
-    <select id="findLatestDemotedAt" resultType="java.time.LocalDateTime">
-        SELECT demoted_at
-        FROM user_verifications
-        WHERE user_id = #{userId}
-          AND demoted_at IS NOT NULL
-        ORDER BY demoted_at DESC
-        LIMIT 1
     </select>
 
     <select id="countSuccessfulChallenges" resultType="long">

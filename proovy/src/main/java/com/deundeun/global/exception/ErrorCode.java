@@ -40,6 +40,7 @@ public enum ErrorCode {
     VERIFICATION_ALREADY_PROCESSED(HttpStatus.CONFLICT, "U025", "이미 처리된 신청 건입니다."),
     VERIFICATION_REJECTION_REASON_REQUIRED(HttpStatus.BAD_REQUEST, "U026", "반려 사유는 필수 입력사항입니다."),
     VERIFICATION_INELIGIBLE(HttpStatus.BAD_REQUEST, "U027", "성공한 챌린지가 20개 미만이라 신청할 수 없습니다."),
+    WITHDRAWAL_SUSPENDED(HttpStatus.BAD_REQUEST, "U028", "정지 중에는 탈퇴할 수 없습니다."),
 
     //challenge
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "CHL001", "존재하지 않는 카테고리입니다."),

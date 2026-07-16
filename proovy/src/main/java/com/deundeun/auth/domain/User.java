@@ -26,4 +26,5 @@ public class User {
     private LocalDateTime deletedAt;
     private LocalDateTime suspendedFrom;
     private LocalDateTime suspendedUntil;
+    private LocalDateTime demotedAt;
 }
