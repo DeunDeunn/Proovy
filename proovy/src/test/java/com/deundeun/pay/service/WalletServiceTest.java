@@ -17,16 +17,15 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
 import com.deundeun.pay.domain.ChargeLotAllocation;
+import com.deundeun.pay.domain.ChargeLotDeduction;
 import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.ChargeLot;
@@ -127,7 +126,9 @@ class WalletServiceTest {
 
         ChargeLot lot = ChargeLot.builder().id(100L).walletId(10L).remainingAmount(10_000L).build();
         when(chargeLotMapper.selectRemainingByWalletIdOrderByChargedAtAsc(10L)).thenReturn(List.of(lot));
-        when(chargeLotMapper.decrementRemainingAmount(100L, 3_000L)).thenReturn(1);
+        List<ChargeLotDeduction> expectedDeductions = List.of(
+                ChargeLotDeduction.builder().chargeLotId(100L).deduct(3_000L).build());
+        when(chargeLotMapper.decrementRemainingAmountBatch(expectedDeductions)).thenReturn(1);
 
         doAnswer(invocation -> {
             CashTransaction arg = invocation.getArgument(0);
@@ -141,10 +142,12 @@ class WalletServiceTest {
         // 3,000 전액이 charge_lots로 커버되니 locked_charged만 늘고 locked_reward는 0
         verify(walletMapper).updateLockedChargedBalance(10L, 3_000L);
         verify(walletMapper).updateLockedRewardBalance(10L, 0L);
-        verify(chargeLotMapper).decrementRemainingAmount(100L, 3_000L);
-        verify(chargeLotAllocationMapper).insert(argThat(a ->
-                a.getChargeLotId().equals(100L) && a.getWalletId().equals(10L)
-                        && a.getReferenceId().equals(99L) && a.getAmount() == 3_000L));
+        verify(chargeLotMapper).decrementRemainingAmountBatch(expectedDeductions);
+        verify(chargeLotAllocationMapper).insertAll(argThat(list ->
+                list.size() == 1 && list.getFirst().getChargeLotId().equals(100L)
+                        && list.getFirst().getWalletId().equals(10L)
+                        && list.getFirst().getReferenceId().equals(99L)
+                        && list.getFirst().getAmount() == 3_000L));
 
         ArgumentCaptor<CashTransaction> captor = ArgumentCaptor.forClass(CashTransaction.class);
         verify(cashTransactionMapper).insert(captor.capture());
@@ -191,14 +194,15 @@ class WalletServiceTest {
         ChargeLot newerLot = ChargeLot.builder().id(200L).walletId(10L).remainingAmount(5_000L).build();
         when(chargeLotMapper.selectRemainingByWalletIdOrderByChargedAtAsc(10L))
                 .thenReturn(List.of(olderLot, newerLot)); // 오래된 순으로 이미 정렬돼서 온다고 가정
-        when(chargeLotMapper.decrementRemainingAmount(100L, 1_000L)).thenReturn(1);
-        when(chargeLotMapper.decrementRemainingAmount(200L, 200L)).thenReturn(1);
+        List<ChargeLotDeduction> expectedDeductions = List.of(
+                ChargeLotDeduction.builder().chargeLotId(100L).deduct(1_000L).build(), // 오래된 lot부터 다 소진
+                ChargeLotDeduction.builder().chargeLotId(200L).deduct(200L).build());   // 남은 200만 다음 lot에서 차감
+        when(chargeLotMapper.decrementRemainingAmountBatch(expectedDeductions)).thenReturn(2);
 
         walletService.hold(userId, 1_200L, 99L);
 
-        InOrder inOrder = Mockito.inOrder(chargeLotMapper);
-        inOrder.verify(chargeLotMapper).decrementRemainingAmount(100L, 1_000L); // 오래된 lot부터 다 소진
-        inOrder.verify(chargeLotMapper).decrementRemainingAmount(200L, 200L);   // 남은 200만 다음 lot에서 차감
+        // 한 번의 배치 호출에, FIFO 순서 그대로 두 lot의 차감분이 함께 담겨 있어야 한다
+        verify(chargeLotMapper).decrementRemainingAmountBatch(expectedDeductions);
         verify(walletMapper).updateLockedChargedBalance(10L, 1_200L); // 전액 charge_lots로 커버됨
         verify(walletMapper).updateLockedRewardBalance(10L, 0L);
     }
@@ -216,18 +220,20 @@ class WalletServiceTest {
 
         ChargeLot lot = ChargeLot.builder().id(100L).walletId(10L).remainingAmount(2_000L).build();
         when(chargeLotMapper.selectRemainingByWalletIdOrderByChargedAtAsc(10L)).thenReturn(List.of(lot));
-        when(chargeLotMapper.decrementRemainingAmount(100L, 2_000L)).thenReturn(1);
+        List<ChargeLotDeduction> expectedDeductions = List.of(
+                ChargeLotDeduction.builder().chargeLotId(100L).deduct(2_000L).build());
+        when(chargeLotMapper.decrementRemainingAmountBatch(expectedDeductions)).thenReturn(1);
 
         walletService.hold(userId, 5_000L, 99L);
 
         // lot은 가진 만큼(2,000)만 차감되고, 나머지 3,000은 reward 몫
-        verify(chargeLotMapper).decrementRemainingAmount(100L, 2_000L);
+        verify(chargeLotMapper).decrementRemainingAmountBatch(expectedDeductions);
         verify(walletMapper).updateLockedChargedBalance(10L, 2_000L);
         verify(walletMapper).updateLockedRewardBalance(10L, 3_000L);
     }
 
     @Test
-    void hold_decrementRemainingAmountAffectsNoRows_throwsDatabaseError() {
+    void hold_decrementRemainingAmountBatchAffectsFewerRowsThanExpected_throwsDatabaseError() {
         Long userId = 1L;
         Wallet wallet = Wallet.builder()
                 .id(10L).userId(userId)
@@ -238,15 +244,19 @@ class WalletServiceTest {
 
         ChargeLot lot = ChargeLot.builder().id(100L).walletId(10L).remainingAmount(10_000L).build();
         when(chargeLotMapper.selectRemainingByWalletIdOrderByChargedAtAsc(10L)).thenReturn(List.of(lot));
-        // 지갑 락이 보호를 못 해준 것처럼, DB가 조건(remaining_amount >= deduct)에 걸려 0 row 갱신하는 상황을 재현
-        when(chargeLotMapper.decrementRemainingAmount(100L, 3_000L)).thenReturn(0);
+        List<ChargeLotDeduction> expectedDeductions = List.of(
+                ChargeLotDeduction.builder().chargeLotId(100L).deduct(3_000L).build());
+        // 지갑 락이 보호를 못 해준 것처럼, DB가 조건(remaining_amount >= deduct)에 걸려 요청한 1개보다
+        // 적게(0개) 갱신하는 상황을 재현
+        when(chargeLotMapper.decrementRemainingAmountBatch(expectedDeductions)).thenReturn(0);
 
         assertThatThrownBy(() -> walletService.hold(userId, 3_000L, 99L))
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.DATABASE_ERROR);
 
-        // 실제로 갱신이 안 됐으니, 이어지는 잠금 잔액 반영/거래내역 기록도 일어나면 안 된다
+        // 실제로 갱신이 안 됐으니, 이어지는 할당 기록/잠금 잔액 반영/거래내역 기록도 일어나면 안 된다
+        verify(chargeLotAllocationMapper, never()).insertAll(any());
         verify(walletMapper, never()).updateLockedChargedBalance(anyLong(), anyLong());
         verify(cashTransactionMapper, never()).insert(any(CashTransaction.class));
     }

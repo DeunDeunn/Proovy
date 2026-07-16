@@ -7,6 +7,7 @@ import com.deundeun.pay.domain.ChargeLotAllocation;
 import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.CashTransactionType;
 import com.deundeun.pay.domain.ChargeLot;
+import com.deundeun.pay.domain.ChargeLotDeduction;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.TransactionHistoryResponse;
 import com.deundeun.pay.dto.TransactionItem;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -159,14 +161,16 @@ public class WalletService implements WalletHoldService {
      */
     public void deductChargeLotsFifo(Long walletId, long amount) {
         long remaining = amount;
+        List<ChargeLotDeduction> deductions = new ArrayList<>();
         for (ChargeLot lot : chargeLotMapper.selectRemainingByWalletIdOrderByChargedAtAsc(walletId)) {
             if (remaining <= 0) {
                 break;
             }
             long deduct = Math.min(lot.getRemainingAmount(), remaining);
-            decrementRemainingAmount(lot.getId(), deduct);
+            deductions.add(ChargeLotDeduction.builder().chargeLotId(lot.getId()).deduct(deduct).build());
             remaining -= deduct;
         }
+        decrementRemainingAmountBatch(deductions);
     }
 
     /**
@@ -176,13 +180,15 @@ public class WalletService implements WalletHoldService {
      */
     public long holdChargeLotsFifo(Long walletId, long amount, Long referenceId) {
         long remaining = amount;
+        List<ChargeLotDeduction> deductions = new ArrayList<>();
+        List<ChargeLotAllocation> allocations = new ArrayList<>();
         for (ChargeLot lot : chargeLotMapper.selectRemainingByWalletIdOrderByChargedAtAsc(walletId)) {
             if (remaining <= 0) {
                 break;
             }
             long deduct = Math.min(lot.getRemainingAmount(), remaining);
-            decrementRemainingAmount(lot.getId(), deduct);
-            chargeLotAllocationMapper.insert(ChargeLotAllocation.builder()
+            deductions.add(ChargeLotDeduction.builder().chargeLotId(lot.getId()).deduct(deduct).build());
+            allocations.add(ChargeLotAllocation.builder()
                     .chargeLotId(lot.getId())
                     .walletId(walletId)
                     .referenceId(referenceId)
@@ -190,17 +196,25 @@ public class WalletService implements WalletHoldService {
                     .build());
             remaining -= deduct;
         }
+        decrementRemainingAmountBatch(deductions);
+        if (!allocations.isEmpty()) {
+            chargeLotAllocationMapper.insertAll(allocations);
+        }
         return amount - remaining;
     }
 
     /**
-     * lot의 remaining_amount를 DB가 현재 값 기준으로 상대적으로 차감하게 한다(자바에서 계산한
-     * 절대값으로 덮어쓰지 않음). 지갑 락 덕분에 지금은 항상 성공해야 하는 호출이라, 0 row가
-     * 갱신되면(잔여액 부족 등으로 조건에 걸린 경우) 락 보호가 깨진 것으로 보고 즉시 실패시킨다.
+     * 건드릴 lot이 몇 개든 한 번의 UPDATE로 remaining_amount를 상대적으로 차감한다(자바에서
+     * 계산한 절대값을 덮어쓰지 않음). 지갑 락 덕분에 지금은 항상 전부 성공해야 하는 호출이라,
+     * 갱신된 row 수가 요청한 lot 개수보다 적으면(잔여액 부족 등으로 일부가 조건에 걸린 경우)
+     * 락 보호가 깨진 것으로 보고 즉시 실패시킨다.
      */
-    private void decrementRemainingAmount(Long lotId, long deduct) {
-        int updated = chargeLotMapper.decrementRemainingAmount(lotId, deduct);
-        if (updated == 0) {
+    private void decrementRemainingAmountBatch(List<ChargeLotDeduction> deductions) {
+        if (deductions.isEmpty()) {
+            return;
+        }
+        int updated = chargeLotMapper.decrementRemainingAmountBatch(deductions);
+        if (updated != deductions.size()) {
             throw new ApiException(ErrorCode.DATABASE_ERROR);
         }
     }

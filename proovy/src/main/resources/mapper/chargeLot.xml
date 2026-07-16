@@ -16,11 +16,16 @@
         ORDER BY charged_at ASC
     </select>
 
-    <update id="decrementRemainingAmount">
-        UPDATE charge_lots
-        SET remaining_amount = remaining_amount - #{deduct}
-        WHERE id = #{id}
-          AND remaining_amount &gt;= #{deduct}
+    <update id="decrementRemainingAmountBatch">
+        UPDATE charge_lots AS cl
+        SET remaining_amount = cl.remaining_amount - v.deduct
+        FROM (VALUES
+            <foreach collection="deductions" item="d" separator=",">
+                (#{d.chargeLotId}::bigint, #{d.deduct}::bigint)
+            </foreach>
+        ) AS v(id, deduct)
+        WHERE cl.id = v.id
+          AND cl.remaining_amount &gt;= v.deduct
     </update>
 
     <select id="sumWithdrawableRemainingByWalletId" resultType="long">
