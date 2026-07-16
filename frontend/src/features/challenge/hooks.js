@@ -43,10 +43,14 @@ export const useUpdateChallenge = (challengeId) => {
   });
 };
 
-export const useCancelChallenge = () => {
+export const useCancelChallenge = (challengeId) => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: cancelChallenge,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: challengeKeys.lists() }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) });
+    },
   });
 };
