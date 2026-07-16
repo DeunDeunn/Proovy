@@ -1,7 +1,6 @@
 package com.deundeun.pay.mapper;
 
 import com.deundeun.pay.domain.CashTransaction;
-import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.CashTransactionType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -22,7 +21,7 @@ public interface CashTransactionMapper {
                          @Param("pgTransactionId") String pgTransactionId,
                          @Param("balanceAfter") long balanceAfter);
 
-    void updateStatus(@Param("id") Long id, @Param("status") CashTransactionStatus status);
+    int failFromProcessing(@Param("id") Long id);
 
     int beginProcessing(@Param("id") Long id, @Param("paymentId") String paymentId);
 

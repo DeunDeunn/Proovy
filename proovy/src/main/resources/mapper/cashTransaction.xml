@@ -29,11 +29,12 @@
         WHERE id = #{id}
     </update>
 
-    <update id="updateStatus">
+    <update id="failFromProcessing">
         UPDATE cash_transactions
-        SET status = #{status},
+        SET status = 'FAILED',
             updated_at = now()
         WHERE id = #{id}
+          AND status = 'PROCESSING'
     </update>
 
     <update id="beginProcessing">
