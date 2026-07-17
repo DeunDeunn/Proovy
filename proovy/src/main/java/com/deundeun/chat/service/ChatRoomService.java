@@ -9,11 +9,8 @@ import com.deundeun.chat.domain.ChatRoom;
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.domain.ChatRoomType;
 import com.deundeun.chat.dto.ChatRoomListItem;
-import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
-import com.deundeun.chat.dto.response.ChatRoomListResponse;
-import com.deundeun.chat.dto.response.ChatRoomSummaryResponse;
-import com.deundeun.chat.dto.response.DirectChatPartnerResponse;
-import com.deundeun.chat.dto.response.DirectChatRoomResponse;
+import com.deundeun.chat.dto.response.*;
+import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
@@ -43,6 +40,7 @@ public class ChatRoomService {
 
     private final ChatRoomMapper chatRoomMapper;
     private final ChatRoomMemberMapper chatRoomMemberMapper;
+    private final ChatMessageMapper chatMessageMapper;
     private final ChallengeMapper challengeMapper;
     private final UserMapper userMapper;
     private final UserVerificationMapper userVerificationMapper;
@@ -65,13 +63,81 @@ public class ChatRoomService {
         validateNotSelfChat(userId1, userId2);
 
         String directChatKey = ChatRoom.buildDirectChatKey(userId1, userId2);
+        DirectChatPartnerResponse partner = buildPartner(userId2);
 
         return chatRoomMapper.findByDirectChatKey(directChatKey)
             .map(room -> {
                 log.debug("[Chat] 기존 1:1 채팅방 조회: chatRoomId={}, directChatKey={}", room.getId(), directChatKey);
-                return DirectChatRoomResponse.of(room, false);
+                return buildExistingRoomResponse(room, userId1, partner);
             })
-            .orElseGet(() -> createDirectRoom(directChatKey, userId1, userId2));
+            .orElseGet(() -> createDirectRoom(directChatKey, userId1, userId2, partner));
+    }
+
+    private DirectChatRoomResponse createDirectRoom(String directChatKey, Long userId1, Long userId2,
+                                                      DirectChatPartnerResponse partner) {
+        ChatRoom room = ChatRoom.createDirectRoom(directChatKey);
+
+        try {
+            chatRoomMapper.insert(room);
+        } catch (DuplicateKeyException e) {
+            log.debug("[Chat] 동시 요청으로 인한 1:1 채팅방 중복 생성 시도, 기존 방 재조회: directChatKey={}", directChatKey);
+            ChatRoom existingRoom = chatRoomMapper.findByDirectChatKey(directChatKey)
+                .orElseThrow(() -> e);
+
+            return buildExistingRoomResponse(existingRoom, userId1, partner);
+        }
+
+        ChatRoomMember member1 = ChatRoomMember.join(room.getId(), userId1);
+        chatRoomMemberMapper.insert(member1);
+        chatRoomMemberMapper.insert(ChatRoomMember.join(room.getId(), userId2));
+        log.info("[Chat] 1:1 채팅방 생성 완료: chatRoomId={}, directChatKey={}", room.getId(), directChatKey);
+
+        return DirectChatRoomResponse.of(
+            room, true, partner,
+            null, 0,
+            member1.getLastReadMessageId(), member1.getLastReadAt()
+        );
+    }
+
+    private DirectChatRoomResponse buildExistingRoomResponse(ChatRoom room, Long callerId, DirectChatPartnerResponse partner) {
+        ChatRoomMember member = chatRoomMemberFinder.findMember(room.getId(), callerId);
+        LastMessageResponse lastMessage = findLastMessage(room.getId());
+        int unreadCount = chatUnreadCounter.count(room.getId(), member.getLastReadMessageId());
+
+        return DirectChatRoomResponse.of(
+            room, false, partner,
+            lastMessage, unreadCount,
+            member.getLastReadMessageId(), member.getLastReadAt()
+        );
+    }
+
+    private DirectChatPartnerResponse buildPartner(Long partnerId) {
+        User partner = userMapper.findById(partnerId);
+        if (partner == null) {
+            throw new ApiException(ErrorCode.USER_NOT_FOUND);
+        }
+        boolean approved = !userVerificationMapper.findApprovedUserIds(List.of(partnerId)).isEmpty();
+
+        return DirectChatPartnerResponse.of(partner, approved);
+    }
+
+    private LastMessageResponse findLastMessage(Long chatRoomId) {
+        return chatMessageMapper.findLatestByChatRoomId(chatRoomId, 1).stream()
+            .findFirst()
+            .map(message -> LastMessageResponse.of(message, resolveNickname(message.getSenderId())))
+            .orElse(null);
+    }
+
+    private String resolveNickname(Long userId) {
+        User user = userMapper.findById(userId);
+        return user != null ? user.getNickname() : null;
+    }
+
+    private void validateNotSelfChat(Long userId1, Long userId2) {
+        if (userId1.equals(userId2)) {
+            log.debug("[Chat] 자기 자신과의 1:1 채팅방 생성 시도: userId={}", userId1);
+            throw new ApiException(ErrorCode.CHAT_ROOM_SELF_CHAT_NOT_ALLOWED);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -88,6 +154,11 @@ public class ChatRoomService {
         );
 
         return ChallengeChatRoomResponse.of(room, memberCount, unreadCount, member);
+    }
+
+    private ChatRoom getChatRoomByChallengeId(Long challengeId) {
+        return chatRoomMapper.findByChallengeId(challengeId)
+            .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_NOT_FOUND));
     }
 
     @Transactional(readOnly = true)
@@ -187,37 +258,5 @@ public class ChatRoomService {
         long second = Long.parseLong(parts[1]);
 
         return first == userId ? second : first;
-    }
-
-    private DirectChatRoomResponse createDirectRoom(String directChatKey, Long userId1, Long userId2) {
-        ChatRoom room = ChatRoom.createDirectRoom(directChatKey);
-
-        try {
-            chatRoomMapper.insert(room);
-        } catch (DuplicateKeyException e) {
-            log.debug("[Chat] 동시 요청으로 인한 1:1 채팅방 중복 생성 시도, 기존 방 재조회: directChatKey={}", directChatKey);
-            ChatRoom existingRoom = chatRoomMapper.findByDirectChatKey(directChatKey)
-                .orElseThrow(() -> e);
-
-            return DirectChatRoomResponse.of(existingRoom, false);
-        }
-
-        chatRoomMemberMapper.insert(ChatRoomMember.join(room.getId(), userId1));
-        chatRoomMemberMapper.insert(ChatRoomMember.join(room.getId(), userId2));
-        log.info("[Chat] 1:1 채팅방 생성 완료: chatRoomId={}, directChatKey={}", room.getId(), directChatKey);
-
-        return DirectChatRoomResponse.of(room, true);
-    }
-
-    private ChatRoom getChatRoomByChallengeId(Long challengeId) {
-        return chatRoomMapper.findByChallengeId(challengeId)
-            .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_NOT_FOUND));
-    }
-
-    private void validateNotSelfChat(Long userId1, Long userId2) {
-        if (userId1.equals(userId2)) {
-            log.debug("[Chat] 자기 자신과의 1:1 채팅방 생성 시도: userId={}", userId1);
-            throw new ApiException(ErrorCode.CHAT_ROOM_SELF_CHAT_NOT_ALLOWED);
-        }
     }
 }

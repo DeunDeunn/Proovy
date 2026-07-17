@@ -38,6 +38,7 @@ import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
 import com.deundeun.chat.dto.response.ChatRoomListResponse;
 import com.deundeun.chat.dto.response.ChatRoomSummaryResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
+import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
@@ -54,6 +55,9 @@ class ChatRoomServiceTest {
 
     @Mock
     private ChatRoomMemberMapper chatRoomMemberMapper;
+
+    @Mock
+    private ChatMessageMapper chatMessageMapper;
 
     @Mock
     private ChallengeMapper challengeMapper;
@@ -92,12 +96,19 @@ class ChatRoomServiceTest {
         Long userId2 = 2L;
         ChatRoom existingRoom = ChatRoom.createDirectRoom(ChatRoom.buildDirectChatKey(userId1, userId2));
         ReflectionTestUtils.setField(existingRoom, "id", 10L);
+        User partnerUser = User.builder().id(userId2).nickname("지훈").profileImageUrl("url").build();
+        ChatRoomMember member = ChatRoomMember.join(existingRoom.getId(), userId1);
         when(chatRoomMapper.findByDirectChatKey("1:2")).thenReturn(Optional.of(existingRoom));
+        when(userMapper.findById(userId2)).thenReturn(partnerUser);
+        when(chatRoomMemberFinder.findMember(existingRoom.getId(), userId1)).thenReturn(member);
 
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId1, userId2);
 
         assertThat(response.chatRoomId()).isEqualTo(10L);
         assertThat(response.created()).isFalse();
+        assertThat(response.partner().nickname()).isEqualTo("지훈");
+        assertThat(response.lastMessage()).isNull();
+        assertThat(response.unreadCount()).isZero();
         verify(chatRoomMapper, never()).insert(any());
         verify(chatRoomMemberMapper, never()).insert(any());
     }
@@ -107,12 +118,19 @@ class ChatRoomServiceTest {
     void createOrGetDirectRoom_noExistingRoom_createsRoomAndRegistersBothMembers() {
         Long userId1 = 1L;
         Long userId2 = 2L;
+        User partnerUser = User.builder().id(userId2).nickname("지훈").profileImageUrl("url").build();
         when(chatRoomMapper.findByDirectChatKey("1:2")).thenReturn(Optional.empty());
+        when(userMapper.findById(userId2)).thenReturn(partnerUser);
 
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId1, userId2);
 
         assertThat(response.created()).isTrue();
         assertThat(response.directChatKey()).isEqualTo("1:2");
+        assertThat(response.partner().nickname()).isEqualTo("지훈");
+        assertThat(response.lastMessage()).isNull();
+        assertThat(response.unreadCount()).isZero();
+        assertThat(response.lastReadMessageId()).isNull();
+        assertThat(response.lastReadAt()).isNull();
 
         ArgumentCaptor<ChatRoomMember> captor = ArgumentCaptor.forClass(ChatRoomMember.class);
         verify(chatRoomMemberMapper, times(2)).insert(captor.capture());
@@ -142,12 +160,16 @@ class ChatRoomServiceTest {
         Long userId2 = 2L;
         ChatRoom existingRoom = ChatRoom.createDirectRoom("1:2");
         ReflectionTestUtils.setField(existingRoom, "id", 20L);
+        User partnerUser = User.builder().id(userId2).nickname("지훈").profileImageUrl("url").build();
+        ChatRoomMember member = ChatRoomMember.join(existingRoom.getId(), userId1);
 
         when(chatRoomMapper.findByDirectChatKey("1:2"))
             .thenReturn(Optional.empty())
             .thenReturn(Optional.of(existingRoom));
         doThrow(new DuplicateKeyException("duplicate direct_chat_key"))
             .when(chatRoomMapper).insert(any(ChatRoom.class));
+        when(userMapper.findById(userId2)).thenReturn(partnerUser);
+        when(chatRoomMemberFinder.findMember(existingRoom.getId(), userId1)).thenReturn(member);
 
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId1, userId2);
 
