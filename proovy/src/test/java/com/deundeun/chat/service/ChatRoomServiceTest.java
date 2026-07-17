@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,7 +21,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.deundeun.auth.domain.User;
@@ -29,6 +28,7 @@ import com.deundeun.auth.mapper.UserMapper;
 import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.mapper.ChallengeMapper;
+import com.deundeun.chat.domain.ChatMessage;
 import com.deundeun.chat.domain.ChatMessageType;
 import com.deundeun.chat.domain.ChatRoom;
 import com.deundeun.chat.domain.ChatRoomMember;
@@ -38,6 +38,7 @@ import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
 import com.deundeun.chat.dto.response.ChatRoomListResponse;
 import com.deundeun.chat.dto.response.ChatRoomSummaryResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
+import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
 import com.deundeun.chat.service.support.ChatRoomMemberFinder;
@@ -54,6 +55,9 @@ class ChatRoomServiceTest {
 
     @Mock
     private ChatRoomMemberMapper chatRoomMemberMapper;
+
+    @Mock
+    private ChatMessageMapper chatMessageMapper;
 
     @Mock
     private ChallengeMapper challengeMapper;
@@ -92,12 +96,19 @@ class ChatRoomServiceTest {
         Long userId2 = 2L;
         ChatRoom existingRoom = ChatRoom.createDirectRoom(ChatRoom.buildDirectChatKey(userId1, userId2));
         ReflectionTestUtils.setField(existingRoom, "id", 10L);
+        User partnerUser = User.builder().id(userId2).nickname("지훈").profileImageUrl("url").build();
+        ChatRoomMember member = ChatRoomMember.join(existingRoom.getId(), userId1);
         when(chatRoomMapper.findByDirectChatKey("1:2")).thenReturn(Optional.of(existingRoom));
+        when(userMapper.findById(userId2)).thenReturn(partnerUser);
+        when(chatRoomMemberFinder.findMember(existingRoom.getId(), userId1)).thenReturn(member);
 
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId1, userId2);
 
         assertThat(response.chatRoomId()).isEqualTo(10L);
         assertThat(response.created()).isFalse();
+        assertThat(response.partner().nickname()).isEqualTo("지훈");
+        assertThat(response.lastMessage()).isNull();
+        assertThat(response.unreadCount()).isZero();
         verify(chatRoomMapper, never()).insert(any());
         verify(chatRoomMemberMapper, never()).insert(any());
     }
@@ -107,12 +118,24 @@ class ChatRoomServiceTest {
     void createOrGetDirectRoom_noExistingRoom_createsRoomAndRegistersBothMembers() {
         Long userId1 = 1L;
         Long userId2 = 2L;
+        User partnerUser = User.builder().id(userId2).nickname("지훈").profileImageUrl("url").build();
         when(chatRoomMapper.findByDirectChatKey("1:2")).thenReturn(Optional.empty());
+        when(userMapper.findById(userId2)).thenReturn(partnerUser);
+        doAnswer(invocation -> {
+            ChatRoom saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 10L);
+            return null;
+        }).when(chatRoomMapper).insert(any());
 
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId1, userId2);
 
         assertThat(response.created()).isTrue();
         assertThat(response.directChatKey()).isEqualTo("1:2");
+        assertThat(response.partner().nickname()).isEqualTo("지훈");
+        assertThat(response.lastMessage()).isNull();
+        assertThat(response.unreadCount()).isZero();
+        assertThat(response.lastReadMessageId()).isNull();
+        assertThat(response.lastReadAt()).isNull();
 
         ArgumentCaptor<ChatRoomMember> captor = ArgumentCaptor.forClass(ChatRoomMember.class);
         verify(chatRoomMemberMapper, times(2)).insert(captor.capture());
@@ -136,18 +159,21 @@ class ChatRoomServiceTest {
     }
 
     @Test
-    @DisplayName("동시 생성으로 인한 중복 키 발생 시 기존 방을 재조회한다")
-    void createOrGetDirectRoom_duplicateKeyOnInsert_fallsBackToExistingRoom() {
+    @DisplayName("동시 생성으로 인한 중복 삽입 시(ON CONFLICT DO NOTHING) 기존 방을 재조회한다")
+    void createOrGetDirectRoom_concurrentInsertConflict_fallsBackToExistingRoom() {
         Long userId1 = 1L;
         Long userId2 = 2L;
         ChatRoom existingRoom = ChatRoom.createDirectRoom("1:2");
         ReflectionTestUtils.setField(existingRoom, "id", 20L);
+        User partnerUser = User.builder().id(userId2).nickname("지훈").profileImageUrl("url").build();
+        ChatRoomMember member = ChatRoomMember.join(existingRoom.getId(), userId1);
 
         when(chatRoomMapper.findByDirectChatKey("1:2"))
             .thenReturn(Optional.empty())
             .thenReturn(Optional.of(existingRoom));
-        doThrow(new DuplicateKeyException("duplicate direct_chat_key"))
-            .when(chatRoomMapper).insert(any(ChatRoom.class));
+        // insert가 스텁 없이 호출되면 room.getId()는 null로 남음 — ON CONFLICT DO NOTHING으로 실제 삽입이 스킵된 상황을 재현
+        when(userMapper.findById(userId2)).thenReturn(partnerUser);
+        when(chatRoomMemberFinder.findMember(existingRoom.getId(), userId1)).thenReturn(member);
 
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId1, userId2);
 
@@ -161,6 +187,7 @@ class ChatRoomServiceTest {
     void getChallengeRoom_roomNotFound_throwsException() {
         Long challengeId = 100L;
         Long userId = 1L;
+        when(challengeMapper.findById(challengeId)).thenReturn(Challenge.builder().id(challengeId).title("매일 아침 7시 기상").build());
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatRoomService.getChallengeRoom(challengeId, userId))
@@ -178,6 +205,7 @@ class ChatRoomServiceTest {
         Long userId = 1L;
         ChatRoom room = ChatRoom.createChallengeRoom(challengeId);
         ReflectionTestUtils.setField(room, "id", 5L);
+        when(challengeMapper.findById(challengeId)).thenReturn(Challenge.builder().id(challengeId).title("매일 아침 7시 기상").build());
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
         when(chatRoomMemberFinder.findMember(5L, userId))
             .thenThrow(new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
@@ -199,16 +227,27 @@ class ChatRoomServiceTest {
         ChatRoomMember member = ChatRoomMember.join(5L, userId);
         ReflectionTestUtils.setField(member, "lastReadMessageId", 20L);
 
+        Long senderId = 4L;
+        ChatMessage lastMessage = ChatMessage.create(5L, senderId, "오늘 인증 완료했습니다!", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(lastMessage, "id", 25L);
+        User sender = User.builder().id(senderId).nickname("민기").build();
+
+        when(challengeMapper.findById(challengeId)).thenReturn(Challenge.builder().id(challengeId).title("매일 아침 7시 기상").build());
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
         when(chatRoomMemberFinder.findMember(5L, userId)).thenReturn(member);
         when(chatRoomMemberMapper.findActiveByChatRoomId(5L))
             .thenReturn(List.of(ChatRoomMember.join(5L, userId), ChatRoomMember.join(5L, 2L)));
+        when(chatMessageMapper.findLatestByChatRoomId(5L, 1)).thenReturn(List.of(lastMessage));
+        when(userMapper.findById(senderId)).thenReturn(sender);
         when(chatUnreadCounter.count(member)).thenReturn(3);
 
         ChallengeChatRoomResponse response = chatRoomService.getChallengeRoom(challengeId, userId);
 
         assertThat(response.chatRoomId()).isEqualTo(5L);
+        assertThat(response.challengeTitle()).isEqualTo("매일 아침 7시 기상");
         assertThat(response.memberCount()).isEqualTo(2);
+        assertThat(response.lastMessage().content()).isEqualTo("오늘 인증 완료했습니다!");
+        assertThat(response.lastMessage().senderNickname()).isEqualTo("민기");
         assertThat(response.unreadCount()).isEqualTo(3);
         assertThat(response.lastReadMessageId()).isEqualTo(20L);
     }

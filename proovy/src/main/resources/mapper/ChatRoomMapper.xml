@@ -5,6 +5,7 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO chat_rooms (challenge_id, direct_chat_key, type, created_at)
         VALUES (#{challengeId}, #{directChatKey}, #{type}, #{createdAt})
+        ON CONFLICT (direct_chat_key) WHERE direct_chat_key IS NOT NULL DO NOTHING
     </insert>
 
     <select id="findById" resultType="com.deundeun.chat.domain.ChatRoom">

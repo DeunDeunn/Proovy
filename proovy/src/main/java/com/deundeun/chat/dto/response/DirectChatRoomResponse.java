@@ -10,15 +10,27 @@ public record DirectChatRoomResponse(
     ChatRoomType chatRoomType,
     String directChatKey,
     boolean created,
+    DirectChatPartnerResponse partner,
+    LastMessageResponse lastMessage,
+    int unreadCount,
+    Long lastReadMessageId,
+    LocalDateTime lastReadAt,
     LocalDateTime createdAt
 ) {
 
-    public static DirectChatRoomResponse of(ChatRoom room, boolean created) {
+    public static DirectChatRoomResponse of(ChatRoom room, boolean created, DirectChatPartnerResponse partner,
+                                             LastMessageResponse lastMessage, int unreadCount,
+                                             Long lastReadMessageId, LocalDateTime lastReadAt) {
         return new DirectChatRoomResponse(
             room.getId(),
             room.getType(),
             room.getDirectChatKey(),
             created,
+            partner,
+            lastMessage,
+            unreadCount,
+            lastReadMessageId,
+            lastReadAt,
             room.getCreatedAt()
         );
     }
