@@ -21,8 +21,19 @@ const SettlementResultPage = ({ challengeId }) => {
 
   // 정산으로 인해 내 지갑에 반영된 참가비 관련 거래를 찾아 "내 결과"를 판단
   // (SettlementResultResponse는 참가자 전체 집계만 담고 있어 개인 성공/실패 여부가 없음)
-  const { data: successTx } = useTransactions({ type: "CHALLENGE_PRINCIPAL_SUCCESS" });
-  const { data: failTx } = useTransactions({ type: "CHALLENGE_PRINCIPAL_FAIL" });
+  const {
+    data: successTx,
+    isLoading: successTxLoading,
+    error: successTxError,
+  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_SUCCESS" });
+  const {
+    data: failTx,
+    isLoading: failTxLoading,
+    error: failTxError,
+  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_FAIL" });
+
+  const myResultLoading = successTxLoading || failTxLoading;
+  const myResultError = successTxError || failTxError;
 
   if (settlementLoading || challengeLoading) return <Loading label="정산 결과를 불러오는 중..." />;
   if (settlementError) return <ErrorMessage error={settlementError} />;
@@ -62,7 +73,15 @@ const SettlementResultPage = ({ challengeId }) => {
             </div>
           </div>
 
-          {hasResult ? (
+          {myResultLoading ? (
+            <div className="rounded-lg border border-gray-100 p-4">
+              <Loading label="내 참여 결과를 확인하는 중..." />
+            </div>
+          ) : myResultError ? (
+            <div className="rounded-lg border border-gray-100 p-4">
+              <ErrorMessage error={myResultError} />
+            </div>
+          ) : hasResult ? (
             <div className="rounded-lg border border-gray-100 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-sm text-gray-500">내 결과</span>
@@ -82,30 +101,36 @@ const SettlementResultPage = ({ challengeId }) => {
 
           <div className="my-4 border-t border-gray-100" />
 
-          <h3 className="mb-3 text-sm font-semibold text-gray-700">최종 정산 내역</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-500">참가비 반환</span>
-              <span className="font-medium text-gray-900">
-                +{formatCurrency(challenge?.entryFee)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">정산 수익</span>
-              <span className="font-medium text-gray-900">
-                +{formatCurrency(settlement.profitPerUser)}
-              </span>
-            </div>
-          </div>
+          {myResultLoading || myResultError ? (
+            <p className="text-sm text-gray-500">내 정산 금액을 확인하는 중이에요.</p>
+          ) : (
+            <>
+              <h3 className="mb-3 text-sm font-semibold text-gray-700">최종 정산 내역</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">참가비 반환</span>
+                  <span className="font-medium text-gray-900">
+                    +{formatCurrency(challenge?.entryFee)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">정산 수익</span>
+                  <span className="font-medium text-gray-900">
+                    +{formatCurrency(settlement.profitPerUser)}
+                  </span>
+                </div>
+              </div>
 
-          <div className="my-4 border-t border-gray-100" />
+              <div className="my-4 border-t border-gray-100" />
 
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-gray-700">정산 후 획득 캐시</span>
-            <span className="text-lg font-bold text-success">
-              +{formatCurrency((challenge?.entryFee ?? 0) + (settlement.profitPerUser ?? 0))}
-            </span>
-          </div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-gray-700">정산 후 획득 캐시</span>
+                <span className="text-lg font-bold text-success">
+                  +{formatCurrency((challenge?.entryFee ?? 0) + (settlement.profitPerUser ?? 0))}
+                </span>
+              </div>
+            </>
+          )}
         </Card>
 
         <Card>
