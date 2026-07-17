@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deundeun.certification.mapper.ReportMapper">
+
+    <!-- 신고 대상 인증글 존재 확인 (삭제글 제외) -->
+    <select id="findPostIdIfExists" resultType="long">
+        SELECT id
+        FROM certification_posts
+        WHERE id = #{postId}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 신고 대상 댓글이 소속된 인증글 id (삭제 댓글 제외) -->
+    <select id="findPostIdByCommentId" resultType="long">
+        SELECT post_id
+        FROM comments
+        WHERE id = #{commentId}
+          AND deleted_at IS NULL
+    </select>
+
+    <!-- 신고 등록. 중복(같은 유저·같은 대상)이면 ON CONFLICT로 무시 → 0행 -->
+    <insert id="insertReport" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO reports (user_id, target_type, target_id, reason, detail)
+        VALUES (#{userId}, #{targetType}, #{targetId}, #{reason}, #{detail})
+        ON CONFLICT (target_type, target_id, user_id) DO NOTHING
+    </insert>
+
+    <!-- ===== 관리자 ===== -->
+
+    <!-- 신고 목록 (PENDING 고정 + targetType 필터, offset 페이징, 최신순) -->
+    <select id="findReportsForAdmin" resultType="com.deundeun.certification.dto.AdminReportItem">
+        SELECT r.id            AS id,
+               r.target_type   AS targetType,
+               r.target_id     AS targetId,
+               r.reason        AS reason,
+               r.detail        AS detail,
+               r.status        AS status,
+               r.user_id       AS reporterId,
+               u.nickname      AS reporterNickname,
+               r.created_at    AS createdAt,
+               r.processed_at  AS processedAt
+        FROM reports r
+                 INNER JOIN users u ON u.id = r.user_id
+        WHERE r.status = 'PENDING'
+        <if test="targetType != null">AND r.target_type = #{targetType}</if>
+        ORDER BY r.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 신고 목록 총 건수 (PENDING 고정 + 같은 필터) -->
+    <select id="countReportsForAdmin" resultType="long">
+        SELECT COUNT(*)
+        FROM reports r
+        WHERE r.status = 'PENDING'
+        <if test="targetType != null">AND r.target_type = #{targetType}</if>
+    </select>
+
+    <!-- 처리 대상 신고 1건 (상태 + 삭제 대상 식별) -->
+    <select id="findReportForProcess" resultType="com.deundeun.certification.dto.ReportForProcess">
+        SELECT id          AS id,
+               status      AS status,
+               target_type AS targetType,
+               target_id   AS targetId
+        FROM reports
+        WHERE id = #{reportId}
+    </select>
+
+    <!-- 같은 대상의 PENDING 신고를 모두 PROCESSED로 전이 (중복 신고 일괄 처리) -->
+    <update id="markProcessedByTarget">
+        UPDATE reports
+        SET status       = 'PROCESSED',
+            processed_at = now()
+        WHERE target_type = #{targetType}
+          AND target_id = #{targetId}
+          AND status = 'PENDING'
+    </update>
+
+    <!-- PENDING → REJECTED(기각) 전이 (PENDING일 때만) -->
+    <update id="markRejected">
+        UPDATE reports
+        SET status       = 'REJECTED',
+            processed_at = now()
+        WHERE id = #{reportId}
+          AND status = 'PENDING'
+    </update>
+
+    <!-- 신고 대상 댓글 soft delete -->
+    <update id="softDeleteComment">
+        UPDATE comments SET deleted_at = now()
+        WHERE id = #{commentId}
+          AND deleted_at IS NULL
+    </update>
+
+</mapper>

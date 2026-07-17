@@ -12,7 +12,9 @@ import com.deundeun.certification.service.CertificationService;
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.global.common.CurrentUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -22,14 +24,17 @@ public class CertificationController {
 
     private final CertificationService certificationService;
 
-    // 인증글 등록 API
-    @PostMapping("/api/v1/challenge/{challengeId}/certification-post")
+    // 인증글 등록 API (멀티파트: JSON 본문 + 대표이미지 파일 + 추가이미지 파일들)
+    @PostMapping(value = "/api/v1/challenge/{challengeId}/certification-post",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<CreateCertificationPostResponse> createCertificationPosts(
             @PathVariable Long challengeId,
-            @RequestBody CreateCertificationPostRequest request) {
+            @RequestPart("request") CreateCertificationPostRequest request,
+            @RequestPart("thumbnail") MultipartFile thumbnail,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
 
         Long userId = CurrentUser.getUserId();
-        Long postId = certificationService.createCertificationPost(challengeId, userId, request);
+        Long postId = certificationService.createCertificationPost(challengeId, userId, request, thumbnail, images);
 
         return ApiResponse.success(new CreateCertificationPostResponse(postId));
     }
@@ -67,20 +72,27 @@ public class CertificationController {
         return ApiResponse.success(null);
     }
 
-    // 방장 검수 대기 목록 API
+    // 방장 검수 대기 목록 API (커서 무한스크롤·최신순)
     @GetMapping("/api/v1/challenge/{challengeId}/pending-certifications")
     public ApiResponse<List<PendingCertificationResponse>> getPendingCertifications(
-            @PathVariable Long challengeId) {
+            @PathVariable Long challengeId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) Integer size) {
         Long userId = CurrentUser.getUserId();
-        return ApiResponse.success(certificationService.getPendingCertifications(challengeId, userId));
+        return ApiResponse.success(
+                certificationService.getPendingCertifications(challengeId, userId, cursor, size));
     }
 
-    // 인증글 수정 API
-    @PutMapping("/api/v1/certification-post/{postId}")
-    public ApiResponse<Void> updateCertificationPost(@PathVariable Long postId,
-                                                     @RequestBody UpdateCertificationPostRequest request) {
+    // 인증글 수정 API (멀티파트: JSON 본문 + 새 대표이미지 파일 + 새 추가이미지 파일들)
+    @PutMapping(value = "/api/v1/certification-post/{postId}",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<Void> updateCertificationPost(
+            @PathVariable Long postId,
+            @RequestPart("request") UpdateCertificationPostRequest request,
+            @RequestPart("thumbnail") MultipartFile thumbnail,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         Long userId = CurrentUser.getUserId();
-        certificationService.updateCertificationPost(postId, userId, request);
+        certificationService.updateCertificationPost(postId, userId, request, thumbnail, images);
         return ApiResponse.success(null);
     }
 
