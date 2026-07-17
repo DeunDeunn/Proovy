@@ -1,6 +1,7 @@
 package com.deundeun.chat.mapper;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -13,6 +14,10 @@ import com.deundeun.chat.dto.RoomUnreadCount;
 public interface ChatMessageMapper {
 
     void insert(ChatMessage message);
+
+    Optional<ChatMessage> findById(@Param("id") Long id);
+
+    void delete(ChatMessage message);
 
     List<ChatMessage> findLatestByChatRoomId(@Param("chatRoomId") Long chatRoomId, @Param("limit") int limit);
 
