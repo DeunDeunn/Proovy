@@ -1,16 +1,16 @@
 package com.deundeun.global.websocket;
 
 import com.deundeun.chat.constant.ChatStompDestinations;
-import com.deundeun.chat.dto.response.ChatSubscribeFailedEvent;
+import com.deundeun.chat.event.ChatSubscriptionRejectedEvent;
 import com.deundeun.chat.service.ChatRoomMemberService;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -28,7 +28,7 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
     private final ChatRoomMemberService chatRoomMemberService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -68,8 +68,7 @@ public class ChatSubscribeChannelInterceptor implements ChannelInterceptor {
         if (principal == null) {
             return;
         }
-        messagingTemplate.convertAndSendToUser(
-            principal.getName(), ChatStompDestinations.PERSONAL_ERROR_QUEUE, ChatSubscribeFailedEvent.of(errorCode));
+        eventPublisher.publishEvent(new ChatSubscriptionRejectedEvent(principal.getName(), errorCode));
     }
 
     private void validateTopicAccess(StompHeaderAccessor accessor, String destination) {
