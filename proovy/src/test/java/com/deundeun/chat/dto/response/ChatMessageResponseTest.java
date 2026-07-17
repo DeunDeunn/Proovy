@@ -28,14 +28,14 @@ class ChatMessageResponseTest {
         ChatAttachment attachment = ChatAttachment.create(100L, 10L, "https://example.com/f.png", "f.png", ChatFileType.IMAGE, 1024L);
         ReflectionTestUtils.setField(attachment, "id", 5L);
 
-        ChatMessageResponse response = ChatMessageResponse.of(message, sender, List.of(attachment), null);
+        ChatMessageResponse response = ChatMessageResponse.of(message, sender, List.of(attachment), null, true);
 
         assertThat(response.messageId()).isEqualTo(100L);
         assertThat(response.chatRoomId()).isEqualTo(1L);
         assertThat(response.senderId()).isEqualTo(10L);
         assertThat(response.senderNickname()).isEqualTo("민기");
         assertThat(response.senderProfileImage()).isEqualTo("https://example.com/p.png");
-        assertThat(response.senderBadgeApproved()).isFalse();
+        assertThat(response.senderBadgeApproved()).isTrue();
         assertThat(response.content()).isEqualTo("안녕하세요");
         assertThat(response.attachments()).hasSize(1);
         assertThat(response.deletedAt()).isNull();
@@ -52,7 +52,7 @@ class ChatMessageResponseTest {
         SharedCertificationResponse sharedCertification = new SharedCertificationResponse(
             50L, 7L, "매일 아침 7시 기상", 10L, "민기", "https://example.com/thumb.png", LocalDateTime.now());
 
-        ChatMessageResponse response = ChatMessageResponse.of(message, null, List.of(attachment), sharedCertification);
+        ChatMessageResponse response = ChatMessageResponse.of(message, null, List.of(attachment), sharedCertification, false);
 
         assertThat(response.content()).isNull();
         assertThat(response.referenceType()).isNull();
@@ -68,9 +68,10 @@ class ChatMessageResponseTest {
         ChatMessage message = ChatMessage.create(1L, 10L, "hi", ChatMessageType.TEXT, null, null);
         ReflectionTestUtils.setField(message, "id", 100L);
 
-        ChatMessageResponse response = ChatMessageResponse.of(message, null, List.of(), null);
+        ChatMessageResponse response = ChatMessageResponse.of(message, null, List.of(), null, true);
 
         assertThat(response.senderNickname()).isNull();
         assertThat(response.senderProfileImage()).isNull();
+        assertThat(response.senderBadgeApproved()).isTrue();
     }
 }

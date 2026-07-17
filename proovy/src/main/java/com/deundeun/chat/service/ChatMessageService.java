@@ -2,6 +2,7 @@ package com.deundeun.chat.service;
 
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.mapper.CertificationMapper;
 import com.deundeun.chat.domain.*;
@@ -26,8 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -43,6 +46,7 @@ public class ChatMessageService {
     private final ChatAttachmentMapper chatAttachmentMapper;
     private final ChatRoomMemberMapper chatRoomMemberMapper;
     private final UserMapper userMapper;
+    private final UserVerificationMapper userVerificationMapper;
     private final CertificationMapper certificationMapper;
     private final ChatRoomMemberFinder chatRoomMemberFinder;
     private final TransactionalFileUploader fileUploader;
@@ -97,10 +101,11 @@ public class ChatMessageService {
         updateSenderReadCursor(member, message.getId());
 
         User sender = userMapper.findById(senderId);
+        boolean senderBadgeApproved = !userVerificationMapper.findApprovedUserIds(List.of(senderId)).isEmpty();
         log.debug("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
             chatRoomId, senderId, message.getId(), messageType);
 
-        return ChatMessageResponse.of(message, sender, attachments, sharedCertification);
+        return ChatMessageResponse.of(message, sender, attachments, sharedCertification, senderBadgeApproved);
     }
 
     @Transactional(readOnly = true)
@@ -141,6 +146,7 @@ public class ChatMessageService {
         }
 
         Map<Long, User> sendersById = findSenders(messages);
+        Set<Long> approvedSenderIds = findApprovedSenderIds(messages);
         Map<Long, List<ChatAttachment>> attachmentsByMessageId = findAttachments(messages);
         Map<Long, SharedCertificationResponse> sharedCertificationsByPostId = findSharedCertifications(messages);
 
@@ -149,7 +155,8 @@ public class ChatMessageService {
                 message,
                 sendersById.get(message.getSenderId()),
                 attachmentsByMessageId.getOrDefault(message.getId(), List.of()),
-                sharedCertificationsByPostId.get(message.getReferenceId())
+                sharedCertificationsByPostId.get(message.getReferenceId()),
+                approvedSenderIds.contains(message.getSenderId())
             ))
             .toList();
     }
@@ -164,6 +171,12 @@ public class ChatMessageService {
 
         return userMapper.findByIds(senderIds).stream()
             .collect(Collectors.toMap(User::getId, Function.identity()));
+    }
+
+    private Set<Long> findApprovedSenderIds(List<ChatMessage> messages) {
+        List<Long> senderIds = messages.stream().map(ChatMessage::getSenderId).distinct().toList();
+
+        return new HashSet<>(userVerificationMapper.findApprovedUserIds(senderIds));
     }
 
     private Map<Long, List<ChatAttachment>> findAttachments(List<ChatMessage> messages) {

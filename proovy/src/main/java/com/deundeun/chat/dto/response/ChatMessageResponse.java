@@ -27,7 +27,7 @@ public record ChatMessageResponse(
 ) {
 
     public static ChatMessageResponse of(ChatMessage message, User sender, List<ChatAttachment> attachments,
-                                          SharedCertificationResponse sharedCertification) {
+                                          SharedCertificationResponse sharedCertification, boolean senderBadgeApproved) {
         boolean deleted = message.getDeletedAt() != null;
 
         return new ChatMessageResponse(
@@ -36,7 +36,7 @@ public record ChatMessageResponse(
             message.getSenderId(),
             sender != null ? sender.getNickname() : null,
             sender != null ? sender.getProfileImageUrl() : null,
-            false,
+            senderBadgeApproved,
             deleted ? null : message.getContent(),
             message.getMessageType(),
             deleted ? null : message.getReferenceType(),

@@ -28,6 +28,28 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findApprovedUserIds" resultType="long">
+        SELECT user_id
+        FROM (
+            SELECT DISTINCT ON (user_id) user_id, status
+            FROM user_verifications
+            WHERE
+            <choose>
+                <when test="userIds != null and !userIds.isEmpty()">
+                    user_id IN
+                    <foreach item="userId" collection="userIds" open="(" separator="," close=")">
+                        #{userId}
+                    </foreach>
+                </when>
+                <otherwise>
+                    1 = 0
+                </otherwise>
+            </choose>
+            ORDER BY user_id, applied_at DESC, id DESC
+        ) latest
+        WHERE status = 'APPROVED'
+    </select>
+
     <select id="countSuccessfulChallenges" resultType="long">
         SELECT COUNT(*)
         FROM challenge_participants cp

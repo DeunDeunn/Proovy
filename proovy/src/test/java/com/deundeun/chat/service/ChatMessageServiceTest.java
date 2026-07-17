@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.mapper.CertificationMapper;
 import com.deundeun.chat.domain.ChatAttachment;
@@ -63,6 +64,9 @@ class ChatMessageServiceTest {
     private UserMapper userMapper;
 
     @Mock
+    private UserVerificationMapper userVerificationMapper;
+
+    @Mock
     private CertificationMapper certificationMapper;
 
     @Mock
@@ -98,6 +102,24 @@ class ChatMessageServiceTest {
         assertThat(response.attachments()).isEmpty();
         assertThat(member.getLastReadMessageId()).isEqualTo(100L);
         verify(chatRoomMemberMapper).updateLastRead(member);
+    }
+
+    @Test
+    @DisplayName("발신자가 뱃지 승인된 경우 응답에 반영한다")
+    void send_approvedSender_marksBadgeApproved() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요", null, null);
+
+        when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
+        stubMessageInsertAssignsId(100L);
+        when(userMapper.findById(senderId)).thenReturn(null);
+        when(userVerificationMapper.findApprovedUserIds(List.of(senderId))).thenReturn(List.of(senderId));
+
+        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, null);
+
+        assertThat(response.senderBadgeApproved()).isTrue();
     }
 
     @Test
@@ -487,6 +509,36 @@ class ChatMessageServiceTest {
         assertThat(response.content().get(0).senderNickname()).isEqualTo("민기");
         assertThat(response.content().get(0).attachments()).hasSize(1);
         verify(certificationMapper, never()).findSharedCertifications(any());
+    }
+
+    @Test
+    @DisplayName("메시지 조회 시 뱃지 승인된 발신자만 senderBadgeApproved를 true로 응답한다")
+    void getMessages_marksBadgeApprovedOnlyForApprovedSenders() {
+        Long chatRoomId = 1L;
+        Long approvedSenderId = 20L;
+        Long unapprovedSenderId = 30L;
+        ChatMessage approvedMessage = ChatMessage.create(chatRoomId, approvedSenderId, "hi", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(approvedMessage, "id", 100L);
+        ChatMessage unapprovedMessage = ChatMessage.create(chatRoomId, unapprovedSenderId, "hi", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(unapprovedMessage, "id", 101L);
+
+        when(chatMessageMapper.findLatestByChatRoomId(chatRoomId, 31))
+            .thenReturn(List.of(unapprovedMessage, approvedMessage));
+        when(userMapper.findByIds(any())).thenReturn(List.of());
+        when(chatAttachmentMapper.findByMessageIds(any())).thenReturn(List.of());
+        when(userVerificationMapper.findApprovedUserIds(any())).thenReturn(List.of(approvedSenderId));
+
+        ChatMessageListResponse response = chatMessageService.getMessages(chatRoomId, 10L, null, 30);
+
+        boolean approvedBadge = response.content().stream()
+            .filter(r -> r.senderId().equals(approvedSenderId))
+            .findFirst().orElseThrow().senderBadgeApproved();
+        boolean unapprovedBadge = response.content().stream()
+            .filter(r -> r.senderId().equals(unapprovedSenderId))
+            .findFirst().orElseThrow().senderBadgeApproved();
+
+        assertThat(approvedBadge).isTrue();
+        assertThat(unapprovedBadge).isFalse();
     }
 
     @Test
