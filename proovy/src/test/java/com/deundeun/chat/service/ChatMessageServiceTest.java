@@ -572,6 +572,7 @@ class ChatMessageServiceTest {
         ChatMessage message = messageWithId(100L);
 
         when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+        when(chatMessageMapper.delete(message)).thenReturn(1);
 
         ChatMessageDeleteResponse response = chatMessageService.delete(100L, senderId);
 
@@ -581,6 +582,21 @@ class ChatMessageServiceTest {
         assertThat(message.isDeleted()).isTrue();
         verify(chatRoomMemberFinder).validateMember(chatRoomId, senderId);
         verify(chatMessageMapper).delete(message);
+    }
+
+    @Test
+    @DisplayName("조회 이후 동시 요청으로 이미 삭제된 경우 거부한다")
+    void delete_concurrentlyDeletedBetweenFetchAndUpdate_throws() {
+        Long senderId = 20L;
+        ChatMessage message = messageWithId(100L);
+
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+        when(chatMessageMapper.delete(message)).thenReturn(0);
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, senderId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_ALREADY_DELETED);
     }
 
     @Test

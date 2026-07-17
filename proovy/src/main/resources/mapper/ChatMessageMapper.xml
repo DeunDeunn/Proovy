@@ -17,6 +17,7 @@
         UPDATE chat_messages
         SET deleted_at = #{deletedAt}
         WHERE id = #{id}
+          AND deleted_at IS NULL
     </update>
 
     <select id="findLatestByChatRoomId" resultType="com.deundeun.chat.domain.ChatMessage">

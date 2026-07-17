@@ -26,11 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -119,8 +115,7 @@ public class ChatMessageService {
         boolean hasNext = fetched.size() > size;
         List<ChatMessage> messages = hasNext ? fetched.subList(0, size) : fetched;
         Long nextCursor = hasNext ? messages.get(messages.size() - 1).getId() : null;
-        log.debug("[Chat] 이전 메시지 조회 완료: chatRoomId={}, userId={}, beforeMessageId={}, size={}, hasNext={}",
-            chatRoomId, userId, beforeMessageId, size, hasNext);
+        log.debug("[Chat] 이전 메시지 조회 완료: chatRoomId={}, userId={}, beforeMessageId={}, size={}, hasNext={}", chatRoomId, userId, beforeMessageId, size, hasNext);
 
         return ChatMessageListResponse.of(assembleResponses(messages), size, hasNext, nextCursor);
     }
@@ -133,9 +128,8 @@ public class ChatMessageService {
         chatRoomMemberFinder.validateMember(message.getChatRoomId(), userId);
 
         message.delete();
-        chatMessageMapper.delete(message);
-        log.info("[Chat] 메시지 삭제 완료: chatRoomId={}, messageId={}, userId={}",
-            message.getChatRoomId(), messageId, userId);
+        deleteMessageOrThrow(message);
+        log.info("[Chat] 메시지 삭제 완료: chatRoomId={}, messageId={}, userId={}", message.getChatRoomId(), messageId, userId);
 
         return ChatMessageDeleteResponse.of(message);
     }
@@ -204,6 +198,13 @@ public class ChatMessageService {
     private void validateOwner(ChatMessage message, Long userId) {
         if (!message.getSenderId().equals(userId)) {
             throw new ApiException(ErrorCode.CHAT_MESSAGE_NOT_OWNER);
+        }
+    }
+
+    private void deleteMessageOrThrow(ChatMessage message) {
+        int updatedCount = chatMessageMapper.delete(message);
+        if (updatedCount == 0) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_ALREADY_DELETED);
         }
     }
 

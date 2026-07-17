@@ -17,7 +17,7 @@ public interface ChatMessageMapper {
 
     Optional<ChatMessage> findById(@Param("id") Long id);
 
-    void delete(ChatMessage message);
+    int delete(ChatMessage message);
 
     List<ChatMessage> findLatestByChatRoomId(@Param("chatRoomId") Long chatRoomId, @Param("limit") int limit);
 
