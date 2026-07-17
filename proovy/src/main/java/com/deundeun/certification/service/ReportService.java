@@ -79,6 +79,10 @@ public class ReportService {
 
         int safePage = (page == null || page < 0) ? 0 : page;
         int safeSize = (size == null) ? DEFAULT_SIZE : Math.min(Math.max(size, 1), MAX_SIZE);
+        int maxPage = Integer.MAX_VALUE / safeSize;   // offset 오버플로 방지 (page * size가 int 범위 초과 시 음수 랩)
+        if (safePage > maxPage) {
+            safePage = maxPage;
+        }
         int offset = safePage * safeSize;
 
         AdminReportQuery query = new AdminReportQuery(

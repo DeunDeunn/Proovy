@@ -13,10 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 // 자정(KST) 자동 승인 배치의 실제 처리.
 // 1) 미검수 PENDING 글 전부 자동 승인(approval_type=AUTO)
@@ -43,13 +45,23 @@ public class AutoApprovalService {
             return;
         }
 
-        // 1) 일괄 자동 승인
+        // 1) 일괄 자동 승인 → 실제 갱신된 글 id만 반환(RETURNING id)
+        //    조회(SELECT)와 갱신(UPDATE) 사이에 방장이 선처리한 글은 PENDING 조건에서 빠져 갱신 안 됨.
+        //    후속 처리(경고·이벤트)는 반드시 '실제 갱신된 글'만 대상으로 해야 함.
         List<Long> postIds = pendingPosts.stream().map(PendingPostForAutoApproval::getPostId).toList();
-        int approvedCount = certificationMapper.approvePostsAuto(postIds);
+        List<Long> approvedPostIds = certificationMapper.approvePostsAuto(postIds);
+        if (approvedPostIds.isEmpty()) {
+            log.info("자동 승인 - 실제 갱신 없음 (방장이 모두 선처리)");
+            return;
+        }
+        Set<Long> approvedIdSet = new HashSet<>(approvedPostIds);
+        List<PendingPostForAutoApproval> approvedPosts = pendingPosts.stream()
+                .filter(post -> approvedIdSet.contains(post.getPostId()))
+                .toList();
 
         // 2) 방장 경고 적립 — 챌린지당 1건 (글이 여러 개여도 그 챌린지 경고는 1건)
         Map<Long, Long> hostByChallenge = new LinkedHashMap<>();   // challengeId -> hostId
-        for (PendingPostForAutoApproval post : pendingPosts) {
+        for (PendingPostForAutoApproval post : approvedPosts) {
             hostByChallenge.putIfAbsent(post.getChallengeId(), post.getHostId());
         }
         hostByChallenge.forEach((challengeId, hostId) -> hostWarningMapper.insertWarning(hostId, challengeId));
@@ -60,11 +72,11 @@ public class AutoApprovalService {
         }
 
         // 4) 작성자에게 승인 알림 (수동 승인과 동일 이벤트)
-        for (PendingPostForAutoApproval post : pendingPosts) {
+        for (PendingPostForAutoApproval post : approvedPosts) {
             eventPublisher.publishEvent(new VerificationApprovedEvent(post.getAuthorId(), post.getPostId()));
         }
 
-        log.info("자동 승인 완료 - 대상 {}건, 승인 {}건, 경고 {}건", pendingPosts.size(), approvedCount, hostByChallenge.size());
+        log.info("자동 승인 완료 - 대상 {}건, 승인 {}건, 경고 {}건", pendingPosts.size(), approvedPosts.size(), hostByChallenge.size());
     }
 
     private void applyPenaltyIfNeeded(Long hostId) {

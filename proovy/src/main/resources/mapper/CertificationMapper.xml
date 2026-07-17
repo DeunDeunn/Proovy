@@ -4,7 +4,7 @@
 
 <mapper namespace="com.deundeun.certification.mapper.CertificationMapper">
     
-    <!-- 인증글 1건 저장 (이미지 컬럼 2개는 아직 임시값) -->
+    <!-- 인증글 1건 저장 (certification_image = URL 끝 파일명, certification_image_url = 전체 URL) -->
     <insert id="createCertificationPost" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO
             certification_posts(
@@ -18,8 +18,8 @@
                   #{userId},
                   #{challengeParticipantId},
                   #{contents},
-                  '테스트',            -- TODO: 이미지는 아직 임시. 다음 단계(S3)에서 실제 파일명 교체
-                  #{thumbnailImage} -- TODO: 실제 URL로 교체
+                  regexp_replace(#{thumbnailImage}, '^.*/', ''), -- URL 마지막 '/' 이후 = UUID 파일명
+                  #{thumbnailImage}
                 )
     </insert>
 
@@ -60,7 +60,7 @@
         INSERT INTO certification_post_images (post_id, stored_filename, image_url, sort_order)
         VALUES
         <foreach collection="imageList" item="url" index="i" separator=",">
-            (#{postId}, '임시', #{url}, #{i})
+            (#{postId}, regexp_replace(#{url}, '^.*/', ''), #{url}, #{i})
         </foreach>
     </insert>
 
@@ -154,7 +154,8 @@
 
     <!-- 자동 승인: 조회해 둔 id 목록만 일괄 APPROVED/AUTO -->
     <!-- 상태 조건: 동시 요청 방어 — 그 사이 방장이 처리한 글은 건드리지 않음 -->
-    <update id="approvePostsAuto">
+    <!-- RETURNING id: 실제로 갱신된 글 id만 돌려줌 → 서비스가 후속 처리(경고·이벤트) 대상을 정확히 좁힘 -->
+    <select id="approvePostsAuto" resultType="long">
         UPDATE certification_posts
         SET certification_status = 'APPROVED',
             approval_type = 'AUTO'
@@ -163,7 +164,9 @@
             #{postId}
         </foreach>
           AND certification_status = 'PENDING'
-    </update>
+          AND deleted_at IS NULL
+        RETURNING id
+    </select>
 
     <!-- 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용) -->
     <!-- COUNT(DISTINCT 날짜) = '승인 인증한 날 수'. 한번 승인된 실적은 글이 삭제돼도 인정(deleted_at 조건 없음) -->

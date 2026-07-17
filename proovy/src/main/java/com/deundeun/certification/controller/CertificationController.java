@@ -29,9 +29,9 @@ public class CertificationController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<CreateCertificationPostResponse> createCertificationPosts(
             @PathVariable Long challengeId,
-            @RequestPart CreateCertificationPostRequest request,
-            @RequestPart MultipartFile thumbnail,
-            @RequestPart(required = false) List<MultipartFile> images) {
+            @RequestPart("request") CreateCertificationPostRequest request,
+            @RequestPart("thumbnail") MultipartFile thumbnail,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
 
         Long userId = CurrentUser.getUserId();
         Long postId = certificationService.createCertificationPost(challengeId, userId, request, thumbnail, images);
@@ -88,9 +88,9 @@ public class CertificationController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<Void> updateCertificationPost(
             @PathVariable Long postId,
-            @RequestPart UpdateCertificationPostRequest request,
-            @RequestPart MultipartFile thumbnail,
-            @RequestPart(required = false) List<MultipartFile> images) {
+            @RequestPart("request") UpdateCertificationPostRequest request,
+            @RequestPart("thumbnail") MultipartFile thumbnail,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         Long userId = CurrentUser.getUserId();
         certificationService.updateCertificationPost(postId, userId, request, thumbnail, images);
         return ApiResponse.success(null);

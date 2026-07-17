@@ -68,8 +68,8 @@ public interface CertificationMapper {
    // 자정 자동 승인 대상: 삭제 안 된 PENDING 글 전체 (작성자·챌린지·방장 포함)
    List<PendingPostForAutoApproval> findAllPendingPostsForAutoApproval();
 
-   // 자동 승인: id 목록을 한 번에 APPROVED/AUTO로 갱신. 반환=영향받은 행 수
-   int approvePostsAuto(@Param("postIds") List<Long> postIds);
+   // 자동 승인: id 목록을 한 번에 APPROVED/AUTO로 갱신. 반환=실제 갱신된 글 id 목록(RETURNING id)
+   List<Long> approvePostsAuto(@Param("postIds") List<Long> postIds);
 
    // 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용). 인증 0건 참가자는 결과에 없음
    List<ParticipantSuccessCount> countApprovedDaysByParticipantIds(@Param("participantIds") List<Long> participantIds);

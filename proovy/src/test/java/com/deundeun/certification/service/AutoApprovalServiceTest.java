@@ -62,9 +62,10 @@ class AutoApprovalServiceTest {
     @Test
     @DisplayName("[A-02] 일괄 승인 + 방장 경고 + 작성자별 승인 이벤트를 발행한다")
     void approvesAndWarnsAndPublishes() {
-        // 챌린지10(방장100) 글1, 챌린지20(방장200) 글2
+        // 챌린지10(방장100) 글1, 챌린지20(방장200) 글2 — 둘 다 실제 갱신됨
         when(certificationMapper.findAllPendingPostsForAutoApproval())
                 .thenReturn(List.of(post(1, 11, 10, 100), post(2, 22, 20, 200)));
+        when(certificationMapper.approvePostsAuto(List.of(1L, 2L))).thenReturn(List.of(1L, 2L));
         when(hostWarningMapper.countActiveWarnings(anyLong())).thenReturn(1); // 3회 미만
 
         autoApprovalService.autoApproveAllPending();
@@ -76,10 +77,42 @@ class AutoApprovalServiceTest {
     }
 
     @Test
+    @DisplayName("[A-02b] 일부만 실제 갱신되면 그 글에만 경고·이벤트를 적용한다 (방장 선처리 방어)")
+    void partialUpdate_onlyUpdatedPostsProcessed() {
+        // 조회는 글1(챌린지10/방장100)·글2(챌린지20/방장200) 2건이지만,
+        // 그 사이 방장200이 글2를 수동 처리 → 실제 갱신은 글1만.
+        when(certificationMapper.findAllPendingPostsForAutoApproval())
+                .thenReturn(List.of(post(1, 11, 10, 100), post(2, 22, 20, 200)));
+        when(certificationMapper.approvePostsAuto(List.of(1L, 2L))).thenReturn(List.of(1L));
+        when(hostWarningMapper.countActiveWarnings(100L)).thenReturn(1);
+
+        autoApprovalService.autoApproveAllPending();
+
+        // 갱신된 글1 → 방장100만 경고, 작성자11에게만 이벤트
+        verify(hostWarningMapper).insertWarning(100L, 10L);
+        verify(hostWarningMapper, never()).insertWarning(eq(200L), anyLong());
+        verify(eventPublisher, times(1)).publishEvent(any(VerificationApprovedEvent.class));
+    }
+
+    @Test
+    @DisplayName("[A-02c] 실제 갱신이 0건이면 경고·이벤트를 전혀 하지 않는다 (전부 방장 선처리)")
+    void zeroUpdate_noFollowUp() {
+        when(certificationMapper.findAllPendingPostsForAutoApproval())
+                .thenReturn(List.of(post(1, 11, 10, 100), post(2, 22, 20, 200)));
+        when(certificationMapper.approvePostsAuto(List.of(1L, 2L))).thenReturn(List.of());
+
+        autoApprovalService.autoApproveAllPending();
+
+        verifyNoInteractions(hostWarningMapper);
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
     @DisplayName("[A-03] 같은 챌린지에 PENDING 글이 여러 개여도 경고는 1건만 쌓는다")
     void sameChallenge_singleWarning() {
         when(certificationMapper.findAllPendingPostsForAutoApproval())
                 .thenReturn(List.of(post(1, 11, 10, 100), post(2, 12, 10, 100)));
+        when(certificationMapper.approvePostsAuto(List.of(1L, 2L))).thenReturn(List.of(1L, 2L));
         when(hostWarningMapper.countActiveWarnings(100L)).thenReturn(1);
 
         autoApprovalService.autoApproveAllPending();
@@ -94,6 +127,7 @@ class AutoApprovalServiceTest {
     void underLimit_noPenalty() {
         when(certificationMapper.findAllPendingPostsForAutoApproval())
                 .thenReturn(List.of(post(1, 11, 10, 100)));
+        when(certificationMapper.approvePostsAuto(List.of(1L))).thenReturn(List.of(1L));
         when(hostWarningMapper.countActiveWarnings(100L)).thenReturn(2);
 
         autoApprovalService.autoApproveAllPending();
@@ -108,6 +142,7 @@ class AutoApprovalServiceTest {
     void limitReached_excellent_demoted() {
         when(certificationMapper.findAllPendingPostsForAutoApproval())
                 .thenReturn(List.of(post(1, 11, 10, 100)));
+        when(certificationMapper.approvePostsAuto(List.of(1L))).thenReturn(List.of(1L));
         when(hostWarningMapper.countActiveWarnings(100L)).thenReturn(3);
         when(hostWarningMapper.isExcellentMember(100L)).thenReturn(true);
 
@@ -124,6 +159,7 @@ class AutoApprovalServiceTest {
     void limitReached_normal_penaltyDate() {
         when(certificationMapper.findAllPendingPostsForAutoApproval())
                 .thenReturn(List.of(post(1, 11, 10, 100)));
+        when(certificationMapper.approvePostsAuto(List.of(1L))).thenReturn(List.of(1L));
         when(hostWarningMapper.countActiveWarnings(100L)).thenReturn(3);
         when(hostWarningMapper.isExcellentMember(100L)).thenReturn(false);
 

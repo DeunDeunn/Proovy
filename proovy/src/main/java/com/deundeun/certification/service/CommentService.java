@@ -94,7 +94,11 @@ public class CommentService {
             throw new ApiException(ErrorCode.NO_COMMENT_PERMISSION);
         }
 
-        commentMapper.updateComment(commentId, request.getContents());
+        // 동시 삭제 방어: 조회 후 다른 요청이 이미 삭제했으면 0행 → 성공 응답 막음
+        int updated = commentMapper.updateComment(commentId, request.getContents());
+        if (updated != 1) {
+            throw new ApiException(ErrorCode.COMMENT_NOT_FOUND);
+        }
     }
 
     // 댓글 삭제 (soft). 권한: 댓글 작성자 · 게시글 작성자 · 관리자 (방장 제외)
@@ -113,7 +117,12 @@ public class CommentService {
             throw new ApiException(ErrorCode.NO_COMMENT_PERMISSION);
         }
 
-        commentMapper.softDeleteComment(commentId);
+        // 동시 삭제 방어: 실제로 이 요청이 삭제(1행)했을 때만 comment_count 감소
+        // (양쪽 요청이 조회를 통과해도 softDelete는 하나만 1행 → 중복 감소로 집계 틀어짐 방지)
+        int deleted = commentMapper.softDeleteComment(commentId);
+        if (deleted != 1) {
+            throw new ApiException(ErrorCode.COMMENT_NOT_FOUND);
+        }
         commentMapper.decrementCommentCount(comment.getPostId());
     }
 
