@@ -142,10 +142,12 @@ public class ChatRoomService {
 
     @Transactional(readOnly = true)
     public ChallengeChatRoomResponse getChallengeRoom(Long challengeId, Long userId) {
+        Challenge challenge = findChallenge(challengeId);
         ChatRoom room = getChatRoomByChallengeId(challengeId);
         ChatRoomMember member = chatRoomMemberFinder.findMember(room.getId(), userId);
 
         int memberCount = chatRoomMemberMapper.findActiveByChatRoomId(room.getId()).size();
+        LastMessageResponse lastMessage = findLastMessage(room.getId());
         int unreadCount = chatUnreadCounter.count(member);
 
         log.debug(
@@ -153,7 +155,15 @@ public class ChatRoomService {
             challengeId, room.getId(), userId, memberCount, unreadCount
         );
 
-        return ChallengeChatRoomResponse.of(room, memberCount, unreadCount, member);
+        return ChallengeChatRoomResponse.of(room, challenge.getTitle(), memberCount, lastMessage, unreadCount, member);
+    }
+
+    private Challenge findChallenge(Long challengeId) {
+        Challenge challenge = challengeMapper.findById(challengeId);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        return challenge;
     }
 
     private ChatRoom getChatRoomByChallengeId(Long challengeId) {

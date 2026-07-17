@@ -29,6 +29,7 @@ import com.deundeun.auth.mapper.UserMapper;
 import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.mapper.ChallengeMapper;
+import com.deundeun.chat.domain.ChatMessage;
 import com.deundeun.chat.domain.ChatMessageType;
 import com.deundeun.chat.domain.ChatRoom;
 import com.deundeun.chat.domain.ChatRoomMember;
@@ -183,6 +184,7 @@ class ChatRoomServiceTest {
     void getChallengeRoom_roomNotFound_throwsException() {
         Long challengeId = 100L;
         Long userId = 1L;
+        when(challengeMapper.findById(challengeId)).thenReturn(Challenge.builder().id(challengeId).title("매일 아침 7시 기상").build());
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> chatRoomService.getChallengeRoom(challengeId, userId))
@@ -200,6 +202,7 @@ class ChatRoomServiceTest {
         Long userId = 1L;
         ChatRoom room = ChatRoom.createChallengeRoom(challengeId);
         ReflectionTestUtils.setField(room, "id", 5L);
+        when(challengeMapper.findById(challengeId)).thenReturn(Challenge.builder().id(challengeId).title("매일 아침 7시 기상").build());
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
         when(chatRoomMemberFinder.findMember(5L, userId))
             .thenThrow(new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
@@ -221,16 +224,27 @@ class ChatRoomServiceTest {
         ChatRoomMember member = ChatRoomMember.join(5L, userId);
         ReflectionTestUtils.setField(member, "lastReadMessageId", 20L);
 
+        Long senderId = 4L;
+        ChatMessage lastMessage = ChatMessage.create(5L, senderId, "오늘 인증 완료했습니다!", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(lastMessage, "id", 25L);
+        User sender = User.builder().id(senderId).nickname("민기").build();
+
+        when(challengeMapper.findById(challengeId)).thenReturn(Challenge.builder().id(challengeId).title("매일 아침 7시 기상").build());
         when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
         when(chatRoomMemberFinder.findMember(5L, userId)).thenReturn(member);
         when(chatRoomMemberMapper.findActiveByChatRoomId(5L))
             .thenReturn(List.of(ChatRoomMember.join(5L, userId), ChatRoomMember.join(5L, 2L)));
+        when(chatMessageMapper.findLatestByChatRoomId(5L, 1)).thenReturn(List.of(lastMessage));
+        when(userMapper.findById(senderId)).thenReturn(sender);
         when(chatUnreadCounter.count(member)).thenReturn(3);
 
         ChallengeChatRoomResponse response = chatRoomService.getChallengeRoom(challengeId, userId);
 
         assertThat(response.chatRoomId()).isEqualTo(5L);
+        assertThat(response.challengeTitle()).isEqualTo("매일 아침 7시 기상");
         assertThat(response.memberCount()).isEqualTo(2);
+        assertThat(response.lastMessage().content()).isEqualTo("오늘 인증 완료했습니다!");
+        assertThat(response.lastMessage().senderNickname()).isEqualTo("민기");
         assertThat(response.unreadCount()).isEqualTo(3);
         assertThat(response.lastReadMessageId()).isEqualTo(20L);
     }
