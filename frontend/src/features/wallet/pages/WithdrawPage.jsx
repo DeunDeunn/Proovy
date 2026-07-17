@@ -71,15 +71,25 @@ const WithdrawPage = () => {
   };
 
   const handleSubmit = () => {
-    if (!isValidAmount || !bankName || !accountNumber || !accountHolderName) return;
+    if (applyWithdrawalMutation.isPending || applyWithdrawalMutation.isSuccess) return;
 
-    applyWithdrawalMutation.mutate({
-      sourceType,
-      amount,
-      bankName,
-      accountNumber,
-      accountHolderName,
-    });
+    const trimmedAccountHolderName = accountHolderName.trim();
+    const trimmedAccountNumber = accountNumber.trim();
+
+    if (!isValidAmount || !bankName || !trimmedAccountNumber || !trimmedAccountHolderName) return;
+
+    applyWithdrawalMutation.mutate(
+      {
+        sourceType,
+        amount,
+        bankName,
+        accountNumber: trimmedAccountNumber,
+        accountHolderName: trimmedAccountHolderName,
+      },
+      {
+        onSuccess: () => setAmount(0),
+      }
+    );
   };
 
   if (walletLoading || withdrawableLoading) return <Loading label="출금 정보를 불러오는 중..." />;
@@ -93,11 +103,11 @@ const WithdrawPage = () => {
         <p className="mt-1 text-sm text-gray-500">보유한 캐시를 계좌로 출금할 수 있습니다.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <h2 className="mb-4 font-semibold text-gray-900">출금할 캐시 선택</h2>
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
               <SourceOption
                 label="충전 캐시"
                 withdrawable={withdrawable?.chargedWithdrawableAmount}
@@ -118,7 +128,7 @@ const WithdrawPage = () => {
 
           <Card>
             <h2 className="mb-3 font-semibold text-gray-900">출금 금액</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="number"
                 value={amount}
@@ -157,33 +167,55 @@ const WithdrawPage = () => {
           <Card>
             <h2 className="mb-4 font-semibold text-gray-900">계좌 정보</h2>
             <div className="space-y-3">
-              <select
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none focus:border-primary"
-              >
-                <option value="">은행 선택</option>
-                <option value="국민은행">국민은행</option>
-                <option value="신한은행">신한은행</option>
-                <option value="우리은행">우리은행</option>
-                <option value="하나은행">하나은행</option>
-                <option value="카카오뱅크">카카오뱅크</option>
-                <option value="토스뱅크">토스뱅크</option>
-              </select>
-              <input
-                type="text"
-                placeholder="예금주"
-                value={accountHolderName}
-                onChange={(e) => setAccountHolderName(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-              <input
-                type="text"
-                placeholder="- 없이 입력해주세요"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
-              />
+              <div>
+                <label htmlFor="withdraw-bank-name" className="mb-1 block text-xs text-gray-500">
+                  은행
+                </label>
+                <select
+                  id="withdraw-bank-name"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none focus:border-primary"
+                >
+                  <option value="">은행 선택</option>
+                  <option value="국민은행">국민은행</option>
+                  <option value="신한은행">신한은행</option>
+                  <option value="우리은행">우리은행</option>
+                  <option value="하나은행">하나은행</option>
+                  <option value="카카오뱅크">카카오뱅크</option>
+                  <option value="토스뱅크">토스뱅크</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="withdraw-account-holder-name"
+                  className="mb-1 block text-xs text-gray-500"
+                >
+                  예금주
+                </label>
+                <input
+                  id="withdraw-account-holder-name"
+                  type="text"
+                  placeholder="예금주"
+                  value={accountHolderName}
+                  onChange={(e) => setAccountHolderName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label htmlFor="withdraw-account-number" className="mb-1 block text-xs text-gray-500">
+                  계좌번호
+                </label>
+                <input
+                  id="withdraw-account-number"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="- 없이 입력해주세요"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                />
+              </div>
             </div>
           </Card>
         </div>
@@ -232,9 +264,10 @@ const WithdrawPage = () => {
               disabled={
                 !isValidAmount ||
                 !bankName ||
-                !accountNumber ||
-                !accountHolderName ||
-                applyWithdrawalMutation.isPending
+                !accountNumber.trim() ||
+                !accountHolderName.trim() ||
+                applyWithdrawalMutation.isPending ||
+                applyWithdrawalMutation.isSuccess
               }
               onClick={handleSubmit}
             >

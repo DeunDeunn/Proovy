@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Wallet, Gift, Lock, ChevronRight, Info } from "lucide-react";
 
-import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Loading from "@/components/ui/Loading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -33,7 +32,11 @@ const SummaryCard = ({ icon: Icon, label, amount, badge, highlight }) => (
 
 const WalletPage = () => {
   const { data: wallet, isLoading, error } = useWallet();
-  const { data: transactionHistory } = useTransactions({ page: 0 });
+  const {
+    data: transactionHistory,
+    isLoading: transactionsLoading,
+    error: transactionsError,
+  } = useTransactions({ page: 0 });
 
   if (isLoading) return <Loading label="지갑 정보를 불러오는 중..." />;
   if (error) return <ErrorMessage error={error} />;
@@ -53,11 +56,17 @@ const WalletPage = () => {
           <p className="mt-1 text-sm text-gray-500">보유 중인 총 캐시와 이용 내역을 확인하세요.</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/wallet/charge">
-            <Button variant="primary">충전하기</Button>
+          <Link
+            href="/wallet/charge"
+            className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+          >
+            충전하기
           </Link>
-          <Link href="/wallet/withdraw">
-            <Button variant="outline">출금하기</Button>
+          <Link
+            href="/wallet/withdraw"
+            className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            출금하기
           </Link>
         </div>
       </div>
@@ -123,7 +132,11 @@ const WalletPage = () => {
           </button>
         </div>
 
-        {recentTransactions.length === 0 ? (
+        {transactionsLoading ? (
+          <Loading label="거래 내역을 불러오는 중..." />
+        ) : transactionsError ? (
+          <ErrorMessage error={transactionsError} />
+        ) : recentTransactions.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-500">아직 캐시 이동 내역이 없어요.</p>
         ) : (
           <table className="w-full text-sm">
