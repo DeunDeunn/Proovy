@@ -108,6 +108,9 @@ public enum ErrorCode {
     CHAT_ATTACHMENT_REQUIRED(HttpStatus.BAD_REQUEST, "CH011", "이미지/파일 메시지에는 첨부파일이 필요합니다."),
     CHAT_REFERENCE_REQUIRED(HttpStatus.BAD_REQUEST, "CH012", "인증 글 공유 메시지는 참조 정보가 필요합니다."),
     CHAT_ATTACHMENT_ENDPOINT_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "CH013", "이 엔드포인트는 이미지/파일 메시지만 전송할 수 있습니다."),
+    CHAT_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "CH014", "존재하지 않는 메시지입니다."),
+    CHAT_MESSAGE_NOT_OWNER(HttpStatus.FORBIDDEN, "CH015", "본인이 작성한 메시지만 삭제할 수 있습니다."),
+    CHAT_MESSAGE_ALREADY_DELETED(HttpStatus.BAD_REQUEST, "CH016", "이미 삭제된 메시지입니다."),
 
     //notification
     NOTIFICATION_FORBIDDEN(HttpStatus.FORBIDDEN, "NT001", "해당 알림에 접근할 권한이 없습니다."),
