@@ -2,6 +2,7 @@ package com.deundeun.chat.service;
 
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.chat.domain.ChatRoom;
@@ -26,9 +27,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,6 +45,7 @@ public class ChatRoomService {
     private final ChatRoomMemberMapper chatRoomMemberMapper;
     private final ChallengeMapper challengeMapper;
     private final UserMapper userMapper;
+    private final UserVerificationMapper userVerificationMapper;
 
     private final ChatRoomMemberFinder chatRoomMemberFinder;
     private final ChatUnreadCounter chatUnreadCounter;
@@ -103,6 +107,7 @@ public class ChatRoomService {
 
         Map<Long, String> challengeTitlesById = findChallengeTitles(items);
         Map<Long, User> usersById = findRelevantUsers(items, userId);
+        Set<Long> approvedUserIds = findApprovedUserIds(usersById.keySet());
         Map<Long, Integer> unreadCountsByRoomId = chatUnreadCounter.countBatch(
             items.stream().collect(Collectors.toMap(
                 ChatRoomListItem::chatRoomId,
@@ -112,7 +117,7 @@ public class ChatRoomService {
             .map(item -> ChatRoomSummaryResponse.of(
                 item,
                 challengeTitlesById.get(item.challengeId()),
-                findDirectChatPartner(item, userId, usersById),
+                findDirectChatPartner(item, userId, usersById, approvedUserIds),
                 resolveNickname(usersById, item.lastMessageSenderId()),
                 unreadCountsByRoomId.getOrDefault(item.chatRoomId(), 0)
             ))
@@ -152,13 +157,23 @@ public class ChatRoomService {
             .collect(Collectors.toMap(User::getId, Function.identity()));
     }
 
-    private DirectChatPartnerResponse findDirectChatPartner(ChatRoomListItem item, Long userId, Map<Long, User> usersById) {
+    private Set<Long> findApprovedUserIds(Set<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        return new HashSet<>(userVerificationMapper.findApprovedUserIds(List.copyOf(userIds)));
+    }
+
+    private DirectChatPartnerResponse findDirectChatPartner(ChatRoomListItem item, Long userId,
+                                                              Map<Long, User> usersById, Set<Long> approvedUserIds) {
         if (item.chatRoomType() != ChatRoomType.DIRECT) {
             return null;
         }
 
-        User partner = usersById.get(extractPartnerId(item.directChatKey(), userId));
-        return partner != null ? DirectChatPartnerResponse.of(partner) : null;
+        Long partnerId = extractPartnerId(item.directChatKey(), userId);
+        User partner = usersById.get(partnerId);
+        return partner != null ? DirectChatPartnerResponse.of(partner, approvedUserIds.contains(partnerId)) : null;
     }
 
     private String resolveNickname(Map<Long, User> usersById, Long userId) {

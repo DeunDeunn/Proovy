@@ -7,6 +7,19 @@
         VALUES (#{chatRoomId}, #{senderId}, #{content}, #{messageType}, #{referenceType}, #{referenceId}, #{createdAt})
     </insert>
 
+    <select id="findById" resultType="com.deundeun.chat.domain.ChatMessage">
+        SELECT id, chat_room_id, sender_id, content, message_type, reference_type, reference_id, deleted_at, created_at
+        FROM chat_messages
+        WHERE id = #{id}
+    </select>
+
+    <update id="delete">
+        UPDATE chat_messages
+        SET deleted_at = #{deletedAt}
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+    </update>
+
     <select id="findLatestByChatRoomId" resultType="com.deundeun.chat.domain.ChatMessage">
         SELECT id, chat_room_id, sender_id, content, message_type, reference_type, reference_id, deleted_at, created_at
         FROM chat_messages

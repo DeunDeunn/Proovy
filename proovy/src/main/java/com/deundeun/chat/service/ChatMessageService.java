@@ -2,10 +2,12 @@ package com.deundeun.chat.service;
 
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.mapper.CertificationMapper;
 import com.deundeun.chat.domain.*;
 import com.deundeun.chat.dto.request.ChatMessageSendRequest;
+import com.deundeun.chat.dto.response.ChatMessageDeleteResponse;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.dto.response.SharedCertificationResponse;
@@ -24,9 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -42,6 +42,7 @@ public class ChatMessageService {
     private final ChatAttachmentMapper chatAttachmentMapper;
     private final ChatRoomMemberMapper chatRoomMemberMapper;
     private final UserMapper userMapper;
+    private final UserVerificationMapper userVerificationMapper;
     private final CertificationMapper certificationMapper;
     private final ChatRoomMemberFinder chatRoomMemberFinder;
     private final TransactionalFileUploader fileUploader;
@@ -96,10 +97,11 @@ public class ChatMessageService {
         updateSenderReadCursor(member, message.getId());
 
         User sender = userMapper.findById(senderId);
+        boolean senderBadgeApproved = !userVerificationMapper.findApprovedUserIds(List.of(senderId)).isEmpty();
         log.debug("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
             chatRoomId, senderId, message.getId(), messageType);
 
-        return ChatMessageResponse.of(message, sender, attachments, sharedCertification);
+        return ChatMessageResponse.of(message, sender, attachments, sharedCertification, senderBadgeApproved);
     }
 
     @Transactional(readOnly = true)
@@ -113,10 +115,23 @@ public class ChatMessageService {
         boolean hasNext = fetched.size() > size;
         List<ChatMessage> messages = hasNext ? fetched.subList(0, size) : fetched;
         Long nextCursor = hasNext ? messages.get(messages.size() - 1).getId() : null;
-        log.debug("[Chat] 이전 메시지 조회 완료: chatRoomId={}, userId={}, beforeMessageId={}, size={}, hasNext={}",
-            chatRoomId, userId, beforeMessageId, size, hasNext);
+        log.debug("[Chat] 이전 메시지 조회 완료: chatRoomId={}, userId={}, beforeMessageId={}, size={}, hasNext={}", chatRoomId, userId, beforeMessageId, size, hasNext);
 
         return ChatMessageListResponse.of(assembleResponses(messages), size, hasNext, nextCursor);
+    }
+
+    @Transactional
+    public ChatMessageDeleteResponse delete(Long messageId, Long userId) {
+        ChatMessage message = findMessage(messageId);
+
+        validateOwner(message, userId);
+        chatRoomMemberFinder.validateMember(message.getChatRoomId(), userId);
+
+        message.delete();
+        deleteMessageOrThrow(message);
+        log.info("[Chat] 메시지 삭제 완료: chatRoomId={}, messageId={}, userId={}", message.getChatRoomId(), messageId, userId);
+
+        return ChatMessageDeleteResponse.of(message);
     }
 
     private List<ChatMessageResponse> assembleResponses(List<ChatMessage> messages) {
@@ -125,6 +140,7 @@ public class ChatMessageService {
         }
 
         Map<Long, User> sendersById = findSenders(messages);
+        Set<Long> approvedSenderIds = findApprovedSenderIds(messages);
         Map<Long, List<ChatAttachment>> attachmentsByMessageId = findAttachments(messages);
         Map<Long, SharedCertificationResponse> sharedCertificationsByPostId = findSharedCertifications(messages);
 
@@ -133,9 +149,15 @@ public class ChatMessageService {
                 message,
                 sendersById.get(message.getSenderId()),
                 attachmentsByMessageId.getOrDefault(message.getId(), List.of()),
-                sharedCertificationsByPostId.get(message.getReferenceId())
+                sharedCertificationsByPostId.get(message.getReferenceId()),
+                approvedSenderIds.contains(message.getSenderId())
             ))
             .toList();
+    }
+
+    private ChatMessage findMessage(Long messageId) {
+        return chatMessageMapper.findById(messageId)
+            .orElseThrow(() -> new ApiException(ErrorCode.CHAT_MESSAGE_NOT_FOUND));
     }
 
     private Map<Long, User> findSenders(List<ChatMessage> messages) {
@@ -143,6 +165,12 @@ public class ChatMessageService {
 
         return userMapper.findByIds(senderIds).stream()
             .collect(Collectors.toMap(User::getId, Function.identity()));
+    }
+
+    private Set<Long> findApprovedSenderIds(List<ChatMessage> messages) {
+        List<Long> senderIds = messages.stream().map(ChatMessage::getSenderId).distinct().toList();
+
+        return new HashSet<>(userVerificationMapper.findApprovedUserIds(senderIds));
     }
 
     private Map<Long, List<ChatAttachment>> findAttachments(List<ChatMessage> messages) {
@@ -165,6 +193,19 @@ public class ChatMessageService {
 
         return certificationMapper.findSharedCertifications(postIds).stream()
             .collect(Collectors.toMap(SharedCertificationInfo::certificationId, SharedCertificationResponse::of));
+    }
+
+    private void validateOwner(ChatMessage message, Long userId) {
+        if (!message.getSenderId().equals(userId)) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_NOT_OWNER);
+        }
+    }
+
+    private void deleteMessageOrThrow(ChatMessage message) {
+        int updatedCount = chatMessageMapper.delete(message);
+        if (updatedCount == 0) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_ALREADY_DELETED);
+        }
     }
 
     private void validateMessage(ChatMessageType messageType, String content, ChatReferenceType referenceType,

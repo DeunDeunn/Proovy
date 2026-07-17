@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.mapper.CertificationMapper;
 import com.deundeun.chat.domain.ChatAttachment;
@@ -32,6 +34,7 @@ import com.deundeun.chat.domain.ChatMessageType;
 import com.deundeun.chat.domain.ChatReferenceType;
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.dto.request.ChatMessageSendRequest;
+import com.deundeun.chat.dto.response.ChatMessageDeleteResponse;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.mapper.ChatAttachmentMapper;
@@ -59,6 +62,9 @@ class ChatMessageServiceTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private UserVerificationMapper userVerificationMapper;
 
     @Mock
     private CertificationMapper certificationMapper;
@@ -96,6 +102,24 @@ class ChatMessageServiceTest {
         assertThat(response.attachments()).isEmpty();
         assertThat(member.getLastReadMessageId()).isEqualTo(100L);
         verify(chatRoomMemberMapper).updateLastRead(member);
+    }
+
+    @Test
+    @DisplayName("발신자가 뱃지 승인된 경우 응답에 반영한다")
+    void send_approvedSender_marksBadgeApproved() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatRoomMember member = ChatRoomMember.join(chatRoomId, senderId);
+        ChatMessageSendRequest request = new ChatMessageSendRequest(ChatMessageType.TEXT, "안녕하세요", null, null);
+
+        when(chatRoomMemberFinder.findMember(chatRoomId, senderId)).thenReturn(member);
+        stubMessageInsertAssignsId(100L);
+        when(userMapper.findById(senderId)).thenReturn(null);
+        when(userVerificationMapper.findApprovedUserIds(List.of(senderId))).thenReturn(List.of(senderId));
+
+        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, request, null);
+
+        assertThat(response.senderBadgeApproved()).isTrue();
     }
 
     @Test
@@ -488,6 +512,36 @@ class ChatMessageServiceTest {
     }
 
     @Test
+    @DisplayName("메시지 조회 시 뱃지 승인된 발신자만 senderBadgeApproved를 true로 응답한다")
+    void getMessages_marksBadgeApprovedOnlyForApprovedSenders() {
+        Long chatRoomId = 1L;
+        Long approvedSenderId = 20L;
+        Long unapprovedSenderId = 30L;
+        ChatMessage approvedMessage = ChatMessage.create(chatRoomId, approvedSenderId, "hi", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(approvedMessage, "id", 100L);
+        ChatMessage unapprovedMessage = ChatMessage.create(chatRoomId, unapprovedSenderId, "hi", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(unapprovedMessage, "id", 101L);
+
+        when(chatMessageMapper.findLatestByChatRoomId(chatRoomId, 31))
+            .thenReturn(List.of(unapprovedMessage, approvedMessage));
+        when(userMapper.findByIds(any())).thenReturn(List.of());
+        when(chatAttachmentMapper.findByMessageIds(any())).thenReturn(List.of());
+        when(userVerificationMapper.findApprovedUserIds(any())).thenReturn(List.of(approvedSenderId));
+
+        ChatMessageListResponse response = chatMessageService.getMessages(chatRoomId, 10L, null, 30);
+
+        boolean approvedBadge = response.content().stream()
+            .filter(r -> r.senderId().equals(approvedSenderId))
+            .findFirst().orElseThrow().senderBadgeApproved();
+        boolean unapprovedBadge = response.content().stream()
+            .filter(r -> r.senderId().equals(unapprovedSenderId))
+            .findFirst().orElseThrow().senderBadgeApproved();
+
+        assertThat(approvedBadge).isTrue();
+        assertThat(unapprovedBadge).isFalse();
+    }
+
+    @Test
     @DisplayName("인증글 공유 메시지는 공유 인증글 정보를 조회한다")
     void getMessages_certificationShareMessage_looksUpSharedCertification() {
         Long chatRoomId = 1L;
@@ -508,6 +562,86 @@ class ChatMessageServiceTest {
 
         assertThat(response.content().get(0).sharedCertification()).isNotNull();
         assertThat(response.content().get(0).sharedCertification().challengeTitle()).isEqualTo("매일 아침 7시 기상");
+    }
+
+    @Test
+    @DisplayName("메시지를 삭제하고 삭제 응답을 반환한다")
+    void delete_success_deletesAndReturnsResponse() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatMessage message = messageWithId(100L);
+
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+        when(chatMessageMapper.delete(message)).thenReturn(1);
+
+        ChatMessageDeleteResponse response = chatMessageService.delete(100L, senderId);
+
+        assertThat(response.messageId()).isEqualTo(100L);
+        assertThat(response.chatRoomId()).isEqualTo(chatRoomId);
+        assertThat(response.deletedAt()).isNotNull();
+        assertThat(message.isDeleted()).isTrue();
+        verify(chatRoomMemberFinder).validateMember(chatRoomId, senderId);
+        verify(chatMessageMapper).delete(message);
+    }
+
+    @Test
+    @DisplayName("조회 이후 동시 요청으로 이미 삭제된 경우 거부한다")
+    void delete_concurrentlyDeletedBetweenFetchAndUpdate_throws() {
+        Long senderId = 20L;
+        ChatMessage message = messageWithId(100L);
+
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+        when(chatMessageMapper.delete(message)).thenReturn(0);
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, senderId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_ALREADY_DELETED);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 메시지를 삭제하려 하면 거부한다")
+    void delete_messageNotFound_throws() {
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, 20L))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_NOT_FOUND);
+
+        verify(chatMessageMapper, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("본인이 작성하지 않은 메시지를 삭제하려 하면 거부한다")
+    void delete_notOwner_throws() {
+        ChatMessage message = messageWithId(100L);
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, 99L))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_NOT_OWNER);
+
+        verify(chatRoomMemberFinder, never()).validateMember(any(), any());
+        verify(chatMessageMapper, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("이미 삭제된 메시지를 다시 삭제하려 하면 거부한다")
+    void delete_alreadyDeleted_throws() {
+        Long senderId = 20L;
+        ChatMessage message = messageWithId(100L);
+        message.delete();
+
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, senderId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_ALREADY_DELETED);
+
+        verify(chatMessageMapper, never()).delete(any());
     }
 
     private static ChatMessage messageWithId(long id) {

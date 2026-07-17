@@ -26,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.chat.domain.ChatMessageType;
@@ -59,6 +60,9 @@ class ChatRoomServiceTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private UserVerificationMapper userVerificationMapper;
 
     @Mock
     private ChatUnreadCounter chatUnreadCounter;
@@ -269,12 +273,14 @@ class ChatRoomServiceTest {
         when(chatRoomMemberMapper.findRoomsByUserId(userId, 0, 20)).thenReturn(List.of(item));
         when(chatRoomMemberMapper.countRoomsByUserId(userId)).thenReturn(1);
         when(userMapper.findByIds(List.of(partnerId))).thenReturn(List.of(partner));
+        when(userVerificationMapper.findApprovedUserIds(List.of(partnerId))).thenReturn(List.of(partnerId));
         when(chatUnreadCounter.countBatch(any())).thenReturn(Map.of());
 
         ChatRoomListResponse response = chatRoomService.getMyRooms(userId, 0, 20);
 
         ChatRoomSummaryResponse summary = response.content().get(0);
         assertThat(summary.directChatPartner().nickname()).isEqualTo("지훈");
+        assertThat(summary.directChatPartner().badgeApproved()).isTrue();
         assertThat(summary.lastMessage()).isNull();
         assertThat(summary.unreadCount()).isZero();
         verify(challengeMapper, never()).findByIds(any());

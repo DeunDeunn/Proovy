@@ -20,6 +20,8 @@ public interface UserVerificationMapper {
 
     UserVerification findById(@Param("id") Long id);
 
+    List<Long> findApprovedUserIds(@Param("userIds") List<Long> userIds);
+
     long countSuccessfulChallenges(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
     List<UserVerificationListItem> findByStatus(@Param("status") UserVerificationStatus status,
