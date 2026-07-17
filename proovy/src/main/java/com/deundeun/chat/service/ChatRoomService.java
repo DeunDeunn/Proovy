@@ -19,7 +19,6 @@ import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,13 +75,12 @@ public class ChatRoomService {
     private DirectChatRoomResponse createDirectRoom(String directChatKey, Long userId1, Long userId2,
                                                       DirectChatPartnerResponse partner) {
         ChatRoom room = ChatRoom.createDirectRoom(directChatKey);
+        chatRoomMapper.insert(room);
 
-        try {
-            chatRoomMapper.insert(room);
-        } catch (DuplicateKeyException e) {
+        if (room.getId() == null) {
             log.debug("[Chat] 동시 요청으로 인한 1:1 채팅방 중복 생성 시도, 기존 방 재조회: directChatKey={}", directChatKey);
             ChatRoom existingRoom = chatRoomMapper.findByDirectChatKey(directChatKey)
-                .orElseThrow(() -> e);
+                .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
             return buildExistingRoomResponse(existingRoom, userId1, partner);
         }

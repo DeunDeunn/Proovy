@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,7 +21,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.deundeun.auth.domain.User;
@@ -122,6 +121,11 @@ class ChatRoomServiceTest {
         User partnerUser = User.builder().id(userId2).nickname("지훈").profileImageUrl("url").build();
         when(chatRoomMapper.findByDirectChatKey("1:2")).thenReturn(Optional.empty());
         when(userMapper.findById(userId2)).thenReturn(partnerUser);
+        doAnswer(invocation -> {
+            ChatRoom saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 10L);
+            return null;
+        }).when(chatRoomMapper).insert(any());
 
         DirectChatRoomResponse response = chatRoomService.createOrGetDirectRoom(userId1, userId2);
 
@@ -155,8 +159,8 @@ class ChatRoomServiceTest {
     }
 
     @Test
-    @DisplayName("동시 생성으로 인한 중복 키 발생 시 기존 방을 재조회한다")
-    void createOrGetDirectRoom_duplicateKeyOnInsert_fallsBackToExistingRoom() {
+    @DisplayName("동시 생성으로 인한 중복 삽입 시(ON CONFLICT DO NOTHING) 기존 방을 재조회한다")
+    void createOrGetDirectRoom_concurrentInsertConflict_fallsBackToExistingRoom() {
         Long userId1 = 1L;
         Long userId2 = 2L;
         ChatRoom existingRoom = ChatRoom.createDirectRoom("1:2");
@@ -167,8 +171,7 @@ class ChatRoomServiceTest {
         when(chatRoomMapper.findByDirectChatKey("1:2"))
             .thenReturn(Optional.empty())
             .thenReturn(Optional.of(existingRoom));
-        doThrow(new DuplicateKeyException("duplicate direct_chat_key"))
-            .when(chatRoomMapper).insert(any(ChatRoom.class));
+        // insert가 스텁 없이 호출되면 room.getId()는 null로 남음 — ON CONFLICT DO NOTHING으로 실제 삽입이 스킵된 상황을 재현
         when(userMapper.findById(userId2)).thenReturn(partnerUser);
         when(chatRoomMemberFinder.findMember(existingRoom.getId(), userId1)).thenReturn(member);
 
