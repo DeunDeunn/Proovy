@@ -6,6 +6,7 @@ import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.mapper.CertificationMapper;
 import com.deundeun.chat.domain.*;
 import com.deundeun.chat.dto.request.ChatMessageSendRequest;
+import com.deundeun.chat.dto.response.ChatMessageDeleteResponse;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.dto.response.SharedCertificationResponse;
@@ -119,6 +120,21 @@ public class ChatMessageService {
         return ChatMessageListResponse.of(assembleResponses(messages), size, hasNext, nextCursor);
     }
 
+    @Transactional
+    public ChatMessageDeleteResponse delete(Long messageId, Long userId) {
+        ChatMessage message = findMessage(messageId);
+
+        validateOwner(message, userId);
+        chatRoomMemberFinder.validateMember(message.getChatRoomId(), userId);
+
+        message.delete();
+        chatMessageMapper.delete(message);
+        log.info("[Chat] 메시지 삭제 완료: chatRoomId={}, messageId={}, userId={}",
+            message.getChatRoomId(), messageId, userId);
+
+        return ChatMessageDeleteResponse.of(message);
+    }
+
     private List<ChatMessageResponse> assembleResponses(List<ChatMessage> messages) {
         if (messages.isEmpty()) {
             return List.of();
@@ -136,6 +152,11 @@ public class ChatMessageService {
                 sharedCertificationsByPostId.get(message.getReferenceId())
             ))
             .toList();
+    }
+
+    private ChatMessage findMessage(Long messageId) {
+        return chatMessageMapper.findById(messageId)
+            .orElseThrow(() -> new ApiException(ErrorCode.CHAT_MESSAGE_NOT_FOUND));
     }
 
     private Map<Long, User> findSenders(List<ChatMessage> messages) {
@@ -165,6 +186,12 @@ public class ChatMessageService {
 
         return certificationMapper.findSharedCertifications(postIds).stream()
             .collect(Collectors.toMap(SharedCertificationInfo::certificationId, SharedCertificationResponse::of));
+    }
+
+    private void validateOwner(ChatMessage message, Long userId) {
+        if (!message.getSenderId().equals(userId)) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_NOT_OWNER);
+        }
     }
 
     private void validateMessage(ChatMessageType messageType, String content, ChatReferenceType referenceType,

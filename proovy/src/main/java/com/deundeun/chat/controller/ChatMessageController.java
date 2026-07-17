@@ -1,6 +1,7 @@
 package com.deundeun.chat.controller;
 
 import com.deundeun.chat.domain.ChatMessageType;
+import com.deundeun.chat.dto.response.ChatMessageDeleteResponse;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.service.ChatMessageService;
@@ -46,6 +47,15 @@ public class ChatMessageController {
         Long senderId = CurrentUser.getUserId();
         ChatMessageResponse response = chatMessageService.sendAttachment(chatRoomId, senderId, messageType, content, file);
         chatMessageBroadcaster.broadcast(chatRoomId, response);
+
+        return ApiResponse.success(response);
+    }
+
+    @DeleteMapping("/messages/{messageId}")
+    public ApiResponse<ChatMessageDeleteResponse> deleteMessage(@PathVariable Long messageId) {
+        Long userId = CurrentUser.getUserId();
+        ChatMessageDeleteResponse response = chatMessageService.delete(messageId, userId);
+        chatMessageBroadcaster.broadcast(response);
 
         return ApiResponse.success(response);
     }

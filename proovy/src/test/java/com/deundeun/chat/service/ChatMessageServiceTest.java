@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ import com.deundeun.chat.domain.ChatMessageType;
 import com.deundeun.chat.domain.ChatReferenceType;
 import com.deundeun.chat.domain.ChatRoomMember;
 import com.deundeun.chat.dto.request.ChatMessageSendRequest;
+import com.deundeun.chat.dto.response.ChatMessageDeleteResponse;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
 import com.deundeun.chat.mapper.ChatAttachmentMapper;
@@ -508,6 +510,70 @@ class ChatMessageServiceTest {
 
         assertThat(response.content().get(0).sharedCertification()).isNotNull();
         assertThat(response.content().get(0).sharedCertification().challengeTitle()).isEqualTo("매일 아침 7시 기상");
+    }
+
+    @Test
+    @DisplayName("메시지를 삭제하고 삭제 응답을 반환한다")
+    void delete_success_deletesAndReturnsResponse() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatMessage message = messageWithId(100L);
+
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+
+        ChatMessageDeleteResponse response = chatMessageService.delete(100L, senderId);
+
+        assertThat(response.messageId()).isEqualTo(100L);
+        assertThat(response.chatRoomId()).isEqualTo(chatRoomId);
+        assertThat(response.deletedAt()).isNotNull();
+        assertThat(message.isDeleted()).isTrue();
+        verify(chatRoomMemberFinder).validateMember(chatRoomId, senderId);
+        verify(chatMessageMapper).delete(message);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 메시지를 삭제하려 하면 거부한다")
+    void delete_messageNotFound_throws() {
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, 20L))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_NOT_FOUND);
+
+        verify(chatMessageMapper, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("본인이 작성하지 않은 메시지를 삭제하려 하면 거부한다")
+    void delete_notOwner_throws() {
+        ChatMessage message = messageWithId(100L);
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, 99L))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_NOT_OWNER);
+
+        verify(chatRoomMemberFinder, never()).validateMember(any(), any());
+        verify(chatMessageMapper, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("이미 삭제된 메시지를 다시 삭제하려 하면 거부한다")
+    void delete_alreadyDeleted_throws() {
+        Long senderId = 20L;
+        ChatMessage message = messageWithId(100L);
+        message.delete();
+
+        when(chatMessageMapper.findById(100L)).thenReturn(Optional.of(message));
+
+        assertThatThrownBy(() -> chatMessageService.delete(100L, senderId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_MESSAGE_ALREADY_DELETED);
+
+        verify(chatMessageMapper, never()).delete(any());
     }
 
     private static ChatMessage messageWithId(long id) {
