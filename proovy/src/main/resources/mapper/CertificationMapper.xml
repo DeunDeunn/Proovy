@@ -139,19 +139,71 @@
           AND certification_status = 'PENDING'
     </update>
 
-    <!-- 특정 챌린지의 검수 대기(PENDING) 목록 (오래된 것부터) -->
+    <!-- 자정 자동 승인 대상: 삭제 안 된 PENDING 글 전체 (글→참가자→챌린지 JOIN으로 방장까지) -->
+    <select id="findAllPendingPostsForAutoApproval" resultType="PendingPostForAutoApproval">
+        SELECT p.id            AS post_id,
+               p.user_id       AS author_id,
+               cp.challenge_id AS challenge_id,
+               c.host_id       AS host_id
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
+        WHERE p.certification_status = 'PENDING'
+          AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 자동 승인: 조회해 둔 id 목록만 일괄 APPROVED/AUTO -->
+    <!-- 상태 조건: 동시 요청 방어 — 그 사이 방장이 처리한 글은 건드리지 않음 -->
+    <update id="approvePostsAuto">
+        UPDATE certification_posts
+        SET certification_status = 'APPROVED',
+            approval_type = 'AUTO'
+        WHERE id IN
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+          AND certification_status = 'PENDING'
+    </update>
+
+    <!-- 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용) -->
+    <!-- COUNT(DISTINCT 날짜) = '승인 인증한 날 수'. 한번 승인된 실적은 글이 삭제돼도 인정(deleted_at 조건 없음) -->
+    <select id="countApprovedDaysByParticipantIds" resultType="ParticipantSuccessCount">
+        SELECT challenge_participant_id            AS participant_id,
+               COUNT(DISTINCT (created_at::date))  AS success_count
+        FROM certification_posts
+        WHERE challenge_participant_id IN
+        <foreach collection="participantIds" item="participantId" open="(" separator="," close=")">
+            #{participantId}
+        </foreach>
+          AND certification_status = 'APPROVED'
+        GROUP BY challenge_participant_id
+    </select>
+
+    <!-- 특정 챌린지의 검수 대기(PENDING) 목록 (커서 무한스크롤, 최신순) -->
     <select id="findPendingCertifications" resultType="PendingCertificationResponse">
         SELECT p.id                      AS post_id,
                p.user_id                 AS author_id,
+               u.nickname                AS author_nickname,
+               cp.challenge_id           AS challenge_id,
                p.certification_image_url AS thumbnail_url,
                p.contents,
+               p.like_count,
+               p.comment_count,
                p.created_at
         FROM certification_posts p
         JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
-        WHERE cp.challenge_id = #{challengeId}
-          AND p.certification_status = 'PENDING'
-          AND p.deleted_at IS NULL
-        ORDER BY p.created_at ASC
+        JOIN users u                   ON u.id = p.user_id
+        <where>
+            cp.challenge_id = #{challengeId}
+            AND p.certification_status = 'PENDING'
+            AND p.deleted_at IS NULL
+            <!-- 커서 페이징(최신순) -->
+            <if test="cursor != null">
+                AND p.id &lt; #{cursor}
+            </if>
+        </where>
+        ORDER BY p.id DESC
+        LIMIT #{size}
     </select>
 
     <!-- 글 수정: 본문·대표이미지 갱신 + PENDING 회귀 + 반려/승인 흔적 초기화 -->

@@ -130,6 +130,20 @@ public enum ErrorCode {
     // 인기순 커서 부분 입력(cursor/cursorLike 중 하나만) 거부 — 상세는 CertificationService.validatePopularCursor 참고
     INVALID_POPULAR_CURSOR(HttpStatus.BAD_REQUEST, "CF013", "잘못된 페이지 요청입니다."),
 
+    //신고
+    REPORT_TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "CF014", "신고 대상을 찾을 수 없습니다."),
+    ALREADY_REPORTED(HttpStatus.CONFLICT, "CF015", "이미 신고한 대상입니다."),
+    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "CF016", "신고 내역을 찾을 수 없습니다."),
+    ALREADY_PROCESSED_REPORT(HttpStatus.CONFLICT, "CF017", "이미 처리(완료/기각)된 신고입니다."),
+
+    //댓글
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CF018", "댓글을 찾을 수 없습니다."),
+    CANNOT_COMMENT_UNAPPROVED(HttpStatus.CONFLICT, "CF019", "승인된 인증글에만 댓글을 작성할 수 있습니다."),
+    // 대댓글(parent_comment_id != null)에 다시 대댓글을 다는 경우 — 2단계까지만 허용
+    COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "CF020", "대댓글에는 다시 댓글을 달 수 없습니다."),
+    COMMENT_CONTENTS_REQUIRED(HttpStatus.BAD_REQUEST, "CF021", "댓글 내용은 필수 입력사항입니다."),
+    NO_COMMENT_PERMISSION(HttpStatus.FORBIDDEN, "CF022", "댓글에 대한 권한이 없습니다."),
+
     //파일 업로드
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "F001", "업로드할 파일이 비어 있습니다."),
     FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "F002", "파일 용량이 허용된 크기를 초과했습니다."),

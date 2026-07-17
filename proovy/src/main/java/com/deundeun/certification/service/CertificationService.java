@@ -8,6 +8,7 @@ import com.deundeun.certification.dto.FeedItemResponse;
 import com.deundeun.certification.dto.FeedQuery;
 import com.deundeun.certification.dto.LikeToggleResponse;
 import com.deundeun.certification.dto.ParticipantForCertification;
+import com.deundeun.certification.dto.ParticipantSuccessCount;
 import com.deundeun.certification.dto.PendingCertificationResponse;
 import com.deundeun.certification.dto.PostReviewContext;
 import com.deundeun.certification.dto.RejectCertificationPostRequest;
@@ -19,6 +20,8 @@ import com.deundeun.certification.enums.FeedSort;
 import com.deundeun.certification.mapper.CertificationMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.global.file.FileCategory;
+import com.deundeun.global.file.TransactionalFileUploader;
 import com.deundeun.notification.event.VerificationApprovedEvent;
 import com.deundeun.notification.event.VerificationRejectedEvent;
 import com.deundeun.notification.event.VerificationSubmittedEvent;
@@ -26,9 +29,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 인증글 도메인의 규칙·판단 담당(Service).
@@ -41,6 +48,7 @@ public class CertificationService {
 
     private final CertificationMapper certificationMapper;
     private final ApplicationEventPublisher eventPublisher;   // 알림 이벤트
+    private final TransactionalFileUploader transactionalFileUploader;   // S3 업로드 + 롤백 시 자동삭제
     /*인증글 등록
     // TODO: Challenge 테이블을 셀렉트 하여, 상태와 인증 게시 가능 시간을 가져와 확인 (셀렉트)
     //  CertificationMapper에 Challenge를 셀렉트 하는 쿼리를 작성한 뒤, 서비스단에서 호출.
@@ -50,14 +58,15 @@ public class CertificationService {
     //  결과가 있으면 작성 가능. 없으면 작성할 수 없음.
     //*/
     @Transactional
-    public Long createCertificationPost(Long challengeId, Long userId, CreateCertificationPostRequest request){
+    public Long createCertificationPost(Long challengeId, Long userId, CreateCertificationPostRequest request,
+                                        MultipartFile thumbnail, List<MultipartFile> images){
 
-        // 대표 이미지 필수
-        if (request.getThumbnailImage() == null || request.getThumbnailImage().isBlank()) {
+        // 대표 이미지 필수 (파일 업로드 전에 먼저 걸러 S3 낭비 방지)
+        if (thumbnail == null || thumbnail.isEmpty()) {
             throw new ApiException(ErrorCode.THUMBNAIL_REQUIRED);
         }
         // 추가 이미지 최대 3장
-        if (request.getImageList() != null && request.getImageList().size() > 3) {
+        if (images != null && images.size() > 3) {
             throw new ApiException(ErrorCode.TOO_MANY_IMAGES);
         }
 
@@ -88,19 +97,25 @@ public class CertificationService {
             throw new ApiException(ErrorCode.ALREADY_CERTIFIED_TODAY);
         }
 
+        // 대표 이미지 S3 업로드 (트랜잭션 롤백 시 자동 삭제 예약됨)
+        String thumbnailUrl = transactionalFileUploader.upload(thumbnail, FileCategory.CERTIFICATION);
+        // 추가 이미지 업로드 (없으면 빈 리스트). uploadAll은 하나라도 실패하면 전부 정리
+        List<String> imageUrls = (images == null || images.isEmpty())
+                ? List.of()
+                : transactionalFileUploader.uploadAll(images, FileCategory.CERTIFICATION);
+
         CreateCertificationPostSqlParam param = new CreateCertificationPostSqlParam(
                 null,
                 userId,
                 participant.getId(),
                 request.getContents(),
-                request.getThumbnailImage()
+                thumbnailUrl
         );
         certificationMapper.createCertificationPost(param);
 
         // 추가 이미지가 있으면 저장 (없으면 건너뜀 )
-        List<String> imageList = request.getImageList();
-        if (imageList != null && !imageList.isEmpty()) {
-            certificationMapper.insertPostImages(param.getId(), imageList);
+        if (!imageUrls.isEmpty()) {
+            certificationMapper.insertPostImages(param.getId(), imageUrls);
         }
 
         // 방장에게 인증 게시글 검수 알림
@@ -126,6 +141,18 @@ public class CertificationService {
         detail.setImageUrls(imageUrls);
 
         return detail;
+    }
+
+    /**
+     * 신고 등 다른 서비스에서 재사용: 이 글이 뷰어에게 읽기 가능한지 검사.
+     * 읽을 수 없으면(없거나 권한 없음) POST_NOT_FOUND로 존재를 숨긴다.
+     */
+    public void assertPostReadable(Long postId, Long viewerId) {
+        CertificationPostDetailResponse detail = certificationMapper.findPostDetail(postId);
+        if (detail == null) {
+            throw new ApiException(ErrorCode.POST_NOT_FOUND);
+        }
+        assertReadable(postId, viewerId, detail);
     }
 
     /**
@@ -268,8 +295,9 @@ public class CertificationService {
         // TODO: 반려글 24시간 후 자동삭제 (스케줄러 — 별도)
     }
 
-    // 검수 대기 목록 조회 (그 챌린지 방장 또는 관리자만)
-    public List<PendingCertificationResponse> getPendingCertifications(Long challengeId, Long userId) {
+    // 검수 대기 목록 조회 (그 챌린지 방장 또는 관리자만, 커서 무한스크롤·최신순)
+    public List<PendingCertificationResponse> getPendingCertifications(Long challengeId, Long userId,
+                                                                       Long cursor, Integer size) {
         ChallengeForCertification challenge = certificationMapper.findChallengeById(challengeId);
         if (challenge == null) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
@@ -280,28 +308,29 @@ public class CertificationService {
         if (!isHost && !isAdmin) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
-        return certificationMapper.findPendingCertifications(challengeId);
+        return certificationMapper.findPendingCertifications(challengeId, cursor, clampSize(size));
     }
 
     // 인증글 수정 (수정하면 PENDING 회귀)
     @Transactional
-    public void updateCertificationPost(Long postId, Long userId, UpdateCertificationPostRequest request) {
-        // 대표 이미지 필수 + 최대 3장
-        if (request.getThumbnailImage() == null || request.getThumbnailImage().isBlank()) {
+    public void updateCertificationPost(Long postId, Long userId, UpdateCertificationPostRequest request,
+                                        MultipartFile thumbnail, List<MultipartFile> images) {
+        // 대표 이미지 필수 + 최대 3장 (업로드 전에 먼저 걸러냄)
+        if (thumbnail == null || thumbnail.isEmpty()) {
             throw new ApiException(ErrorCode.THUMBNAIL_REQUIRED);
         }
-        if (request.getImageList() != null && request.getImageList().size() > 3) {
+        if (images != null && images.size() > 3) {
             throw new ApiException(ErrorCode.TOO_MANY_IMAGES);
         }
 
-        Long authorId = certificationMapper.findPostAuthorId(postId);
-        if (authorId == null) {
+        // 글 조회(작성자 확인 + 옛 썸네일 URL 확보). 삭제글은 findPostDetail이 제외 → null이면 없음
+        CertificationPostDetailResponse detail = certificationMapper.findPostDetail(postId);
+        if (detail == null) {
             throw new ApiException(ErrorCode.POST_NOT_FOUND);
         }
-        if (!authorId.equals(userId)) {
+        if (!detail.getAuthorId().equals(userId)) {
             throw new ApiException(ErrorCode.FORBIDDEN);   // 작성자 본인만 수정 가능
         }
-
 
         // 수정도 인증 등록 가능 시간대 안에서만 가능
         //코드래빗 피드백
@@ -313,14 +342,22 @@ public class CertificationService {
         }
         validateCertTimeRange(challenge);
 
-        // 본문·대표이미지 수정 + PENDING 회귀
-        certificationMapper.updatePost(postId, request.getContents(), request.getThumbnailImage());
+        // 새 대표이미지 업로드: 커밋되면 옛 썸네일 삭제, 롤백되면 방금 올린 새 파일 삭제
+        String thumbnailUrl = transactionalFileUploader.uploadReplacing(
+                thumbnail, FileCategory.CERTIFICATION, detail.getThumbnailUrl());
+        // 새 추가이미지 업로드(롤백 시 자동삭제).
+        // ※ 옛 추가이미지 S3 파일은 지금은 정리하지 않음(MVP) — 고아 파일은 추후 정합성 배치로 정리.
+        List<String> imageUrls = (images == null || images.isEmpty())
+                ? List.of()
+                : transactionalFileUploader.uploadAll(images, FileCategory.CERTIFICATION);
 
-        // 추가 이미지 기존 삭제 → 받은 최종 목록 재삽입
+        // 본문·대표이미지 수정 + PENDING 회귀
+        certificationMapper.updatePost(postId, request.getContents(), thumbnailUrl);
+
+        // 추가 이미지 기존 삭제 → 새 목록 재삽입 (DB만; 옛 S3 파일은 위 주석대로 미정리)
         certificationMapper.deletePostImages(postId);
-        List<String> imageList = request.getImageList();
-        if (imageList != null && !imageList.isEmpty()) {
-            certificationMapper.insertPostImages(postId, imageList);
+        if (!imageUrls.isEmpty()) {
+            certificationMapper.insertPostImages(postId, imageUrls);
         }
 
     }
@@ -432,5 +469,25 @@ public class CertificationService {
         q.setCursor(cursor);
         q.setSize(clampSize(size));
         return certificationMapper.findFeed(q);
+    }
+
+    // [챌린지 도메인 연동 지점] 참가자별 APPROVED 인증 일수 제공.
+    // 성공/실패 판정(성공률 비교)은 챌린지 도메인 관할 — 여기서는 일수만 센다.
+    // 요청한 participantId 전부를 순서대로 응답하고, 인증이 없으면 successCount=0.
+    public List<ParticipantSuccessCount> getSuccessCounts(List<Long> participantIds) {
+        if (participantIds == null || participantIds.isEmpty()) {
+            return List.of();   // 빈 IN () 절은 SQL 오류라 쿼리 전에 차단
+        }
+        Map<Long, Integer> counted = certificationMapper.countApprovedDaysByParticipantIds(participantIds).stream()
+                .collect(Collectors.toMap(ParticipantSuccessCount::getParticipantId,
+                                          ParticipantSuccessCount::getSuccessCount));
+        List<ParticipantSuccessCount> result = new ArrayList<>(participantIds.size());
+        for (Long participantId : participantIds) {
+            ParticipantSuccessCount item = new ParticipantSuccessCount();
+            item.setParticipantId(participantId);
+            item.setSuccessCount(counted.getOrDefault(participantId, 0));   // 집계에 없으면 0
+            result.add(item);
+        }
+        return result;
     }
 }

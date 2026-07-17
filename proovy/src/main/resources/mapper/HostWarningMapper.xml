@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deundeun.certification.mapper.HostWarningMapper">
+
+    <!-- 방장 경고 1건 적립 (자동 승인 발생 챌린지당 1건) -->
+    <insert id="insertWarning">
+        INSERT INTO user_warnings (user_id, reason, challenge_id, status)
+        VALUES (#{hostId}, 'AUTO_APPROVAL', #{challengeId}, 'ACTIVE')
+    </insert>
+
+    <!-- 유효(ACTIVE) 경고 수 -->
+    <select id="countActiveWarnings" resultType="int">
+        SELECT COUNT(*)
+        FROM user_warnings
+        WHERE user_id = #{userId}
+          AND status = 'ACTIVE'
+    </select>
+
+    <!-- 우수회원 여부: 최신 인증 신청 건이 APPROVED인지 (auth 도메인 판정 방식과 동일) -->
+    <select id="isExcellentMember" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM (
+                SELECT status
+                FROM user_verifications
+                WHERE user_id = #{userId}
+                ORDER BY applied_at DESC, id DESC
+                LIMIT 1
+            ) latest
+            WHERE latest.status = 'APPROVED'
+        )
+    </select>
+
+    <!-- 강등 ①: APPROVED 인증 회수 -->
+    <update id="revokeVerification">
+        UPDATE user_verifications
+        SET status = 'REVOKED'
+        WHERE user_id = #{userId}
+          AND status = 'APPROVED'
+    </update>
+
+    <!-- 강등 ②: 강등 시점 기록 -->
+    <update id="setDemotedAt">
+        UPDATE users
+        SET demoted_at = now()
+        WHERE id = #{userId}
+    </update>
+
+    <!-- 일반회원 페널티: 개설 금지 종료 시점 설정 -->
+    <update id="setPenaltyDate">
+        UPDATE users
+        SET penalted_at = #{until}
+        WHERE id = #{userId}
+    </update>
+
+    <!-- 페널티 적용에 쓴 경고 소진 -->
+    <update id="resolveActiveWarnings">
+        UPDATE user_warnings
+        SET status = 'RESOLVED'
+        WHERE user_id = #{userId}
+          AND status = 'ACTIVE'
+    </update>
+
+</mapper>
