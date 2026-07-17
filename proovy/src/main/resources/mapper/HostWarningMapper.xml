@@ -33,12 +33,18 @@
         )
     </select>
 
-    <!-- 강등 ①: APPROVED 인증 회수 -->
+    <!-- 강등 ①: 최신 APPROVED 인증 1건만 회수 (과거 이력 보존, isExcellentMember 판정과 대상 일치) -->
     <update id="revokeVerification">
         UPDATE user_verifications
         SET status = 'REVOKED'
-        WHERE user_id = #{userId}
-          AND status = 'APPROVED'
+        WHERE id = (
+            SELECT id
+            FROM user_verifications
+            WHERE user_id = #{userId}
+              AND status = 'APPROVED'
+            ORDER BY applied_at DESC, id DESC
+            LIMIT 1
+        )
     </update>
 
     <!-- 강등 ②: 강등 시점 기록 -->
