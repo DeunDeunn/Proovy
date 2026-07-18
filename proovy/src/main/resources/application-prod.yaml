@@ -1,0 +1,48 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: 6379
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            client-authentication-method: ${KAKAO_AUTH_METHOD}
+            authorization-grant-type: ${KAKAO_GRANT_TYPE}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+app:
+  frontend-url: ${FRONTEND_URL}
+
+cookie:
+  secure: ${COOKIE_SECURE}
+
+naverpay:
+  client-id: ${NAVERPAY_CLIENT_ID}
+  client-secret: ${NAVERPAY_CLIENT_SECRET}
+  chain-id: ${NAVERPAY_CHAIN_ID}
+  shop-id: ${NAVERPAY_SHOP_ID}
+  return-url: ${NAVERPAY_RETURN_URL}
+
+aws:
+  credentials:
+    access-key: ${AWS_ACCESS_KEY}
+    secret-key: ${AWS_SECRET_KEY}
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+  model: ${GEMINI_MODEL}
