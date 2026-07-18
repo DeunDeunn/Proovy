@@ -2,16 +2,17 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 
-import { getPublicFeed } from "./api";
-import { feedKeys } from "./queryKeys";
+import { getChallengeFeed } from "./api";
 
 const PAGE_SIZE = 20;
 
-export const usePublicFeed = (filter) =>
+export const useChallengeFeed = (challengeId, filter) =>
   useInfiniteQuery({
-    queryKey: feedKeys.public({ filter, sort: "latest" }),
-    queryFn: ({ pageParam }) => getPublicFeed({ cursor: pageParam, filter, size: PAGE_SIZE }),
+    queryKey: ["challenge-feed", challengeId, { filter, sort: "latest" }],
+    queryFn: ({ pageParam }) =>
+      getChallengeFeed(challengeId, { cursor: pageParam, filter, size: PAGE_SIZE }),
     initialPageParam: null,
+    enabled: !!challengeId,
     getNextPageParam: (lastPage) => {
       if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
       return lastPage[lastPage.length - 1]?.postId;

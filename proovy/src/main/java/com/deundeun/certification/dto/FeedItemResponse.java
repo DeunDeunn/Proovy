@@ -9,6 +9,8 @@ public class FeedItemResponse {
     private Long postId;
     private Long authorId;
     private String authorNickname;
+    private String authorProfileImageUrl;
+    private boolean authorBadgeApproved;
     private Long challengeId;
     private String thumbnailUrl;     // 대표인증이미지 URL
     private String contents;
