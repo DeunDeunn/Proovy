@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN demoted_at TIMESTAMP;
