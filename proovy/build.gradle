@@ -8,6 +8,10 @@ group = 'com.deundeun'
 version = '0.0.1-SNAPSHOT'
 description = 'proovy'
 
+base {
+    archivesName = 'proovy-app'
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -61,6 +65,10 @@ dependencyManagement {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
         mavenBom "software.amazon.awssdk:bom:2.29.52"
     }
+}
+
+bootJar {
+    archiveFileName = 'proovy-app.jar'
 }
 
 tasks.named('test') {
