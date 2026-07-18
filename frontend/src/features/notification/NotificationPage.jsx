@@ -26,6 +26,7 @@ const NotificationPage = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const sentinelRef = useRef(null);
+  const loadMoreTimerRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setInitialLoading(false), INITIAL_LOAD_DELAY);
@@ -45,8 +46,10 @@ const NotificationPage = () => {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleFilterChange = (group) => {
+    clearTimeout(loadMoreTimerRef.current);
     setActiveGroup(group);
     setVisibleCount(PAGE_SIZE);
+    setLoadingMore(false);
   };
 
   const handleClearAll = () => {
@@ -65,7 +68,7 @@ const NotificationPage = () => {
         if (!entry.isIntersecting || loadingMore) return;
 
         setLoadingMore(true);
-        setTimeout(() => {
+        loadMoreTimerRef.current = setTimeout(() => {
           setVisibleCount((prev) => prev + PAGE_SIZE);
           setLoadingMore(false);
         }, 500);
@@ -76,6 +79,10 @@ const NotificationPage = () => {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [initialLoading, hasMore, loadingMore, activeGroup]);
+
+  useEffect(() => {
+    return () => clearTimeout(loadMoreTimerRef.current);
+  }, []);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -162,8 +169,11 @@ const NotificationPage = () => {
                     관심있는 챌린지에 참여하고 소식을 받아보세요
                   </p>
                 </div>
-                <Link href="/challenges">
-                  <Button>챌린지 둘러보기</Button>
+                <Link
+                  href="/challenges"
+                  className="cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+                >
+                  챌린지 둘러보기
                 </Link>
               </div>
             )}

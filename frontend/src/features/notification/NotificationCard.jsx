@@ -48,7 +48,7 @@ const NotificationCard = ({ notification, onRead, onDelete }) => {
           onDelete(notification.id);
         }}
         aria-label="알림 삭제"
-        className="absolute right-2 top-2 rounded-full p-1 text-gray-300 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-500 group-hover:opacity-100"
+        className="absolute right-2 top-2 rounded-full p-1 text-gray-300 opacity-100 transition-opacity hover:bg-gray-100 hover:text-gray-500 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
       >
         <X size={14} />
       </button>
