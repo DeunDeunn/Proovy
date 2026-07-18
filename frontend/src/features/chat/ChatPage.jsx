@@ -93,6 +93,7 @@ const ChatPage = () => {
               style={{ width: `calc(100% - ${LIST_WIDTH_OPEN_REM}rem)` }}
             >
               <ChatConversationPanel
+                key={panelRoom.chatRoomId}
                 room={panelRoom}
                 messages={panelMessages}
                 onSendMessage={(content) => sendMessage(panelRoom.chatRoomId, content)}
