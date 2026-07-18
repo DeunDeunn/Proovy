@@ -1,0 +1,106 @@
+import { BadgeCheck, Image as ImageIcon } from "lucide-react";
+
+import { formatChatTime, getAvatarColor } from "@/features/chat/mockData";
+
+const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
+  const avatarColor = getAvatarColor(message.senderId);
+  const time = formatChatTime(message.createdAt);
+  const readLabel = isOwn && !isChallenge && message.read ? "읽음" : null;
+
+  const renderContent = () => {
+    if (message.deletedAt) {
+      return (
+        <div className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm italic text-gray-400">
+          삭제된 메시지입니다.
+        </div>
+      );
+    }
+
+    if (message.messageType === "IMAGE") {
+      return (
+        <div className="flex h-36 w-56 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 text-blue-400">
+          <ImageIcon size={28} />
+        </div>
+      );
+    }
+
+    if (message.messageType === "CERTIFICATION_SHARE" && message.sharedCertification) {
+      const cert = message.sharedCertification;
+      return (
+        <div className="w-64 rounded-2xl border border-gray-200 bg-surface p-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
+              {cert.authorNickname.slice(0, 1)}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-gray-900">{cert.authorNickname}님의 인증글</p>
+              <p className="truncate text-xs text-gray-400">{cert.challengeTitle}</p>
+            </div>
+          </div>
+          {cert.thumbnailUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cert.thumbnailUrl} alt="" className="mt-2 h-36 w-full rounded-xl object-cover" />
+          )}
+          <p className="mt-2 text-xs text-gray-400">인증일: {cert.certifiedAt}</p>
+          <button type="button" className="mt-2 text-xs font-semibold text-primary hover:underline">
+            인증글 보기 &gt;
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={`max-w-xs rounded-2xl px-4 py-2.5 text-sm ${
+          isOwn ? "bg-primary text-white" : "bg-gray-100 text-gray-800"
+        }`}
+      >
+        {message.content}
+      </div>
+    );
+  };
+
+  return (
+    <div className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+      {!isOwn && (
+        <div className="w-8 shrink-0">
+          {showSenderInfo && (
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${avatarColor.bg} ${avatarColor.text}`}
+            >
+              {message.senderNickname.slice(0, 1)}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className={`flex max-w-[70%] flex-col ${isOwn ? "items-end" : "items-start"}`}>
+        {!isOwn && isChallenge && showSenderInfo && (
+          <div className="mb-1 flex items-center gap-1 px-1">
+            <span className="text-xs font-medium text-gray-600">{message.senderNickname}</span>
+            {message.senderBadgeApproved && (
+              <BadgeCheck size={14} className="fill-primary stroke-white" aria-label="우수 인증자" />
+            )}
+          </div>
+        )}
+
+        {message.deletedAt && (
+          <p className="mb-1 px-1 text-xs text-gray-400">{message.senderNickname}님이 메시지를 삭제했습니다.</p>
+        )}
+
+        <div className={`flex items-end gap-1.5 ${isOwn ? "flex-row-reverse" : ""}`}>
+          {renderContent()}
+          {readLabel && (
+            <div className="flex shrink-0 flex-col items-end text-[11px] text-gray-400">
+              <span>{readLabel}</span>
+              <span>{time}</span>
+            </div>
+          )}
+          {!readLabel && <span className="shrink-0 text-[11px] text-gray-400">{time}</span>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MessageBubble;
