@@ -40,6 +40,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             docker pull ${{ secrets.DOCKER_USERNAME }}/proovy:latest
             docker stop proovy || true
             docker rm proovy || true
