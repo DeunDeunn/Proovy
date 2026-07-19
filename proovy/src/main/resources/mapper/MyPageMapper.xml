@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.mypage.mapper.MyPageMapper">
+
+    <!-- 내가 참여중인 챌린지: 참가상태 ACTIVE + 챌린지 진행중(모집중/진행중)인 것만 -->
+    <select id="findParticipatingChallenges" resultType="ChallengeSummaryResponse">
+        SELECT
+            c.id,
+            c.title,
+            cat.name AS category_name,
+            c.entry_fee,
+            (SELECT COUNT(*) FROM challenge_participants p2
+             WHERE p2.challenge_id = c.id AND p2.status = 'ACTIVE') AS current_participants,
+            c.max_participants,
+            c.start_date,
+            c.end_date,
+            c.status
+        FROM challenge_participants p
+        JOIN challenges c ON c.id = p.challenge_id
+        JOIN categories cat ON cat.id = c.category_id
+        WHERE p.user_id = #{userId}
+          AND p.status = 'ACTIVE'
+          AND c.status IN ('RECRUITING', 'IN_PROGRESS')
+        ORDER BY c.created_at DESC, c.id DESC
+    </select>
+
+    <!-- 내가 방장으로 운영중인 챌린지 -->
+    <select id="findHostingChallenges" resultType="ChallengeSummaryResponse">
+        SELECT
+            c.id,
+            c.title,
+            cat.name AS category_name,
+            c.entry_fee,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+            c.max_participants,
+            c.start_date,
+            c.end_date,
+            c.status
+        FROM challenges c
+        JOIN categories cat ON cat.id = c.category_id
+        WHERE c.host_id = #{userId}
+          AND c.status IN ('RECRUITING', 'IN_PROGRESS')
+        ORDER BY c.created_at DESC, c.id DESC
+    </select>
+
+</mapper>
