@@ -6,83 +6,67 @@ import { Bell, BellOff, Check, MoreVertical } from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import Loading from "@/components/ui/Loading";
-import NotificationCard from "@/features/notification/NotificationCard";
-import { FILTER_GROUPS, formatDateLabel } from "@/features/notification/mockData";
-import { useNotificationStore } from "@/features/notification/store";
-
-const PAGE_SIZE = 6;
-const INITIAL_LOAD_DELAY = 500;
+import NotificationCard from "@/features/notification/components/NotificationCard";
+import { FILTER_GROUPS, NOTIFICATION_TYPE_META, formatDateLabel } from "@/features/notification/notificationMeta";
+import {
+  useDeleteAllNotifications,
+  useDeleteNotification,
+  useMarkAllAsRead,
+  useMarkAsRead,
+  useNotifications,
+  useUnreadCount,
+} from "@/features/notification/hooks/notificationHooks";
 
 const NotificationPage = () => {
-  const notifications = useNotificationStore((state) => state.notifications);
-  const markRead = useNotificationStore((state) => state.markRead);
-  const markAllRead = useNotificationStore((state) => state.markAllRead);
-  const remove = useNotificationStore((state) => state.remove);
-  const clearAll = useNotificationStore((state) => state.clearAll);
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useNotifications();
+  const { data: unreadCountData } = useUnreadCount();
+  const markAsReadMutation = useMarkAsRead();
+  const markAllAsReadMutation = useMarkAllAsRead();
+  const deleteMutation = useDeleteNotification();
+  const deleteAllMutation = useDeleteAllNotifications();
 
   const [activeGroup, setActiveGroup] = useState("전체");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const sentinelRef = useRef(null);
-  const loadMoreTimerRef = useRef(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setInitialLoading(false), INITIAL_LOAD_DELAY);
-    return () => clearTimeout(timer);
-  }, []);
+  const notifications = useMemo(() => data?.pages.flatMap((page) => page.content) ?? [], [data]);
+  const unreadCount = unreadCountData?.unreadCount ?? 0;
 
-  const filtered = useMemo(
+  const visibleItems = useMemo(
     () =>
       activeGroup === "전체"
         ? notifications
-        : notifications.filter((n) => n.group === activeGroup),
+        : notifications.filter((n) => NOTIFICATION_TYPE_META[n.type]?.group === activeGroup),
     [notifications, activeGroup],
   );
 
-  const visibleItems = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const handleFilterChange = (group) => {
-    clearTimeout(loadMoreTimerRef.current);
-    setActiveGroup(group);
-    setVisibleCount(PAGE_SIZE);
-    setLoadingMore(false);
+  const handleRead = (notification) => {
+    if (notification.readAt != null) return;
+    markAsReadMutation.mutate(notification.id);
   };
 
   const handleClearAll = () => {
-    clearAll();
+    deleteAllMutation.mutate();
     setMenuOpen(false);
   };
 
   useEffect(() => {
-    if (initialLoading || !hasMore) return;
+    if (isLoading || !hasNextPage) return;
 
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting || loadingMore) return;
-
-        setLoadingMore(true);
-        loadMoreTimerRef.current = setTimeout(() => {
-          setVisibleCount((prev) => prev + PAGE_SIZE);
-          setLoadingMore(false);
-        }, 500);
+        if (!entry.isIntersecting || isFetchingNextPage) return;
+        fetchNextPage();
       },
       { rootMargin: "200px" },
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [initialLoading, hasMore, loadingMore, activeGroup]);
-
-  useEffect(() => {
-    return () => clearTimeout(loadMoreTimerRef.current);
-  }, []);
+  }, [isLoading, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -101,7 +85,7 @@ const NotificationPage = () => {
           <Button
             variant="outline"
             className="flex items-center gap-1"
-            onClick={markAllRead}
+            onClick={() => markAllAsReadMutation.mutate()}
             disabled={unreadCount === 0}
           >
             <Check size={16} />
@@ -141,7 +125,7 @@ const NotificationPage = () => {
           <button
             key={group}
             type="button"
-            onClick={() => handleFilterChange(group)}
+            onClick={() => setActiveGroup(group)}
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               activeGroup === group
                 ? "bg-primary text-white"
@@ -153,7 +137,7 @@ const NotificationPage = () => {
         ))}
       </div>
 
-      {initialLoading ? (
+      {isLoading ? (
         <Loading label="알림을 불러오는 중..." />
       ) : (
         <>
@@ -181,26 +165,32 @@ const NotificationPage = () => {
               <p className="py-12 text-center text-sm text-gray-400">해당하는 알림이 없습니다.</p>
             )}
             {visibleItems.map((notification, index) => {
-              const dateLabel = formatDateLabel(notification.createdAt);
+              const dateLabel = formatDateLabel(new Date(notification.createdAt));
               const prevDateLabel =
-                index > 0 ? formatDateLabel(visibleItems[index - 1].createdAt) : null;
+                index > 0 ? formatDateLabel(new Date(visibleItems[index - 1].createdAt)) : null;
 
               return (
                 <div key={notification.id}>
                   {dateLabel !== prevDateLabel && (
-                    <p className={`mb-1 text-xs font-semibold text-gray-400 ${index === 0 ? "" : "mt-4"}`}>
+                    <p
+                      className={`mb-1 text-xs font-semibold text-gray-400 ${index === 0 ? "" : "mt-4"}`}
+                    >
                       {dateLabel}
                     </p>
                   )}
-                  <NotificationCard notification={notification} onRead={markRead} onDelete={remove} />
+                  <NotificationCard
+                    notification={notification}
+                    onRead={handleRead}
+                    onDelete={(id) => deleteMutation.mutate(id)}
+                  />
                 </div>
               );
             })}
           </div>
 
           <div ref={sentinelRef} />
-          {loadingMore && <Loading label="알림을 더 불러오는 중..." />}
-          {!hasMore && visibleItems.length > 0 && (
+          {isFetchingNextPage && <Loading label="알림을 더 불러오는 중..." />}
+          {!hasNextPage && visibleItems.length > 0 && (
             <p className="py-6 text-center text-sm text-gray-400">모든 알림을 확인했어요.</p>
           )}
         </>

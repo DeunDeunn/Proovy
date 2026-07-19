@@ -20,7 +20,7 @@ import {
 import Image from "next/image";
 
 import { useUnreadChatCount } from "@/features/chat/store";
-import { useUnreadNotificationCount } from "@/features/notification/store";
+import { useUnreadCount } from "@/features/notification/hooks/notificationHooks";
 
 const menus = [
   { name: "홈", href: "/", icon: Home },
@@ -97,7 +97,8 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const unreadNotificationCount = useUnreadNotificationCount();
+  const { data: unreadCountData } = useUnreadCount();
+  const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   const unreadChatCount = useUnreadChatCount();
 
   return (

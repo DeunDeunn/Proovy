@@ -1,12 +1,12 @@
 import { X } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
-import { NOTIFICATION_TYPES } from "@/features/notification/mockData";
+import { NOTIFICATION_TYPE_META, formatRelativeTime } from "@/features/notification/notificationMeta";
 
 const NotificationCard = ({ notification, onRead, onDelete }) => {
-  const meta = NOTIFICATION_TYPES[notification.type];
+  const meta = NOTIFICATION_TYPE_META[notification.type];
   const Icon = meta.icon;
-  const unread = !notification.read;
+  const unread = notification.readAt == null;
 
   return (
     <div
@@ -18,7 +18,7 @@ const NotificationCard = ({ notification, onRead, onDelete }) => {
     >
       <button
         type="button"
-        onClick={() => onRead(notification.id)}
+        onClick={() => onRead(notification)}
         className="flex min-w-0 flex-1 items-start gap-4 text-left"
       >
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.iconClass}`}>
@@ -30,11 +30,13 @@ const NotificationCard = ({ notification, onRead, onDelete }) => {
             <p className="truncate text-sm font-semibold text-gray-900">{notification.title}</p>
             <Badge variant={meta.badgeVariant}>{meta.tagLabel}</Badge>
           </div>
-          <p className="mt-1 line-clamp-2 text-sm text-gray-500">{notification.description}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-gray-500">{notification.content}</p>
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2 pl-2">
-          <span className="text-xs text-gray-400">{notification.timeAgo}</span>
+          <span className="text-xs text-gray-400">
+            {formatRelativeTime(new Date(notification.createdAt))}
+          </span>
           <span
             className={`h-2 w-2 rounded-full ${unread ? "bg-primary" : "border border-gray-300"}`}
           />
