@@ -17,4 +17,45 @@
         ORDER BY duration_days ASC, price ASC, id ASC
     </select>
 
+    <select id="findPlanById" resultType="com.deundeun.ai.vo.AiTicketPlanVo">
+        SELECT id,
+               name,
+               duration_days,
+               price,
+               description,
+               active
+        FROM ai_ticket_plans
+        WHERE id = #{planId}
+    </select>
+
+    <insert id="insertSubscription" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_ticket_subscriptions (
+            host_id,
+            plan_id,
+            paid_price,
+            started_at,
+            expired_at,
+            status
+        ) VALUES (
+            #{hostId},
+            #{planId},
+            #{paidPrice},
+            #{startedAt},
+            #{expiredAt},
+            #{status}
+        )
+    </insert>
+
+    <insert id="insertTicketHistory" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_tickets (
+            host_id,
+            subscription_id,
+            type
+        ) VALUES (
+            #{hostId},
+            #{subscriptionId},
+            #{type}
+        )
+    </insert>
+
 </mapper>
