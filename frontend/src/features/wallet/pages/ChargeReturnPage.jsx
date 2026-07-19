@@ -29,9 +29,11 @@ const ChargeReturnPage = () => {
     hasRequestedRef.current = true;
 
     const merchantPayKey = sessionStorage.getItem(NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY);
-    sessionStorage.removeItem(NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY);
 
-    confirmMutation.mutate({ merchantPayKey, paymentId });
+    confirmMutation.mutate(
+      { merchantPayKey, paymentId },
+      { onSuccess: () => sessionStorage.removeItem(NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY) }
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentId, isKnownFailure]);
 
