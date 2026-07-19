@@ -7,27 +7,26 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Flag,
   Heart,
   ImageOff,
   MessageCircle,
+  MoreVertical,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
+import { useMe } from "@/features/auth/hooks";
 
 import CertificationPostComments from "./CertificationPostComments";
-import { useCertificationPost } from "./hooks";
-
-const statusLabels = {
-  PENDING: { label: "승인 대기", variant: "warning" },
-  APPROVED: { label: "승인", variant: "success" },
-  REJECTED: { label: "반려", variant: "danger" },
-};
+import { useCertificationPost, useDeleteCertificationPost } from "./hooks";
+import ReportDialog from "./ReportDialog";
 
 const formatCreatedAt = (value) => {
   if (!value) return "";
@@ -65,16 +64,29 @@ const ProfileAvatar = ({ nickname, profileImageUrl }) =>
 const CertificationPostDetailPage = ({ postId }) => {
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const { data: post, error, isLoading } = useCertificationPost(postId);
+  const { data: me } = useMe();
+  const deletePostMutation = useDeleteCertificationPost();
 
   if (isLoading) return <Loading label="인증 게시글을 불러오는 중..." />;
   if (error) return <ErrorMessage error={error} />;
   if (!post) return null;
 
-  const status = statusLabels[post.status] ?? { label: "상태 미확인", variant: "gray" };
   const images = [post.thumbnailUrl, ...(post.imageUrls ?? [])].filter(Boolean);
   const displayedImageIndex = Math.min(currentImageIndex, Math.max(images.length - 1, 0));
   const currentImageUrl = images[displayedImageIndex];
+  const isAuthor = me?.id != null && me.id === post.authorId;
+
+  const deletePost = () => {
+    if (!window.confirm("인증 게시글을 삭제할까요?")) return;
+
+    setIsPostMenuOpen(false);
+    deletePostMutation.mutate(postId, {
+      onSuccess: () => router.back(),
+    });
+  };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -155,12 +167,75 @@ const CertificationPostDetailPage = ({ postId }) => {
                   </div>
                 </div>
               </div>
-              <Badge variant={status.variant}>{status.label}</Badge>
+              {me?.id != null && (
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsPostMenuOpen((open) => !open)}
+                    aria-label="게시글 메뉴"
+                    aria-expanded={isPostMenuOpen}
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                  >
+                    <MoreVertical size={20} aria-hidden="true" />
+                  </button>
+
+                  {isPostMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-10 z-20 w-32 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                    >
+                      {isAuthor ? (
+                        <>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => router.push(`/certification-posts/${postId}/edit`)}
+                            disabled={deletePostMutation.isPending}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                          >
+                            <Pencil size={15} aria-hidden="true" />
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={deletePost}
+                            disabled={deletePostMutation.isPending}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                          >
+                            <Trash2 size={15} aria-hidden="true" />
+                            {deletePostMutation.isPending ? "삭제 중..." : "삭제"}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setIsPostMenuOpen(false);
+                            setIsReportDialogOpen(true);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <Flag size={15} aria-hidden="true" />
+                          신고
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <p className="mt-5 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
               {post.contents || "작성한 인증 내용이 없습니다."}
             </p>
+
+            {deletePostMutation.error && (
+              <div className="mt-4">
+                <ErrorMessage error={deletePostMutation.error} />
+              </div>
+            )}
 
             <div className="mt-5 flex items-center gap-5 text-sm text-gray-500">
               <span className="flex items-center gap-1.5">
@@ -188,6 +263,14 @@ const CertificationPostDetailPage = ({ postId }) => {
           이전으로
         </Button>
       </div>
+
+      {isReportDialogOpen && (
+        <ReportDialog
+          targetType="POST"
+          targetId={post.postId}
+          onClose={() => setIsReportDialogOpen(false)}
+        />
+      )}
     </div>
   );
 };

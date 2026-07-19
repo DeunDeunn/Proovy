@@ -2,15 +2,25 @@
 
 /* eslint-disable @next/next/no-img-element -- S3 외부 프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
-import { BadgeCheck, CornerDownRight, MessageCircle } from "lucide-react";
+import {
+  BadgeCheck,
+  CornerDownRight,
+  Flag,
+  MessageCircle,
+  MoreVertical,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
+import { useMe } from "@/features/auth/hooks";
 
-import { useComments, useCreateComment } from "./hooks";
+import { useComments, useCreateComment, useDeleteComment, useUpdateComment } from "./hooks";
+import ReportDialog from "./ReportDialog";
 
 const formatCreatedAt = (value) => {
   if (!value) return "";
@@ -38,8 +48,7 @@ const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
 const ProfileAvatar = ({ nickname, profileImageUrl, compact = false }) => {
   const sizeClassName = compact ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm";
   const [failedImageUrl, setFailedImageUrl] = useState(null);
-  const showProfileImage =
-    Boolean(profileImageUrl) && failedImageUrl !== profileImageUrl;
+  const showProfileImage = Boolean(profileImageUrl) && failedImageUrl !== profileImageUrl;
 
   return showProfileImage ? (
     <img
@@ -72,12 +81,90 @@ const AuthorName = ({ nickname, badgeApproved }) => (
   </div>
 );
 
+const CommentKebabMenu = ({
+  comment,
+  currentUserId,
+  isActionPending,
+  onEdit,
+  onDelete,
+  onReport,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const isAuthor = currentUserId === comment.authorId;
+
+  if (currentUserId == null || comment.deleted) return null;
+
+  const runAction = (action) => {
+    setIsOpen(false);
+    action();
+  };
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        aria-label="댓글 메뉴"
+        aria-expanded={isOpen}
+        disabled={isActionPending}
+        className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
+      >
+        <MoreVertical size={18} aria-hidden="true" />
+      </button>
+
+      {isOpen && (
+        <div
+          role="menu"
+          className="absolute right-0 top-9 z-20 w-28 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+        >
+          {isAuthor ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(() => onEdit(comment))}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Pencil size={15} aria-hidden="true" />
+                수정
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(() => onDelete(comment.commentId))}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-red-50"
+              >
+                <Trash2 size={15} aria-hidden="true" />
+                삭제
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => runAction(() => onReport(comment.commentId))}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Flag size={15} aria-hidden="true" />
+              신고
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CertificationPostComments = ({ postId, status, commentCount, embedded = false }) => {
   const [contents, setContents] = useState("");
   const [replyTargetId, setReplyTargetId] = useState(null);
   const [replyContents, setReplyContents] = useState("");
   const [formError, setFormError] = useState(null);
   const [errorParentCommentId, setErrorParentCommentId] = useState(null);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingContents, setEditingContents] = useState("");
+  const [commentActionError, setCommentActionError] = useState(null);
+  const [reportTargetId, setReportTargetId] = useState(null);
   const {
     data,
     error: commentsError,
@@ -87,10 +174,14 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
     isFetchingNextPage,
     isLoading,
   } = useComments(postId);
+  const { data: me } = useMe();
   const createMutation = useCreateComment(postId);
+  const updateCommentMutation = useUpdateComment(postId);
+  const deleteCommentMutation = useDeleteComment(postId);
 
   const canWriteComment = status === "APPROVED";
   const comments = data?.pages.flat() ?? [];
+  const isCommentActionPending = updateCommentMutation.isPending || deleteCommentMutation.isPending;
 
   const clearFormError = () => {
     setFormError(null);
@@ -139,6 +230,62 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
     clearFormError();
   };
 
+  const startEditingComment = (comment) => {
+    if (isCommentActionPending) return;
+
+    setCommentActionError(null);
+    setEditingCommentId(comment.commentId);
+    setEditingContents(comment.contents ?? "");
+  };
+
+  const cancelEditingComment = () => {
+    if (updateCommentMutation.isPending) return;
+
+    setCommentActionError(null);
+    setEditingCommentId(null);
+    setEditingContents("");
+  };
+
+  const submitCommentUpdate = (event, commentId) => {
+    event.preventDefault();
+    const contents = editingContents.trim();
+
+    if (!contents) {
+      setCommentActionError({
+        commentId,
+        error: { message: "댓글 내용을 입력해주세요." },
+      });
+      return;
+    }
+
+    setCommentActionError(null);
+    updateCommentMutation.mutate(
+      { commentId, payload: { contents } },
+      {
+        onSuccess: () => {
+          setEditingCommentId(null);
+          setEditingContents("");
+        },
+        onError: (error) => setCommentActionError({ commentId, error }),
+      }
+    );
+  };
+
+  const deleteComment = (commentId) => {
+    if (!window.confirm("댓글을 삭제할까요?")) return;
+
+    setCommentActionError(null);
+    deleteCommentMutation.mutate(commentId, {
+      onSuccess: () => {
+        if (editingCommentId === commentId) {
+          setEditingCommentId(null);
+          setEditingContents("");
+        }
+      },
+      onError: (error) => setCommentActionError({ commentId, error }),
+    });
+  };
+
   const commentList = (
     <div
       className={
@@ -176,20 +323,67 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                           <CommentMeta comment={comment} />
                         </div>
                       </div>
-                      {canWriteComment && (
-                        <button
-                          type="button"
-                          onClick={() => toggleReplyForm(comment.commentId)}
-                          disabled={createMutation.isPending}
-                          className="shrink-0 text-xs font-medium text-primary hover:text-primary-hover disabled:cursor-not-allowed disabled:text-gray-400"
-                        >
-                          답글
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {canWriteComment && (
+                          <button
+                            type="button"
+                            onClick={() => toggleReplyForm(comment.commentId)}
+                            disabled={createMutation.isPending}
+                            className="shrink-0 text-xs font-medium text-primary hover:text-primary-hover disabled:cursor-not-allowed disabled:text-gray-400"
+                          >
+                            답글
+                          </button>
+                        )}
+                        <CommentKebabMenu
+                          comment={comment}
+                          currentUserId={me?.id}
+                          isActionPending={isCommentActionPending}
+                          onEdit={startEditingComment}
+                          onDelete={deleteComment}
+                          onReport={setReportTargetId}
+                        />
+                      </div>
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
-                      {comment.contents}
-                    </p>
+                    {editingCommentId === comment.commentId ? (
+                      <form
+                        onSubmit={(event) => submitCommentUpdate(event, comment.commentId)}
+                        className="mt-3"
+                      >
+                        <label htmlFor={`edit-comment-${comment.commentId}`} className="sr-only">
+                          댓글 내용
+                        </label>
+                        <textarea
+                          id={`edit-comment-${comment.commentId}`}
+                          value={editingContents}
+                          onChange={(event) => setEditingContents(event.target.value)}
+                          rows={3}
+                          disabled={updateCommentMutation.isPending}
+                          className="w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50"
+                        />
+                        <div className="mt-2 flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={cancelEditingComment}
+                            disabled={updateCommentMutation.isPending}
+                          >
+                            취소
+                          </Button>
+                          <Button type="submit" disabled={updateCommentMutation.isPending}>
+                            {updateCommentMutation.isPending ? "저장 중..." : "저장"}
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                        {comment.contents}
+                      </p>
+                    )}
+                    {commentActionError?.commentId === comment.commentId && (
+                      <div className="mt-3">
+                        <ErrorMessage error={commentActionError.error} />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -209,16 +403,65 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         compact
                       />
                       <div className="min-w-0 flex-1">
-                        <AuthorName
-                          nickname={reply.authorNickname}
-                          badgeApproved={reply.authorBadgeApproved}
-                        />
-                        <div className="mt-1">
-                          <CommentMeta comment={reply} />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <AuthorName
+                              nickname={reply.authorNickname}
+                              badgeApproved={reply.authorBadgeApproved}
+                            />
+                            <div className="mt-1">
+                              <CommentMeta comment={reply} />
+                            </div>
+                          </div>
+                          <CommentKebabMenu
+                            comment={reply}
+                            currentUserId={me?.id}
+                            isActionPending={isCommentActionPending}
+                            onEdit={startEditingComment}
+                            onDelete={deleteComment}
+                            onReport={setReportTargetId}
+                          />
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
-                          {reply.contents}
-                        </p>
+                        {editingCommentId === reply.commentId ? (
+                          <form
+                            onSubmit={(event) => submitCommentUpdate(event, reply.commentId)}
+                            className="mt-3"
+                          >
+                            <label htmlFor={`edit-comment-${reply.commentId}`} className="sr-only">
+                              댓글 내용
+                            </label>
+                            <textarea
+                              id={`edit-comment-${reply.commentId}`}
+                              value={editingContents}
+                              onChange={(event) => setEditingContents(event.target.value)}
+                              rows={3}
+                              disabled={updateCommentMutation.isPending}
+                              className="w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50"
+                            />
+                            <div className="mt-2 flex justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={cancelEditingComment}
+                                disabled={updateCommentMutation.isPending}
+                              >
+                                취소
+                              </Button>
+                              <Button type="submit" disabled={updateCommentMutation.isPending}>
+                                {updateCommentMutation.isPending ? "저장 중..." : "저장"}
+                              </Button>
+                            </div>
+                          </form>
+                        ) : (
+                          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                            {reply.contents}
+                          </p>
+                        )}
+                        {commentActionError?.commentId === reply.commentId && (
+                          <div className="mt-3">
+                            <ErrorMessage error={commentActionError.error} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -337,6 +580,13 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
         <div className="flex min-h-0 flex-1 flex-col">{content}</div>
       ) : (
         <Card>{content}</Card>
+      )}
+      {reportTargetId != null && (
+        <ReportDialog
+          targetType="COMMENT"
+          targetId={reportTargetId}
+          onClose={() => setReportTargetId(null)}
+        />
       )}
     </section>
   );
