@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.deundeun.ai.dto.AiTicketActiveResponse;
 import com.deundeun.ai.dto.AiTicketPlanResponse;
 import com.deundeun.ai.dto.AiTicketPurchaseRequest;
 import com.deundeun.ai.dto.AiTicketPurchaseResponse;
@@ -28,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @DisplayName("AiTicketService")
@@ -60,6 +62,53 @@ class AiTicketServiceTest {
         assertThat(response.getPrice()).isEqualTo(1000);
         assertThat(response.getDescription()).isEqualTo("Use AI review for 24 hours");
         assertThat(response.getActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("active subscription returns current ticket details")
+    void findActiveSubscription_existingSubscription_returnsActiveResponse() {
+        Long userId = 5L;
+        LocalDateTime startedAt = LocalDateTime.now().minusDays(1);
+        LocalDateTime expiredAt = LocalDateTime.now().plusDays(6);
+        AiTicketSubscriptionVo subscription = AiTicketSubscriptionVo.builder()
+                .id(10L)
+                .hostId(userId)
+                .planId(2L)
+                .planName("7 day AI ticket")
+                .startedAt(startedAt)
+                .expiredAt(expiredAt)
+                .status("ACTIVE")
+                .build();
+
+        when(aiTicketMapper.findActiveSubscriptionByHostId(userId)).thenReturn(subscription);
+
+        AiTicketActiveResponse response = aiTicketService.findActiveSubscription(userId);
+
+        assertThat(response.isHasActiveTicket()).isTrue();
+        assertThat(response.getSubscriptionId()).isEqualTo(10L);
+        assertThat(response.getPlanId()).isEqualTo(2L);
+        assertThat(response.getPlanName()).isEqualTo("7 day AI ticket");
+        assertThat(response.getStartedAt()).isEqualTo(startedAt);
+        assertThat(response.getExpiredAt()).isEqualTo(expiredAt);
+        assertThat(response.getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("active subscription returns empty response when no current ticket exists")
+    void findActiveSubscription_missingSubscription_returnsEmptyResponse() {
+        Long userId = 5L;
+
+        when(aiTicketMapper.findActiveSubscriptionByHostId(userId)).thenReturn(null);
+
+        AiTicketActiveResponse response = aiTicketService.findActiveSubscription(userId);
+
+        assertThat(response.isHasActiveTicket()).isFalse();
+        assertThat(response.getSubscriptionId()).isNull();
+        assertThat(response.getPlanId()).isNull();
+        assertThat(response.getPlanName()).isNull();
+        assertThat(response.getStartedAt()).isNull();
+        assertThat(response.getExpiredAt()).isNull();
+        assertThat(response.getStatus()).isNull();
     }
 
     @Test
@@ -110,6 +159,29 @@ class AiTicketServiceTest {
                 .isEqualTo(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
 
         verify(aiTicketMapper, never()).findPlanById(any());
+        verify(walletTicketService, never()).purchase(any(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("purchase fails when user already has active subscription")
+    void purchase_activeSubscriptionExists_fails() {
+        Long userId = 5L;
+        AiTicketSubscriptionVo subscription = AiTicketSubscriptionVo.builder()
+                .id(10L)
+                .hostId(userId)
+                .planId(1L)
+                .status("ACTIVE")
+                .build();
+
+        when(aiTicketMapper.findActiveSubscriptionByHostId(userId)).thenReturn(subscription);
+
+        assertThatThrownBy(() -> aiTicketService.purchase(userId, new AiTicketPurchaseRequest(1L)))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AI_TICKET_ALREADY_ACTIVE);
+
+        verify(aiTicketMapper, never()).findPlanById(any());
+        verify(aiTicketMapper, never()).insertSubscription(any());
         verify(walletTicketService, never()).purchase(any(), anyLong(), any());
     }
 

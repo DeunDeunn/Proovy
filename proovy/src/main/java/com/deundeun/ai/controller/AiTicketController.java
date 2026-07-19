@@ -1,5 +1,6 @@
 package com.deundeun.ai.controller;
 
+import com.deundeun.ai.dto.AiTicketActiveResponse;
 import com.deundeun.ai.dto.AiTicketPlanResponse;
 import com.deundeun.ai.dto.AiTicketPurchaseRequest;
 import com.deundeun.ai.dto.AiTicketPurchaseResponse;
@@ -25,6 +26,12 @@ public class AiTicketController {
     @GetMapping("/plans")
     public ApiResponse<List<AiTicketPlanResponse>> findActivePlans() {
         return ApiResponse.success(aiTicketService.findActivePlans());
+    }
+
+    @GetMapping("/active")
+    public ApiResponse<AiTicketActiveResponse> findActiveSubscription() {
+        Long userId = CurrentUser.getUserId();
+        return ApiResponse.success(aiTicketService.findActiveSubscription(userId));
     }
 
     @PostMapping("/purchases")

@@ -15,6 +15,8 @@ public interface AiTicketMapper {
 
     AiTicketPlanVo findPlanById(@Param("planId") Long planId);
 
+    AiTicketSubscriptionVo findActiveSubscriptionByHostId(@Param("hostId") Long hostId);
+
     int insertSubscription(AiTicketSubscriptionVo subscription);
 
     int insertTicketHistory(AiTicketHistoryVo history);
