@@ -25,4 +25,6 @@ public interface UserMapper {
     boolean existsByNickname(@Param("nickname") String nickname, @Param("excludeUserId") Long excludeUserId);
 
     void updateNickname(@Param("id") Long id, @Param("nickname") String nickname);
+
+    void updateProfileImageUrl(@Param("id") Long id, @Param("profileImageUrl") String profileImageUrl);
 }
