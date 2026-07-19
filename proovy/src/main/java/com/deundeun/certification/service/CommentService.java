@@ -166,6 +166,8 @@ public class CommentService {
         } else {
             res.setAuthorId(row.getAuthorId());
             res.setAuthorNickname(row.getAuthorNickname());
+            res.setAuthorProfileImageUrl(row.getAuthorProfileImageUrl());
+            res.setAuthorBadgeApproved(row.isAuthorBadgeApproved());
             res.setContents(row.getContents());
         }
         return res;

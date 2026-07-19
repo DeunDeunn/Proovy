@@ -3,9 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   applyWithdrawal,
+  confirmNaverPayCharge,
   getMyTransactions,
   getMyWallet,
   getMyWithdrawals,
+  getSettlementHistory,
   getSettlementResult,
   getWithdrawableAmount,
   requestCharge,
@@ -36,11 +38,25 @@ export const useSettlementResult = (challengeId) =>
     enabled: !!challengeId,
   });
 
+export const useSettlementHistory = (params) =>
+  useQuery({
+    queryKey: settlementKeys.history(params),
+    queryFn: () => getSettlementHistory(params),
+  });
+
 export const useRequestCharge = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: requestCharge,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: walletKeys.me() }),
+  });
+};
+
+export const useConfirmNaverPayCharge = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: confirmNaverPayCharge,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: walletKeys.all }),
   });
 };
 
