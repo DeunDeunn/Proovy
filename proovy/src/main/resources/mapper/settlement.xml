@@ -37,17 +37,30 @@
         WHERE challenge_id = #{challengeId}
     </select>
 
-    <select id="selectByChallengeIds" resultType="com.deundeun.pay.dto.SettlementResultResponse">
-        SELECT challenge_id, total_participant_count,
-        success_user_count, fail_user_count, failure_pool,
-        participant_share_rate, platform_fee_rate, host_fee_rate,
-        participant_share_amount, platform_fee_amount, host_fee_amount,
-        profit_per_user, is_host_disqualified,
-        status, settled_at
-        FROM settlements
-        WHERE challenge_id IN
-        <foreach item="id" collection="challengeIds" open="(" separator="," close=")">
-            #{id}
-        </foreach>
+    <!--
+        challenge_participants.result는 아직 어떤 코드도 채워주지 않는 컬럼이다(2026-07-19 기준).
+        settle()이 성공/실패자를 처리할 때 이 컬럼도 같이 채워준다고 가정하고 작성한 조회 쿼리 -
+        실제로 이 컬럼을 채우는 배치/트리거가 붙기 전까지는 결과가 항상 빈 목록으로 나온다.
+    -->
+    <select id="selectMyHistory" resultType="com.deundeun.pay.dto.SettlementHistoryItem">
+        SELECT cp.challenge_id,
+        c.title,
+        (cp.result = 'SUCCESS') AS is_success,
+        s.settled_at,
+        CASE WHEN cp.result = 'SUCCESS' THEN s.profit_per_user ELSE 0 END AS profit_amount
+        FROM challenge_participants cp
+        JOIN challenges c ON c.id = cp.challenge_id
+        JOIN settlements s ON s.challenge_id = cp.challenge_id
+        WHERE cp.user_id = #{userId}
+        AND cp.result IS NOT NULL
+        ORDER BY s.settled_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countMyHistory" resultType="long">
+        SELECT COUNT(*)
+        FROM challenge_participants cp
+        WHERE cp.user_id = #{userId}
+        AND cp.result IS NOT NULL
     </select>
 </mapper>

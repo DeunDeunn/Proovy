@@ -42,12 +42,6 @@ public interface CashTransactionMapper {
 
     boolean existsSettlementParticipation(@Param("walletId") Long walletId, @Param("referenceId") Long referenceId);
 
-    List<CashTransaction> selectSettlementParticipationsByWalletId(@Param("walletId") Long walletId,
-                                                                     @Param("offset") int offset,
-                                                                     @Param("limit") int limit);
-
-    long countSettlementParticipationsByWalletId(@Param("walletId") Long walletId);
-
     CashTransaction selectByWalletIdAndReferenceIdAndType(@Param("walletId") Long walletId,
                                                            @Param("referenceId") Long referenceId,
                                                            @Param("type") CashTransactionType type);

@@ -103,20 +103,5 @@
         LIMIT 1
     </select>
 
-    <select id="selectSettlementParticipationsByWalletId" resultType="com.deundeun.pay.domain.CashTransaction">
-        SELECT id, wallet_id, type, amount, balance_after, pg_transaction_id, status, reference_id, created_at, updated_at, processing_token
-        FROM cash_transactions
-        WHERE wallet_id = #{walletId}
-          AND type IN ('CHALLENGE_PRINCIPAL_SUCCESS', 'CHALLENGE_PRINCIPAL_FAIL')
-        ORDER BY created_at DESC
-        LIMIT #{limit} OFFSET #{offset}
-    </select>
-
-    <select id="countSettlementParticipationsByWalletId" resultType="long">
-        SELECT COUNT(*)
-        FROM cash_transactions
-        WHERE wallet_id = #{walletId}
-          AND type IN ('CHALLENGE_PRINCIPAL_SUCCESS', 'CHALLENGE_PRINCIPAL_FAIL')
-    </select>
 
 </mapper>
