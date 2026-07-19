@@ -20,4 +20,13 @@ public interface AiTicketMapper {
     int insertSubscription(AiTicketSubscriptionVo subscription);
 
     int insertTicketHistory(AiTicketHistoryVo history);
+
+    List<AiTicketHistoryVo> findTicketHistoriesByHostId(
+            @Param("hostId") Long hostId,
+            @Param("type") String type,
+            @Param("limit") int limit,
+            @Param("offset") long offset
+    );
+
+    long countTicketHistoriesByHostId(@Param("hostId") Long hostId, @Param("type") String type);
 }

@@ -5,6 +5,14 @@
 
 <mapper namespace="com.deundeun.ai.mapper.AiTicketMapper">
 
+    <resultMap id="AiTicketHistoryMap" type="com.deundeun.ai.vo.AiTicketHistoryVo">
+        <id property="id" column="id"/>
+        <result property="hostId" column="host_id"/>
+        <result property="subscriptionId" column="subscription_id"/>
+        <result property="type" column="type"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
     <select id="findActivePlans" resultType="com.deundeun.ai.vo.AiTicketPlanVo">
         SELECT id,
                name,
@@ -77,5 +85,29 @@
             #{type}
         )
     </insert>
+
+    <select id="findTicketHistoriesByHostId" resultMap="AiTicketHistoryMap">
+        SELECT id,
+               host_id,
+               subscription_id,
+               type,
+               created_at
+        FROM ai_tickets
+        WHERE host_id = #{hostId}
+        <if test="type != null">
+          AND type = #{type}
+        </if>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countTicketHistoriesByHostId" resultType="long">
+        SELECT COUNT(*)
+        FROM ai_tickets
+        WHERE host_id = #{hostId}
+        <if test="type != null">
+          AND type = #{type}
+        </if>
+    </select>
 
 </mapper>

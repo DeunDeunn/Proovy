@@ -19,4 +19,12 @@ public interface AiReviewMapper {
     int updateAiReviewResultCompleted(AiReviewResultVo result);
 
     AiReviewResultVo findReviewResultById(@Param("id") Long id);
+
+    List<AiReviewResultVo> findReviewResultsByChallengeId(
+            @Param("challengeId") Long challengeId,
+            @Param("limit") int limit,
+            @Param("offset") long offset
+    );
+
+    long countReviewResultsByChallengeId(@Param("challengeId") Long challengeId);
 }

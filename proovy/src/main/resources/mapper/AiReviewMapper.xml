@@ -95,4 +95,30 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findReviewResultsByChallengeId" resultMap="AiReviewResultMap">
+        SELECT id,
+               challenge_id,
+               host_id,
+               verification_post_id,
+               review_mode,
+               decision,
+               confidence,
+               reason,
+               raw_response,
+               status,
+               previous_post_status,
+               new_post_status,
+               created_at
+        FROM ai_review_results
+        WHERE challenge_id = #{challengeId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countReviewResultsByChallengeId" resultType="long">
+        SELECT COUNT(*)
+        FROM ai_review_results
+        WHERE challenge_id = #{challengeId}
+    </select>
+
 </mapper>
