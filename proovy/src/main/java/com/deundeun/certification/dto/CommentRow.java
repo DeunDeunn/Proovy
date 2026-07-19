@@ -9,6 +9,8 @@ public class CommentRow {
     private Long commentId;
     private Long authorId;
     private String authorNickname;
+    private String authorProfileImageUrl;
+    private boolean authorBadgeApproved;
     private String contents;
     private boolean deleted;            // soft delete 여부
     private boolean edited;             // 수정 여부 (modified_at 존재 & 미삭제)

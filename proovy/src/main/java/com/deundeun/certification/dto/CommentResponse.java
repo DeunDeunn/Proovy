@@ -10,6 +10,8 @@ public class CommentResponse {
     private Long commentId;
     private Long authorId;
     private String authorNickname;
+    private String authorProfileImageUrl;
+    private boolean authorBadgeApproved;
     private String contents;            // 삭제된 댓글이면 null (프론트에서 "삭제된 댓글입니다" 표시)
     private boolean deleted;            // soft delete 여부 → "삭제된 댓글입니다"
     private boolean edited;             // 수정 여부 → "수정됨"

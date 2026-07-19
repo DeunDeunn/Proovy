@@ -10,6 +10,9 @@ import java.util.List;
 public class CertificationPostDetailResponse {
     private Long postId;
     private Long authorId;          // 작성자아이디
+    private String authorNickname;
+    private String authorProfileImageUrl;
+    private boolean authorBadgeApproved; // 최신 회원 인증 상태가 APPROVED인지 여부
     private String contents;
     private String thumbnailUrl;    // 대표 이미지 URL
     private CertificationStatus status;   // 방장 검수 상태

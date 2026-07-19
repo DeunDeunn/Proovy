@@ -10,8 +10,9 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
+import { useChallenge } from "@/features/challenge/hooks";
 
-import { usePublicFeed } from "./hooks";
+import { useChallengeFeed } from "./hooks";
 
 const filters = [
   { value: "all", label: "전체" },
@@ -51,7 +52,7 @@ const ProfileAvatar = ({ nickname, profileImageUrl }) =>
     </span>
   );
 
-const FeedCard = ({ post }) => (
+const ChallengeFeedCard = ({ post }) => (
   <Card className="overflow-hidden p-0">
     <Link
       href={`/certification-posts/${post.postId}`}
@@ -73,28 +74,24 @@ const FeedCard = ({ post }) => (
     </Link>
 
     <div className="p-5">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <ProfileAvatar
-            nickname={post.authorNickname}
-            profileImageUrl={post.authorProfileImageUrl}
-          />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="truncate text-sm font-semibold text-gray-900">
-                {post.authorNickname ?? "알 수 없는 사용자"}
-              </p>
-              {post.authorBadgeApproved && (
-                <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
-                  <BadgeCheck size={16} aria-hidden="true" />
-                  <span className="sr-only">인증 회원</span>
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-xs text-gray-400">
-              챌린지 #{post.challengeId} · {formatCreatedAt(post.createdAt)}
+      <div className="flex min-w-0 items-center gap-3">
+        <ProfileAvatar
+          nickname={post.authorNickname}
+          profileImageUrl={post.authorProfileImageUrl}
+        />
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-sm font-semibold text-gray-900">
+              {post.authorNickname ?? "알 수 없는 사용자"}
             </p>
+            {post.authorBadgeApproved && (
+              <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
+                <BadgeCheck size={16} aria-hidden="true" />
+                <span className="sr-only">인증 회원</span>
+              </span>
+            )}
           </div>
+          <p className="mt-1 text-xs text-gray-400">{formatCreatedAt(post.createdAt)}</p>
         </div>
       </div>
 
@@ -116,20 +113,37 @@ const FeedCard = ({ post }) => (
   </Card>
 );
 
-const FeedPage = () => {
+const ChallengeFeedPage = ({ challengeId }) => {
   const [filter, setFilter] = useState("all");
-  const { data, error, fetchNextPage, hasNextPage, isError, isFetchingNextPage, isLoading } =
-    usePublicFeed(filter);
+  const {
+    data: challenge,
+    error: challengeError,
+    isLoading: isChallengeLoading,
+  } = useChallenge(challengeId);
+  const {
+    data,
+    error: feedError,
+    fetchNextPage,
+    hasNextPage,
+    isError: isFeedError,
+    isFetchingNextPage,
+    isLoading: isFeedLoading,
+  } = useChallengeFeed(challengeId, filter);
 
   const posts = data?.pages.flat() ?? [];
+
+  if (isChallengeLoading || isFeedLoading) return <Loading label="챌린지 피드를 불러오는 중..." />;
+  if (challengeError) return <ErrorMessage error={challengeError} />;
+  if (isFeedError) return <ErrorMessage error={feedError} />;
 
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">전체 인증 피드</h1>
-        <p className="mt-2 text-sm text-gray-500">
-          전체 공개 챌린지에서 승인된 인증글을 둘러보세요.
+        <p className="text-sm font-medium text-primary">
+          {challenge?.title ?? `챌린지 #${challengeId}`}
         </p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900">인증 피드</h1>
+        <p className="mt-2 text-sm text-gray-500">참가자들이 승인받은 인증글을 확인해보세요.</p>
       </div>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -173,11 +187,7 @@ const FeedPage = () => {
         </div>
       </div>
 
-      {isLoading ? (
-        <Loading label="인증글을 불러오는 중..." />
-      ) : isError ? (
-        <ErrorMessage error={error} />
-      ) : posts.length === 0 ? (
+      {posts.length === 0 ? (
         <Card>
           <p className="py-12 text-center text-sm text-gray-500">표시할 인증글이 없습니다.</p>
         </Card>
@@ -185,7 +195,7 @@ const FeedPage = () => {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <FeedCard key={post.postId} post={post} />
+              <ChallengeFeedCard key={post.postId} post={post} />
             ))}
           </div>
 
@@ -207,4 +217,4 @@ const FeedPage = () => {
   );
 };
 
-export default FeedPage;
+export default ChallengeFeedPage;
