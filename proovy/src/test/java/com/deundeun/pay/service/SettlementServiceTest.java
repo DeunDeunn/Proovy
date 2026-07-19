@@ -12,6 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.HostRevenueHistoryResponse;
 import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementHistoryItem;
+import com.deundeun.pay.dto.SettlementHistoryResponse;
 import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.enums.HostRevenueStatus;
 import com.deundeun.pay.mapper.CashTransactionMapper;
@@ -418,5 +421,39 @@ class SettlementServiceTest {
         assertThat(response.getSize()).isEqualTo(10);
         assertThat(response.getTotalElements()).isEqualTo(15L);
         assertThat(response.getTotalPages()).isEqualTo(2); // ceil(15/10)
+    }
+
+    @Test
+    void getMySettlementHistory_returnsPageWithCorrectTotalPages() {
+        Long userId = 7L;
+        List<SettlementHistoryItem> content = List.of(
+                SettlementHistoryItem.builder().challengeId(10L).title("아침 기상 챌린지").isSuccess(true)
+                        .settledAt(LocalDateTime.of(2026, 7, 10, 9, 0)).profitAmount(12_000L).build(),
+                SettlementHistoryItem.builder().challengeId(20L).title("만보 걷기").isSuccess(false)
+                        .settledAt(LocalDateTime.of(2026, 7, 5, 9, 0)).profitAmount(0L).build()
+        );
+        when(settlementMapper.selectMyHistory(userId, 0, 10)).thenReturn(content);
+        when(settlementMapper.countMyHistory(userId)).thenReturn(15L);
+
+        SettlementHistoryResponse response = settlementService.getMySettlementHistory(userId, 0, 10);
+
+        assertThat(response.getContent()).isEqualTo(content);
+        assertThat(response.getPage()).isZero();
+        assertThat(response.getSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(15L);
+        assertThat(response.getTotalPages()).isEqualTo(2); // ceil(15/10)
+    }
+
+    @Test
+    void getMySettlementHistory_noHistory_returnsEmptyContent() {
+        Long userId = 7L;
+        when(settlementMapper.selectMyHistory(userId, 0, 10)).thenReturn(List.of());
+        when(settlementMapper.countMyHistory(userId)).thenReturn(0L);
+
+        SettlementHistoryResponse response = settlementService.getMySettlementHistory(userId, 0, 10);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        assertThat(response.getTotalPages()).isZero();
     }
 }

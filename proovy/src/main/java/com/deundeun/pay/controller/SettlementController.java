@@ -4,6 +4,7 @@ import com.deundeun.global.common.ApiResponse;
 import com.deundeun.global.common.CurrentUser;
 import com.deundeun.pay.dto.HostRevenueHistoryResponse;
 import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementHistoryResponse;
 import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.service.SettlementService;
 import jakarta.validation.constraints.Min;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SettlementController {
 
     private static final int HOST_REVENUES_PAGE_SIZE = 10;
+    private static final int SETTLEMENT_HISTORY_PAGE_SIZE = 10;
 
     private final SettlementService settlementService;
 
@@ -40,5 +42,11 @@ public class SettlementController {
     public ApiResponse<HostRevenueHistoryResponse> getHostRevenues(@RequestParam(defaultValue = "0") @Min(0) int page){
         Long hostId = CurrentUser.getUserId();
         return ApiResponse.success(settlementService.getHostRevenueHistory(hostId, page, HOST_REVENUES_PAGE_SIZE));
+    }
+
+    @GetMapping("/api/settlements/me")
+    public ApiResponse<SettlementHistoryResponse> getMySettlementHistory(@RequestParam(defaultValue = "0") @Min(0) int page){
+        Long requesterId = CurrentUser.getUserId();
+        return ApiResponse.success(settlementService.getMySettlementHistory(requesterId, page, SETTLEMENT_HISTORY_PAGE_SIZE));
     }
 }
