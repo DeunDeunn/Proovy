@@ -76,7 +76,8 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   const [contents, setContents] = useState("");
   const [replyTargetId, setReplyTargetId] = useState(null);
   const [replyContents, setReplyContents] = useState("");
-  const [validationError, setValidationError] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [errorParentCommentId, setErrorParentCommentId] = useState(null);
   const {
     data,
     error: commentsError,
@@ -91,16 +92,23 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   const canWriteComment = status === "APPROVED";
   const comments = data?.pages.flat() ?? [];
 
+  const clearFormError = () => {
+    setFormError(null);
+    setErrorParentCommentId(null);
+    createMutation.reset();
+  };
+
   const submitComment = (event, parentCommentId = null) => {
     event.preventDefault();
     const value = parentCommentId === null ? contents : replyContents;
 
     if (!value.trim()) {
-      setValidationError("댓글 내용을 입력해주세요.");
+      setFormError({ message: "댓글 내용을 입력해주세요." });
+      setErrorParentCommentId(parentCommentId);
       return;
     }
 
-    setValidationError(null);
+    clearFormError();
     createMutation.mutate(
       {
         contents: value.trim(),
@@ -115,6 +123,10 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
             setReplyTargetId(null);
           }
         },
+        onError: (error) => {
+          setFormError(error);
+          setErrorParentCommentId(parentCommentId);
+        },
       }
     );
   };
@@ -122,7 +134,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   const toggleReplyForm = (commentId) => {
     setReplyTargetId((current) => (current === commentId ? null : commentId));
     setReplyContents("");
-    setValidationError(null);
+    clearFormError();
   };
 
   const commentList = (
@@ -240,6 +252,11 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                       {createMutation.isPending ? "등록 중..." : "답글 등록"}
                     </Button>
                   </div>
+                  {formError && errorParentCommentId === comment.commentId && (
+                    <div className="mt-3">
+                      <ErrorMessage error={formError} />
+                    </div>
+                  )}
                 </form>
               )}
             </article>
@@ -299,11 +316,9 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
       {commentList}
       <div className={embedded ? "pt-4" : "mt-5"}>
         {commentComposer}
-        {(validationError || createMutation.isError) && (
+        {formError && errorParentCommentId === null && (
           <div className="mt-3">
-            <ErrorMessage
-              error={validationError ? { message: validationError } : createMutation.error}
-            />
+            <ErrorMessage error={formError} />
           </div>
         )}
       </div>
