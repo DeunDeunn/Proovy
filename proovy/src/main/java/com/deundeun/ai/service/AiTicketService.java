@@ -27,6 +27,8 @@ public class AiTicketService {
 
     private static final String SUBSCRIPTION_STATUS_ACTIVE = "ACTIVE";
     private static final String TICKET_HISTORY_TYPE_PURCHASE = "PURCHASE";
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final AiTicketMapper aiTicketMapper;
     private final WalletTicketService walletTicketService;
@@ -59,7 +61,11 @@ public class AiTicketService {
         validateUserId(userId);
         String historyType = normalizeHistoryType(type);
         int safePage = Math.max(page, 0);
-        int safeSize = size <= 0 ? 10 : size;
+        int safeSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        int maxPage = Integer.MAX_VALUE / safeSize;
+        if (safePage > maxPage) {
+            safePage = maxPage;
+        }
         long offset = (long) safePage * safeSize;
 
         List<AiTicketHistoryItemResponse> content = aiTicketMapper

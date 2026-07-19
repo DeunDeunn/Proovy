@@ -29,6 +29,8 @@ public class AiReviewServiceImpl implements AiReviewService {
 
     private static final String COMPLETED = "COMPLETED";
     private static final String PROCESSING = "PROCESSING";
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 100;
     private static final double AUTO_DECISION_CONFIDENCE_THRESHOLD = 0.85;
     private static final String LOW_CONFIDENCE_REASON_FORMAT =
             "AI 신뢰도가 0.85 미만이라 추가 검증이 필요합니다. 원래 AI 판단: %s. 원래 사유: %s";
@@ -64,7 +66,9 @@ public class AiReviewServiceImpl implements AiReviewService {
         validateChallengeOwner(requesterId, challengeId);
 
         int safePage = Math.max(page, 0);
-        int safeSize = size <= 0 ? 10 : size;
+        int safeSize = size <= 0
+                ? DEFAULT_PAGE_SIZE
+                : Math.min(size, MAX_PAGE_SIZE);
         long offset = (long) safePage * safeSize;
 
         List<AiReviewResultItemResponse> content = aiReviewMapper
