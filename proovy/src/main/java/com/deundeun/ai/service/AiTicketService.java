@@ -1,5 +1,6 @@
 package com.deundeun.ai.service;
 
+import com.deundeun.ai.dto.AiTicketActiveResponse;
 import com.deundeun.ai.dto.AiTicketPlanResponse;
 import com.deundeun.ai.dto.AiTicketPurchaseRequest;
 import com.deundeun.ai.dto.AiTicketPurchaseResponse;
@@ -11,6 +12,7 @@ import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.service.WalletTicketService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,9 +36,21 @@ public class AiTicketService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public AiTicketActiveResponse findActiveSubscription(Long userId) {
+        validateUserId(userId);
+
+        AiTicketSubscriptionVo subscription = aiTicketMapper.findActiveSubscriptionByHostId(userId);
+        if (subscription == null) {
+            return AiTicketActiveResponse.empty();
+        }
+        return AiTicketActiveResponse.active(subscription);
+    }
+
     @Transactional
     public AiTicketPurchaseResponse purchase(Long userId, AiTicketPurchaseRequest request) {
         validatePurchaseRequest(userId, request);
+        validateNoActiveSubscription(userId);
 
         AiTicketPlanVo plan = aiTicketMapper.findPlanById(request.getPlanId());
         validatePlan(plan);
@@ -51,7 +65,7 @@ public class AiTicketService {
                 .status(SUBSCRIPTION_STATUS_ACTIVE)
                 .build();
 
-        aiTicketMapper.insertSubscription(subscription);
+        insertSubscription(subscription);
         walletTicketService.purchase(userId, plan.getPrice(), subscription.getId());
         aiTicketMapper.insertTicketHistory(AiTicketHistoryVo.builder()
                 .hostId(userId)
@@ -62,10 +76,38 @@ public class AiTicketService {
         return AiTicketPurchaseResponse.from(subscription, plan);
     }
 
+    private void insertSubscription(AiTicketSubscriptionVo subscription) {
+        try {
+            aiTicketMapper.insertSubscription(subscription);
+        } catch (DataIntegrityViolationException e) {
+            if (isActiveSubscriptionConflict(e)) {
+                throw new ApiException(ErrorCode.AI_TICKET_ALREADY_ACTIVE);
+            }
+            throw e;
+        }
+    }
+
     private void validatePurchaseRequest(Long userId, AiTicketPurchaseRequest request) {
         if (userId == null || request == null || request.getPlanId() == null) {
             throw new ApiException(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
         }
+    }
+
+    private void validateUserId(Long userId) {
+        if (userId == null) {
+            throw new ApiException(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
+        }
+    }
+
+    private void validateNoActiveSubscription(Long userId) {
+        if (aiTicketMapper.findActiveSubscriptionByHostId(userId) != null) {
+            throw new ApiException(ErrorCode.AI_TICKET_ALREADY_ACTIVE);
+        }
+    }
+
+    private boolean isActiveSubscriptionConflict(DataIntegrityViolationException e) {
+        String message = e.getMostSpecificCause().getMessage();
+        return message != null && message.contains("ex_ai_ticket_subscriptions_active_period");
     }
 
     private void validatePlan(AiTicketPlanVo plan) {

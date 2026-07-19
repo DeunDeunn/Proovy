@@ -17,6 +17,7 @@ public class AiTicketSubscriptionVo {
     private Long id;
     private Long hostId;
     private Long planId;
+    private String planName;
     private Integer paidPrice;
     private LocalDateTime startedAt;
     private LocalDateTime expiredAt;
