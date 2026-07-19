@@ -196,7 +196,7 @@ class AiTicketServiceTest {
         when(aiTicketMapper.findPlanById(1L)).thenReturn(plan);
         when(aiTicketMapper.insertSubscription(any()))
                 .thenThrow(new DataIntegrityViolationException(
-                        "violates unique constraint \"uq_ai_ticket_subscriptions_active_host\""
+                        "violates exclusion constraint \"ex_ai_ticket_subscriptions_active_period\""
                 ));
 
         assertThatThrownBy(() -> aiTicketService.purchase(userId, new AiTicketPurchaseRequest(1L)))

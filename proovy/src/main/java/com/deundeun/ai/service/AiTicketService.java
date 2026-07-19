@@ -107,7 +107,7 @@ public class AiTicketService {
 
     private boolean isActiveSubscriptionConflict(DataIntegrityViolationException e) {
         String message = e.getMostSpecificCause().getMessage();
-        return message != null && message.contains("uq_ai_ticket_subscriptions_active_host");
+        return message != null && message.contains("ex_ai_ticket_subscriptions_active_period");
     }
 
     private void validatePlan(AiTicketPlanVo plan) {
