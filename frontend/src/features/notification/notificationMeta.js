@@ -1,4 +1,4 @@
-import { FilePlus, FileCheck, FileX, Coins, HandCoins, BadgeCheck, BadgeX } from "lucide-react";
+import { Bell, FilePlus, FileCheck, FileX, Coins, HandCoins, BadgeCheck, BadgeX } from "lucide-react";
 
 export const FILTER_GROUPS = ["전체", "인증", "정산", "기타"];
 
@@ -62,6 +62,17 @@ export const NOTIFICATION_TYPE_META = {
     iconClass: "bg-red-50 text-danger",
   },
 };
+
+// 백엔드에 새 타입이 추가되거나 매핑이 잠시 어긋나도 알림 목록 전체가 죽지 않도록 하는 fallback.
+const DEFAULT_NOTIFICATION_META = {
+  group: "기타",
+  tagLabel: "알림",
+  badgeVariant: "gray",
+  icon: Bell,
+  iconClass: "bg-gray-100 text-gray-500",
+};
+
+export const getNotificationTypeMeta = (type) => NOTIFICATION_TYPE_META[type] ?? DEFAULT_NOTIFICATION_META;
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;

@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.deundeun.global.security.jwt.CustomUserDetails;
+import com.deundeun.notification.domain.NotificationCategory;
 import com.deundeun.notification.dto.response.NotificationDeleteAllResponse;
 import com.deundeun.notification.dto.response.NotificationDeleteResponse;
 import com.deundeun.notification.dto.response.NotificationPageResponse;
@@ -83,6 +84,18 @@ class NotificationControllerTest {
                 .andExpect(status().isOk());
 
         verify(notificationService).getNotifications(1L, 0, 20, null);
+    }
+
+    @Test
+    @DisplayName("category 쿼리 파라미터가 NotificationCategory로 바인딩되어 서비스에 전달된다")
+    void getNotifications_bindsCategoryQueryParam() throws Exception {
+        NotificationPageResponse response = NotificationPageResponse.of(List.of(), 0, 20, 0);
+        when(notificationService.getNotifications(1L, 0, 20, NotificationCategory.SETTLEMENT)).thenReturn(response);
+
+        mockMvc.perform(get("/api/notifications?page=0&size=20&category=SETTLEMENT"))
+                .andExpect(status().isOk());
+
+        verify(notificationService).getNotifications(1L, 0, 20, NotificationCategory.SETTLEMENT);
     }
 
     @Test

@@ -1,10 +1,10 @@
 import { X } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
-import { NOTIFICATION_TYPE_META, formatRelativeTime } from "@/features/notification/notificationMeta";
+import { getNotificationTypeMeta, formatRelativeTime } from "@/features/notification/notificationMeta";
 
 const NotificationCard = ({ notification, onRead, onDelete }) => {
-  const meta = NOTIFICATION_TYPE_META[notification.type];
+  const meta = getNotificationTypeMeta(notification.type);
   const Icon = meta.icon;
   const unread = notification.readAt == null;
 
