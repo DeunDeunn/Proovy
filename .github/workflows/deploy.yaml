@@ -41,7 +41,16 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
+            docker network inspect app-network >/dev/null 2>&1 || docker network create app-network
+            docker inspect redis >/dev/null 2>&1 || {
+              echo "redis container is missing"
+              exit 1
+            }
+            docker network inspect app-network \
+              --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}' 
+              grep -qx redis ||
+              docker network connect app-network redis
             docker pull ${{ secrets.DOCKER_USERNAME }}/proovy:latest
             docker stop proovy || true
             docker rm proovy || true
-            docker run -d --name proovy --restart unless-stopped -p 8080:8080 --env-file /home/ec2-user/.env ${{ secrets.DOCKER_USERNAME }}/proovy:latest
+            docker run -d --name proovy --restart unless-stopped --network app-network -p 8080:8080 --env-file /home/ec2-user/.env ${{ secrets.DOCKER_USERNAME }}/proovy:latest
