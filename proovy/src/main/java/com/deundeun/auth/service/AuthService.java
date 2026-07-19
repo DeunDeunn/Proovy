@@ -97,7 +97,10 @@ public class AuthService {
         String oldUrl = user.getProfileImageUrl();
 
         String newUrl = transactionalFileUploader.uploadReplacing(image, FileCategory.PROFILE, oldUrl);
-        userMapper.updateProfileImageUrl(userId, newUrl);
+        int updated = userMapper.updateProfileImageUrl(userId, newUrl);
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.USER_NOT_FOUND);
+        }
 
         return new ProfileImageUpdateResponse(newUrl);
     }
