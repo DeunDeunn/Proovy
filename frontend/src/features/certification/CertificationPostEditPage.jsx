@@ -16,6 +16,7 @@ import { useCertificationPost, useUpdateCertificationPost } from "./hooks";
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_ADDITIONAL_IMAGES = 3;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 15_000;
 
 const getFileError = (file) => {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -39,19 +40,34 @@ const getFileNameFromUrl = (url, fallbackName) => {
 };
 
 const downloadExistingImageAsFile = async (url, fallbackName) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error("기존 이미지를 다시 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-  }
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), IMAGE_DOWNLOAD_TIMEOUT_MS);
 
-  const blob = await response.blob();
-  if (blob.size === 0) {
-    throw new Error("기존 이미지 파일이 비어 있습니다. 새 이미지를 선택해주세요.");
-  }
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error("기존 이미지를 다시 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+    }
 
-  return new File([blob], getFileNameFromUrl(url, fallbackName), {
-    type: blob.type || "application/octet-stream",
-  });
+    const blob = await response.blob();
+    if (blob.size === 0) {
+      throw new Error("기존 이미지 파일이 비어 있습니다. 새 이미지를 선택해주세요.");
+    }
+
+    return new File([blob], getFileNameFromUrl(url, fallbackName), {
+      type: blob.type || "application/octet-stream",
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(
+        "기존 이미지를 불러오는 시간이 초과되었습니다. 네트워크를 확인한 후 다시 시도해주세요."
+      );
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 };
 
 const CertificationPostEditForm = ({ post, postId }) => {
