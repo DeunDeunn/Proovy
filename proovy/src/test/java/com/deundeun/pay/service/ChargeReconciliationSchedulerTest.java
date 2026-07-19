@@ -15,6 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.deundeun.global.exception.ApiException;
+import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.client.NaverPayApiClient;
 import com.deundeun.pay.domain.CashTransaction;
 import com.deundeun.pay.dto.naverpay.NaverPayApplyBody;
@@ -148,6 +150,34 @@ class ChargeReconciliationSchedulerTest {
         when(cashTransactionMapper.selectStuckProcessing(any())).thenReturn(List.of(transaction));
         stubLeaseGranted();
         when(naverPayApiClient.applyPayment("PAY123")).thenThrow(new RuntimeException("PG 통신 실패"));
+
+        scheduler.reconcileStuckCharges();
+
+        verify(chargeTransactionStateService, never()).markFailed(anyLong(), anyLong());
+        verify(chargeTransactionStateService, never()).completeCharge(any(), any(), anyLong());
+    }
+
+    @Test
+    void reconcileStuckCharges_pgTimeExpired_marksFailedInsteadOfRetrying() {
+        CashTransaction transaction = stuckTransaction();
+        when(cashTransactionMapper.selectStuckProcessing(any())).thenReturn(List.of(transaction));
+        stubLeaseGranted();
+        when(naverPayApiClient.applyPayment("PAY123"))
+                .thenThrow(new ApiException(ErrorCode.PG_TIME_EXPIRED));
+
+        scheduler.reconcileStuckCharges();
+
+        verify(chargeTransactionStateService).markFailed(7L, LEASE_TOKEN);
+        verify(chargeTransactionStateService, never()).completeCharge(any(), any(), anyLong());
+    }
+
+    @Test
+    void reconcileStuckCharges_pgServiceUnavailable_doesNotMarkFailed_retriesNextCycle() {
+        CashTransaction transaction = stuckTransaction();
+        when(cashTransactionMapper.selectStuckProcessing(any())).thenReturn(List.of(transaction));
+        stubLeaseGranted();
+        when(naverPayApiClient.applyPayment("PAY123"))
+                .thenThrow(new ApiException(ErrorCode.PG_SERVICE_UNAVAILABLE));
 
         scheduler.reconcileStuckCharges();
 

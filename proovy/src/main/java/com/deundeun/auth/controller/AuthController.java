@@ -4,6 +4,7 @@ import com.deundeun.auth.dto.ConnectStatusResponse;
 import com.deundeun.auth.dto.NicknameDuplicateResponse;
 import com.deundeun.auth.dto.NicknameUpdateRequest;
 import com.deundeun.auth.dto.NicknameUpdateResponse;
+import com.deundeun.auth.dto.ProfileImageUpdateResponse;
 import com.deundeun.auth.dto.UserMeResponse;
 import com.deundeun.auth.service.AuthService;
 import com.deundeun.global.common.ApiResponse;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Set;
@@ -161,6 +163,14 @@ public class AuthController {
     public ResponseEntity<ApiResponse<NicknameUpdateResponse>> updateNickname(@RequestBody NicknameUpdateRequest request,
                                                                                @AuthenticationPrincipal CustomUserDetails userDetails) {
         NicknameUpdateResponse response = authService.updateNickname(userDetails.getUserId(), request.nickname());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PatchMapping("/profile/image")
+    public ResponseEntity<ApiResponse<ProfileImageUpdateResponse>> updateProfileImage(
+            @RequestParam("image") MultipartFile image,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ProfileImageUpdateResponse response = authService.updateProfileImage(userDetails.getUserId(), image);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

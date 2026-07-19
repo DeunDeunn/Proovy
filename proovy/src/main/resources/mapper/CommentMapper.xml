@@ -43,6 +43,9 @@
         SELECT c.id                                          AS comment_id,
                c.user_id                                     AS author_id,
                u.nickname                                    AS author_nickname,
+               u.profile_image_url                           AS author_profile_image_url,
+               COALESCE(latest_verification.status = 'APPROVED', false)
+                                                           AS author_badge_approved,
                c.contents,
                (c.deleted_at IS NOT NULL)                    AS deleted,
                (c.modified_at IS NOT NULL AND c.deleted_at IS NULL) AS edited,
@@ -50,6 +53,13 @@
                c.created_at
         FROM comments c
         JOIN users u ON u.id = c.user_id
+        LEFT JOIN LATERAL (
+            SELECT status
+            FROM user_verifications
+            WHERE user_id = c.user_id
+            ORDER BY applied_at DESC, id DESC
+            LIMIT 1
+        ) latest_verification ON true
         <where>
             c.post_id = #{postId}
             AND c.parent_comment_id IS NULL
@@ -74,6 +84,9 @@
         SELECT c.id                AS comment_id,
                c.user_id           AS author_id,
                u.nickname          AS author_nickname,
+               u.profile_image_url AS author_profile_image_url,
+               COALESCE(latest_verification.status = 'APPROVED', false)
+                                   AS author_badge_approved,
                c.contents,
                false               AS deleted,
                (c.modified_at IS NOT NULL) AS edited,
@@ -81,6 +94,13 @@
                c.created_at
         FROM comments c
         JOIN users u ON u.id = c.user_id
+        LEFT JOIN LATERAL (
+            SELECT status
+            FROM user_verifications
+            WHERE user_id = c.user_id
+            ORDER BY applied_at DESC, id DESC
+            LIMIT 1
+        ) latest_verification ON true
         WHERE c.deleted_at IS NULL
           AND c.parent_comment_id IN
               <foreach item="pid" collection="parentIds" open="(" separator="," close=")">

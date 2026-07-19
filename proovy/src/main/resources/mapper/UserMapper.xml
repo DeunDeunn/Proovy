@@ -72,4 +72,8 @@
         UPDATE users SET nickname = #{nickname} WHERE id = #{id} AND deleted_at IS NULL
     </update>
 
+    <update id="updateProfileImageUrl">
+        UPDATE users SET profile_image_url = #{profileImageUrl} WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
 </mapper>
