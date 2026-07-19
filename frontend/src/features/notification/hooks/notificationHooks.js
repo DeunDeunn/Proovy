@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteAllNotifications,
@@ -62,5 +63,44 @@ export const useDeleteAllNotifications = () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
     },
+  });
+};
+
+// EventSource로 /api/notifications/subscribe에 연결하고, NOTIFICATION_CREATED 수신 시 콜백을 호출한다.
+// 재연결은 브라우저 EventSource의 기본 동작(Last-Event-ID 자동 전송)에 맡긴다.
+export const useNotificationSubscription = (onNotificationCreated) => {
+  const callbackRef = useRef(onNotificationCreated);
+
+  useEffect(() => {
+    callbackRef.current = onNotificationCreated;
+  }, [onNotificationCreated]);
+
+  useEffect(() => {
+    const eventSource = new EventSource("/api/notifications/subscribe", { withCredentials: true });
+
+    eventSource.addEventListener("NOTIFICATION_CREATED", (event) => {
+      callbackRef.current?.(JSON.parse(event.data));
+    });
+
+    return () => eventSource.close();
+  }, []);
+};
+
+// SSE로 새 알림이 오면 목록 캐시 맨 앞에 바로 꽂아넣고, 안읽음 개수는 무효화해서 재조회한다.
+export const useNotificationRealtimeSync = () => {
+  const queryClient = useQueryClient();
+
+  useNotificationSubscription((notification) => {
+    queryClient.setQueryData(notificationKeys.list({ size: PAGE_SIZE }), (data) => {
+      if (!data) return data;
+
+      const [firstPage, ...restPages] = data.pages;
+      return {
+        ...data,
+        pages: [{ ...firstPage, content: [notification, ...firstPage.content] }, ...restPages],
+      };
+    });
+
+    queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
   });
 };
