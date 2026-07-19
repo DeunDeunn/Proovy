@@ -37,11 +37,15 @@ const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
 
 const ProfileAvatar = ({ nickname, profileImageUrl, compact = false }) => {
   const sizeClassName = compact ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm";
+  const [failedImageUrl, setFailedImageUrl] = useState(null);
+  const showProfileImage =
+    Boolean(profileImageUrl) && failedImageUrl !== profileImageUrl;
 
-  return profileImageUrl ? (
+  return showProfileImage ? (
     <img
       src={profileImageUrl}
       alt={`${nickname ?? "사용자"} 프로필 이미지`}
+      onError={() => setFailedImageUrl(profileImageUrl)}
       className={`${sizeClassName} shrink-0 rounded-full border border-gray-200 object-cover`}
     />
   ) : (
