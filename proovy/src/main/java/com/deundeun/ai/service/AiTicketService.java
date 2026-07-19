@@ -12,6 +12,7 @@ import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.service.WalletTicketService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,7 +65,7 @@ public class AiTicketService {
                 .status(SUBSCRIPTION_STATUS_ACTIVE)
                 .build();
 
-        aiTicketMapper.insertSubscription(subscription);
+        insertSubscription(subscription);
         walletTicketService.purchase(userId, plan.getPrice(), subscription.getId());
         aiTicketMapper.insertTicketHistory(AiTicketHistoryVo.builder()
                 .hostId(userId)
@@ -73,6 +74,17 @@ public class AiTicketService {
                 .build());
 
         return AiTicketPurchaseResponse.from(subscription, plan);
+    }
+
+    private void insertSubscription(AiTicketSubscriptionVo subscription) {
+        try {
+            aiTicketMapper.insertSubscription(subscription);
+        } catch (DataIntegrityViolationException e) {
+            if (isActiveSubscriptionConflict(e)) {
+                throw new ApiException(ErrorCode.AI_TICKET_ALREADY_ACTIVE);
+            }
+            throw e;
+        }
     }
 
     private void validatePurchaseRequest(Long userId, AiTicketPurchaseRequest request) {
@@ -91,6 +103,11 @@ public class AiTicketService {
         if (aiTicketMapper.findActiveSubscriptionByHostId(userId) != null) {
             throw new ApiException(ErrorCode.AI_TICKET_ALREADY_ACTIVE);
         }
+    }
+
+    private boolean isActiveSubscriptionConflict(DataIntegrityViolationException e) {
+        String message = e.getMostSpecificCause().getMessage();
+        return message != null && message.contains("uq_ai_ticket_subscriptions_active_host");
     }
 
     private void validatePlan(AiTicketPlanVo plan) {

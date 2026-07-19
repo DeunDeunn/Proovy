@@ -27,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -183,6 +184,28 @@ class AiTicketServiceTest {
         verify(aiTicketMapper, never()).findPlanById(any());
         verify(aiTicketMapper, never()).insertSubscription(any());
         verify(walletTicketService, never()).purchase(any(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("purchase maps database active subscription conflict to A019")
+    void purchase_activeSubscriptionConstraintConflict_failsWithA019() {
+        Long userId = 5L;
+        AiTicketPlanVo plan = activePlan();
+
+        when(aiTicketMapper.findActiveSubscriptionByHostId(userId)).thenReturn(null);
+        when(aiTicketMapper.findPlanById(1L)).thenReturn(plan);
+        when(aiTicketMapper.insertSubscription(any()))
+                .thenThrow(new DataIntegrityViolationException(
+                        "violates unique constraint \"uq_ai_ticket_subscriptions_active_host\""
+                ));
+
+        assertThatThrownBy(() -> aiTicketService.purchase(userId, new AiTicketPurchaseRequest(1L)))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AI_TICKET_ALREADY_ACTIVE);
+
+        verify(walletTicketService, never()).purchase(any(), anyLong(), any());
+        verify(aiTicketMapper, never()).insertTicketHistory(any());
     }
 
     @Test
