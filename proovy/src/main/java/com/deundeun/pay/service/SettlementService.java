@@ -9,6 +9,8 @@ import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.HostRevenueHistoryResponse;
 import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementHistoryItem;
+import com.deundeun.pay.dto.SettlementHistoryResponse;
 import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.HostRevenueStatus;
@@ -240,6 +242,23 @@ public class SettlementService implements WalletSettlementService {
         int totalPages = (int) Math.ceil((double) totalElements / size);
 
         return HostRevenueHistoryResponse.builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
+    }
+
+    // NOTE: challenge_participants.result는 아직 어떤 코드도 채워주지 않는 컬럼이라(settle()도 안 건드림),
+    // 이 메서드는 실제로 그 컬럼이 채워지기 시작해야 데이터가 나온다. SettlementMapper.selectMyHistory 참고.
+    @Transactional
+    public SettlementHistoryResponse getMySettlementHistory(Long userId, int page, int size) {
+        List<SettlementHistoryItem> content = settlementMapper.selectMyHistory(userId, page * size, size);
+        long totalElements = settlementMapper.countMyHistory(userId);
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        return SettlementHistoryResponse.builder()
                 .content(content)
                 .page(page)
                 .size(size)
