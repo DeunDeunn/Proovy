@@ -12,6 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 
+import com.deundeun.challenge.domain.Challenge;
+import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.notification.event.HostRevenuePaidEvent;
@@ -35,6 +38,7 @@ import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.HostRevenueHistoryResponse;
 import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementHistoryResponse;
 import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.enums.HostRevenueStatus;
 import com.deundeun.pay.mapper.CashTransactionMapper;
@@ -52,6 +56,8 @@ class SettlementServiceTest {
     private WalletService walletService;
     @Mock
     private CashTransactionMapper cashTransactionMapper;
+    @Mock
+    private ChallengeMapper challengeMapper;
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
@@ -418,5 +424,70 @@ class SettlementServiceTest {
         assertThat(response.getSize()).isEqualTo(10);
         assertThat(response.getTotalElements()).isEqualTo(15L);
         assertThat(response.getTotalPages()).isEqualTo(2); // ceil(15/10)
+    }
+
+    @Test
+    void getMySettlementHistory_mapsSuccessAndFailItemsWithTitleAndProfit() {
+        Long userId = 7L;
+        Wallet wallet = walletWith(1L, 0L, 0L, 0L);
+        when(walletService.getOrCreateWallet(userId)).thenReturn(wallet);
+
+        LocalDateTime successSettledAt = LocalDateTime.of(2026, 7, 10, 9, 0);
+        LocalDateTime failSettledAt = LocalDateTime.of(2026, 7, 5, 9, 0);
+        CashTransaction successTx = CashTransaction.builder()
+                .walletId(1L).type(CashTransactionType.CHALLENGE_PRINCIPAL_SUCCESS).referenceId(10L)
+                .createdAt(successSettledAt).build();
+        CashTransaction failTx = CashTransaction.builder()
+                .walletId(1L).type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL).referenceId(20L)
+                .createdAt(failSettledAt).build();
+        when(cashTransactionMapper.selectSettlementParticipationsByWalletId(1L, 0, 10))
+                .thenReturn(List.of(successTx, failTx));
+        when(cashTransactionMapper.countSettlementParticipationsByWalletId(1L)).thenReturn(2L);
+
+        when(settlementMapper.selectByChallengeIds(List.of(10L, 20L))).thenReturn(List.of(
+                SettlementResultResponse.builder().challengeId(10L).settledAt(successSettledAt).profitPerUser(12_000L).build(),
+                SettlementResultResponse.builder().challengeId(20L).settledAt(failSettledAt).profitPerUser(9_000L).build()
+        ));
+        when(challengeMapper.findByIds(List.of(10L, 20L))).thenReturn(List.of(
+                Challenge.builder().id(10L).title("아침 기상 챌린지").build(),
+                Challenge.builder().id(20L).title("만보 걷기").build()
+        ));
+
+        SettlementHistoryResponse response = settlementService.getMySettlementHistory(userId, 0, 10);
+
+        assertThat(response.getContent()).hasSize(2);
+        assertThat(response.getContent().get(0).getChallengeId()).isEqualTo(10L);
+        assertThat(response.getContent().get(0).getTitle()).isEqualTo("아침 기상 챌린지");
+        assertThat(response.getContent().get(0).isSuccess()).isTrue();
+        assertThat(response.getContent().get(0).getSettledAt()).isEqualTo(successSettledAt);
+        assertThat(response.getContent().get(0).getProfitAmount()).isEqualTo(12_000L);
+
+        assertThat(response.getContent().get(1).getChallengeId()).isEqualTo(20L);
+        assertThat(response.getContent().get(1).getTitle()).isEqualTo("만보 걷기");
+        assertThat(response.getContent().get(1).isSuccess()).isFalse();
+        // 실패자는 settlements.profit_per_user가 성공자 몫이라 본인 수익이 아니므로 0으로 나와야 함
+        assertThat(response.getContent().get(1).getProfitAmount()).isEqualTo(0L);
+
+        assertThat(response.getPage()).isZero();
+        assertThat(response.getSize()).isEqualTo(10);
+        assertThat(response.getTotalElements()).isEqualTo(2L);
+        assertThat(response.getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    void getMySettlementHistory_noParticipations_returnsEmptyContentWithoutExtraLookups() {
+        Long userId = 7L;
+        Wallet wallet = walletWith(1L, 0L, 0L, 0L);
+        when(walletService.getOrCreateWallet(userId)).thenReturn(wallet);
+        when(cashTransactionMapper.selectSettlementParticipationsByWalletId(1L, 0, 10)).thenReturn(List.of());
+        when(cashTransactionMapper.countSettlementParticipationsByWalletId(1L)).thenReturn(0L);
+
+        SettlementHistoryResponse response = settlementService.getMySettlementHistory(userId, 0, 10);
+
+        assertThat(response.getContent()).isEmpty();
+        assertThat(response.getTotalElements()).isZero();
+        assertThat(response.getTotalPages()).isZero();
+        verify(settlementMapper, never()).selectByChallengeIds(any());
+        verify(challengeMapper, never()).findByIds(any());
     }
 }

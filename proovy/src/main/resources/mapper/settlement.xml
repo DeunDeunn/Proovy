@@ -36,4 +36,18 @@
         FROM settlements
         WHERE challenge_id = #{challengeId}
     </select>
+
+    <select id="selectByChallengeIds" resultType="com.deundeun.pay.dto.SettlementResultResponse">
+        SELECT challenge_id, total_participant_count,
+        success_user_count, fail_user_count, failure_pool,
+        participant_share_rate, platform_fee_rate, host_fee_rate,
+        participant_share_amount, platform_fee_amount, host_fee_amount,
+        profit_per_user, is_host_disqualified,
+        status, settled_at
+        FROM settlements
+        WHERE challenge_id IN
+        <foreach item="id" collection="challengeIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
 </mapper>

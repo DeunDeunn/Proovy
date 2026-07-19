@@ -1,5 +1,7 @@
 package com.deundeun.pay.service;
 
+import com.deundeun.challenge.domain.Challenge;
+import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.domain.CashTransaction;
@@ -9,6 +11,8 @@ import com.deundeun.pay.domain.Settlement;
 import com.deundeun.pay.domain.Wallet;
 import com.deundeun.pay.dto.HostRevenueHistoryResponse;
 import com.deundeun.pay.dto.HostRevenueItem;
+import com.deundeun.pay.dto.SettlementHistoryItem;
+import com.deundeun.pay.dto.SettlementHistoryResponse;
 import com.deundeun.pay.dto.SettlementResultResponse;
 import com.deundeun.pay.enums.CashTransactionStatus;
 import com.deundeun.pay.enums.HostRevenueStatus;
@@ -28,6 +32,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.deundeun.global.exception.ErrorCode.SETTLEMENT_ALREADY_PROCESSED;
 
@@ -38,6 +45,7 @@ public class SettlementService implements WalletSettlementService {
     private final HostRevenueMapper hostRevenueMapper;
     private final WalletService walletService;
     private final CashTransactionMapper cashTransactionMapper;
+    private final ChallengeMapper challengeMapper;
     private final ApplicationEventPublisher eventPublisher;
     @Override
     @Transactional
@@ -246,5 +254,56 @@ public class SettlementService implements WalletSettlementService {
                 .totalElements(totalElements)
                 .totalPages(totalPages)
                 .build();
+    }
+
+    @Transactional
+    public SettlementHistoryResponse getMySettlementHistory(Long userId, int page, int size) {
+        Wallet wallet = walletService.getOrCreateWallet(userId);
+        List<CashTransaction> participations = cashTransactionMapper
+                .selectSettlementParticipationsByWalletId(wallet.getId(), page * size, size);
+        long totalElements = cashTransactionMapper.countSettlementParticipationsByWalletId(wallet.getId());
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        List<SettlementHistoryItem> content = buildSettlementHistoryItems(participations);
+
+        return SettlementHistoryResponse.builder()
+                .content(content)
+                .page(page)
+                .size(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .build();
+    }
+
+    private List<SettlementHistoryItem> buildSettlementHistoryItems(List<CashTransaction> participations) {
+        if (participations.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> challengeIds = participations.stream()
+                .map(CashTransaction::getReferenceId)
+                .distinct()
+                .toList();
+
+        Map<Long, SettlementResultResponse> settlementsByChallengeId = settlementMapper
+                .selectByChallengeIds(challengeIds).stream()
+                .collect(Collectors.toMap(SettlementResultResponse::getChallengeId, Function.identity()));
+
+        Map<Long, String> titlesByChallengeId = challengeMapper.findByIds(challengeIds).stream()
+                .collect(Collectors.toMap(Challenge::getId, Challenge::getTitle));
+
+        return participations.stream()
+                .map(tx -> {
+                    boolean isSuccess = tx.getType() == CashTransactionType.CHALLENGE_PRINCIPAL_SUCCESS;
+                    SettlementResultResponse settlement = settlementsByChallengeId.get(tx.getReferenceId());
+                    return SettlementHistoryItem.builder()
+                            .challengeId(tx.getReferenceId())
+                            .title(titlesByChallengeId.get(tx.getReferenceId()))
+                            .isSuccess(isSuccess)
+                            .settledAt(settlement != null ? settlement.getSettledAt() : tx.getCreatedAt())
+                            .profitAmount(isSuccess && settlement != null ? settlement.getProfitPerUser() : 0L)
+                            .build();
+                })
+                .toList();
     }
 }
