@@ -8,6 +8,7 @@ import lombok.Getter;
 public class WalletResponse {
     private Long chargedBalance;
     private Long rewardBalance;
-    private Long lockedBalance;
+    private Long lockedChargedBalance;
+    private Long lockedRewardBalance;
     private Long availableBalance;
 }

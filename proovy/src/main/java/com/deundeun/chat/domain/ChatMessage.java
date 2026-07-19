@@ -1,5 +1,7 @@
 package com.deundeun.chat.domain;
 
+import com.deundeun.global.exception.ApiException;
+import com.deundeun.global.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,5 +36,17 @@ public class ChatMessage {
     public static ChatMessage create(Long chatRoomId, Long senderId, String content,
                                      ChatMessageType messageType, ChatReferenceType referenceType, Long referenceId) {
         return new ChatMessage(chatRoomId, senderId, content, messageType, referenceType, referenceId);
+    }
+
+    public void delete() {
+        if (isDeleted()) {
+            throw new ApiException(ErrorCode.CHAT_MESSAGE_ALREADY_DELETED);
+        }
+
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

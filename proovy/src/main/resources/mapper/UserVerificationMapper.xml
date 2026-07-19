@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.auth.mapper.UserVerificationMapper">
+
+    <insert id="insert">
+        INSERT INTO user_verifications (user_id, status, applied_at)
+        VALUES (#{userId}, 'PENDING', now())
+    </insert>
+
+    <select id="existsPending" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM user_verifications
+            WHERE user_id = #{userId} AND status = 'PENDING'
+        )
+    </select>
+
+    <select id="findLatestByUserId" resultType="com.deundeun.auth.domain.UserVerification">
+        SELECT id, user_id, status, applied_at, approved_at, rejection_reason
+        FROM user_verifications
+        WHERE user_id = #{userId}
+        ORDER BY applied_at DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findById" resultType="com.deundeun.auth.domain.UserVerification">
+        SELECT id, user_id, status, applied_at, approved_at, rejection_reason
+        FROM user_verifications
+        WHERE id = #{id}
+    </select>
+
+    <select id="findApprovedUserIds" resultType="long">
+        SELECT user_id
+        FROM (
+            SELECT DISTINCT ON (user_id) user_id, status
+            FROM user_verifications
+            WHERE
+            <choose>
+                <when test="userIds != null and !userIds.isEmpty()">
+                    user_id IN
+                    <foreach item="userId" collection="userIds" open="(" separator="," close=")">
+                        #{userId}
+                    </foreach>
+                </when>
+                <otherwise>
+                    1 = 0
+                </otherwise>
+            </choose>
+            ORDER BY user_id, applied_at DESC, id DESC
+        ) latest
+        WHERE status = 'APPROVED'
+    </select>
+
+    <select id="countSuccessfulChallenges" resultType="long">
+        SELECT COUNT(*)
+        FROM challenge_participants cp
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE cp.user_id = #{userId}
+          AND cp.result = 'SUCCESS'
+        <if test="since != null">
+            AND c.end_date &gt; CAST(#{since} AS DATE)
+        </if>
+    </select>
+
+    <select id="findByStatus" resultType="com.deundeun.auth.dto.UserVerificationListItem">
+        SELECT v.id AS id, v.user_id AS user_id, u.nickname AS nickname, v.status AS status, v.applied_at AS applied_at
+        FROM user_verifications v
+        JOIN users u ON u.id = v.user_id
+        <where>
+            <if test="status != null">v.status = #{status}</if>
+        </where>
+        ORDER BY v.applied_at DESC, v.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(*)
+        FROM user_verifications v
+        <where>
+            <if test="status != null">v.status = #{status}</if>
+        </where>
+    </select>
+
+    <update id="updateStatus">
+        UPDATE user_verifications
+        SET status = #{status},
+            approved_at = #{approvedAt},
+            rejection_reason = #{rejectionReason}
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+</mapper>

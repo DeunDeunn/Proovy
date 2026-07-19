@@ -12,7 +12,7 @@ public class CertificationPostDetailResponse {
     private Long authorId;          // 작성자아이디
     private String contents;
     private String thumbnailUrl;    // 대표 이미지 URL
-    private CertificationStatus status;   // PENDING / APPROVED / REJECTED
+    private CertificationStatus status;   // 방장 검수 상태
     private Long likeCount;
     private Long commentCount;
     private LocalDateTime createdAt;

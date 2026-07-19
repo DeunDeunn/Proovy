@@ -3,10 +3,13 @@ package com.deundeun.auth.service;
 import com.deundeun.auth.domain.User;
 import com.deundeun.auth.dto.ConnectStatusResponse;
 import com.deundeun.auth.dto.NicknameUpdateResponse;
+import com.deundeun.auth.dto.ProfileImageUpdateResponse;
 import com.deundeun.auth.dto.UserMeResponse;
 import com.deundeun.auth.mapper.UserMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.global.file.FileCategory;
+import com.deundeun.global.file.TransactionalFileUploader;
 import com.deundeun.global.security.jwt.JwtProvider;
 import com.deundeun.global.security.jwt.ReauthTokenRepository;
 import com.deundeun.global.security.jwt.RefreshToken;
@@ -17,8 +20,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +35,7 @@ public class AuthService {
     private final ReauthTokenRepository reauthTokenRepository;
     private final UserMapper userMapper;
     private final WalletMapper walletMapper;
+    private final TransactionalFileUploader transactionalFileUploader;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
@@ -84,6 +91,20 @@ public class AuthService {
         return new NicknameUpdateResponse(nickname);
     }
 
+    @Transactional
+    public ProfileImageUpdateResponse updateProfileImage(Long userId, MultipartFile image) {
+        User user = getUserOrThrow(userId);
+        String oldUrl = user.getProfileImageUrl();
+
+        String newUrl = transactionalFileUploader.uploadReplacing(image, FileCategory.PROFILE, oldUrl);
+        int updated = userMapper.updateProfileImageUrl(userId, newUrl);
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        return new ProfileImageUpdateResponse(newUrl);
+    }
+
     private void validateNicknameFormat(String nickname) {
         if (nickname == null || nickname.length() < 2 || nickname.length() > 10) {
             throw new ApiException(ErrorCode.NICKNAME_INVALID);
@@ -105,7 +126,13 @@ public class AuthService {
             throw new ApiException(ErrorCode.REAUTH_FAILED);
         }
 
-        getUserOrThrow(userId);
+        User user = getUserOrThrow(userId);
+
+        LocalDateTime now = LocalDateTime.now();
+        if (user.getSuspendedUntil() != null && now.isBefore(user.getSuspendedUntil())
+                && (user.getSuspendedFrom() == null || !now.isBefore(user.getSuspendedFrom()))) {
+            throw new ApiException(ErrorCode.WITHDRAWAL_SUSPENDED);
+        }
 
         if (userMapper.existsActiveChallengeParticipation(userId)) {
             throw new ApiException(ErrorCode.WITHDRAWAL_ACTIVE_CHALLENGE);

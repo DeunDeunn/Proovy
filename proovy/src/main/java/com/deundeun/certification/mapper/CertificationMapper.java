@@ -3,8 +3,12 @@ package com.deundeun.certification.mapper;
 import com.deundeun.certification.dto.CertificationPostDetailResponse;
 import com.deundeun.certification.dto.ChallengeForCertification;
 import com.deundeun.certification.dto.CreateCertificationPostSqlParam;
+import com.deundeun.certification.dto.FeedItemResponse;
+import com.deundeun.certification.dto.FeedQuery;
 import com.deundeun.certification.dto.ParticipantForCertification;
+import com.deundeun.certification.dto.ParticipantSuccessCount;
 import com.deundeun.certification.dto.PendingCertificationResponse;
+import com.deundeun.certification.dto.PendingPostForAutoApproval;
 import com.deundeun.certification.dto.PostReviewContext;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.enums.ApprovalType;
@@ -61,8 +65,19 @@ public interface CertificationMapper {
    // 글 반려. 반환=영향받은 행 수
    int rejectPost(@Param("postId") Long postId, @Param("reason") String reason);
 
-   // 특정 챌린지의 승인대기 인증글 목록 (방장 검수용)
-   List<PendingCertificationResponse> findPendingCertifications(Long challengeId);
+   // 자정 자동 승인 대상: 삭제 안 된 PENDING 글 전체 (작성자·챌린지·방장 포함)
+   List<PendingPostForAutoApproval> findAllPendingPostsForAutoApproval();
+
+   // 자동 승인: id 목록을 한 번에 APPROVED/AUTO로 갱신. 반환=실제 갱신된 글 id 목록(RETURNING id)
+   List<Long> approvePostsAuto(@Param("postIds") List<Long> postIds);
+
+   // 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용). 인증 0건 참가자는 결과에 없음
+   List<ParticipantSuccessCount> countApprovedDaysByParticipantIds(@Param("participantIds") List<Long> participantIds);
+
+   // 특정 챌린지의 승인대기 인증글 목록 (방장 검수용, 커서 무한스크롤·최신순)
+   List<PendingCertificationResponse> findPendingCertifications(@Param("challengeId") Long challengeId,
+                                                                @Param("cursor") Long cursor,
+                                                                @Param("size") int size);
 
    // 글 본문·대표이미지 수정 + PENDING 회귀
    void updatePost(@Param("postId") Long postId,
@@ -74,4 +89,22 @@ public interface CertificationMapper {
 
    // 채팅 메시지의 인증글 공유 카드용 요약 정보 (챌린지 제목/작성자 닉네임 포함), 배치 조회
    List<SharedCertificationInfo> findSharedCertifications(@Param("postIds") List<Long> postIds);
+
+   // 피드 목록 조회 (챌린지/전체/내/타인 피드 공통).
+   List<FeedItemResponse> findFeed(FeedQuery query);
+
+   // 좋아요 삭제, 0 or 1
+   int deleteLike(@Param("postId") Long postId, @Param("userId") Long userId);
+
+   // 좋아요 등록, 중복 X / 0 or 1
+   int insertLike(@Param("postId") Long postId, @Param("userId") Long userId);
+
+   // 좋아요 +1
+   void incrementLikeCount(Long postId);
+
+   // 좋아요 -1
+   void decrementLikeCount(Long postId);
+
+   // 해당글 좋아요집계
+   long findLikeCount(Long postId);
 }

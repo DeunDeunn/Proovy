@@ -5,6 +5,7 @@ import com.deundeun.chat.domain.ChatFileType;
 
 public record ChatAttachmentResponse(
     Long attachmentId,
+    Long uploaderId,
     String fileUrl,
     String originalFileName,
     ChatFileType fileType,
@@ -14,6 +15,7 @@ public record ChatAttachmentResponse(
     public static ChatAttachmentResponse of(ChatAttachment attachment) {
         return new ChatAttachmentResponse(
             attachment.getId(),
+            attachment.getUploaderId(),
             attachment.getFileUrl(),
             attachment.getOriginalFileName(),
             attachment.getFileType(),

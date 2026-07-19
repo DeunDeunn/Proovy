@@ -9,12 +9,12 @@ public record DirectChatPartnerResponse(
     boolean badgeApproved
 ) {
 
-    public static DirectChatPartnerResponse of(User user) {
+    public static DirectChatPartnerResponse of(User user, boolean badgeApproved) {
         return new DirectChatPartnerResponse(
             user.getId(),
             user.getNickname(),
             user.getProfileImageUrl(),
-            false
+            badgeApproved
         );
     }
 }
