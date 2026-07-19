@@ -43,7 +43,7 @@
         JOIN ai_ticket_plans p ON p.id = s.plan_id
         WHERE s.host_id = #{hostId}
           AND s.status = 'ACTIVE'
-          AND s.started_at <= now()
+          AND s.started_at &lt;= now()
           AND s.expired_at > now()
         ORDER BY s.expired_at DESC, s.id DESC
         LIMIT 1
