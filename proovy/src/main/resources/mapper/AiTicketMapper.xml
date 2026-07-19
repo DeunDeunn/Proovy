@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.deundeun.ai.mapper.AiTicketMapper">
+
+    <select id="findActivePlans" resultType="com.deundeun.ai.vo.AiTicketPlanVo">
+        SELECT id,
+               name,
+               duration_days,
+               price,
+               description,
+               active
+        FROM ai_ticket_plans
+        WHERE active = true
+        ORDER BY duration_days ASC, price ASC, id ASC
+    </select>
+
+</mapper>
