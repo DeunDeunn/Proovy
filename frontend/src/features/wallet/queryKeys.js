@@ -13,4 +13,5 @@ export const withdrawalKeys = {
 export const settlementKeys = {
   all: ["settlement"],
   detail: (challengeId) => [...settlementKeys.all, challengeId],
+  history: (params) => [...settlementKeys.all, "history", params],
 };

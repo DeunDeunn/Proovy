@@ -6,6 +6,7 @@ import {
   getMyTransactions,
   getMyWallet,
   getMyWithdrawals,
+  getSettlementHistory,
   getSettlementResult,
   getWithdrawableAmount,
   requestCharge,
@@ -34,6 +35,12 @@ export const useSettlementResult = (challengeId) =>
     queryKey: settlementKeys.detail(challengeId),
     queryFn: () => getSettlementResult(challengeId),
     enabled: !!challengeId,
+  });
+
+export const useSettlementHistory = (params) =>
+  useQuery({
+    queryKey: settlementKeys.history(params),
+    queryFn: () => getSettlementHistory(params),
   });
 
 export const useRequestCharge = () => {

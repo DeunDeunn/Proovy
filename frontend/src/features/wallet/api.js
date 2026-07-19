@@ -16,3 +16,6 @@ export const getMyWithdrawals = ({ status, page = 0 } = {}) =>
 
 export const getSettlementResult = (challengeId) =>
   api.get(`/challenge-rooms/${challengeId}/settlement`);
+
+export const getSettlementHistory = ({ page = 0 } = {}) =>
+  api.get("/settlements/me", { params: { page } });
