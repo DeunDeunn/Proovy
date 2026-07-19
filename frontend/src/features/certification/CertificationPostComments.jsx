@@ -132,6 +132,8 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   };
 
   const toggleReplyForm = (commentId) => {
+    if (createMutation.isPending) return;
+
     setReplyTargetId((current) => (current === commentId ? null : commentId));
     setReplyContents("");
     clearFormError();
@@ -178,7 +180,8 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         <button
                           type="button"
                           onClick={() => toggleReplyForm(comment.commentId)}
-                          className="shrink-0 text-xs font-medium text-primary hover:text-primary-hover"
+                          disabled={createMutation.isPending}
+                          className="shrink-0 text-xs font-medium text-primary hover:text-primary-hover disabled:cursor-not-allowed disabled:text-gray-400"
                         >
                           답글
                         </button>
