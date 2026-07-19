@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   applyWithdrawal,
+  confirmNaverPayCharge,
   getMyTransactions,
   getMyWallet,
   getMyWithdrawals,
@@ -48,6 +49,14 @@ export const useRequestCharge = () => {
   return useMutation({
     mutationFn: requestCharge,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: walletKeys.me() }),
+  });
+};
+
+export const useConfirmNaverPayCharge = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: confirmNaverPayCharge,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: walletKeys.all }),
   });
 };
 
