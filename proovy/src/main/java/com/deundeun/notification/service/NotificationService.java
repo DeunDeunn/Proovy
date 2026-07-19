@@ -3,6 +3,8 @@ package com.deundeun.notification.service;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.notification.domain.Notification;
+import com.deundeun.notification.domain.NotificationCategory;
+import com.deundeun.notification.domain.NotificationType;
 import com.deundeun.notification.dto.NotificationCreateCommand;
 import com.deundeun.notification.dto.response.*;
 import com.deundeun.notification.event.NotificationCreatedEvent;
@@ -40,14 +42,15 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public NotificationPageResponse getNotifications(Long userId, int page, int size) {
-        log.debug("[Notification] 목록 조회: userId={}, page={}, size={}", userId, page, size);
+    public NotificationPageResponse getNotifications(Long userId, int page, int size, NotificationCategory category) {
+        log.debug("[Notification] 목록 조회: userId={}, page={}, size={}, category={}", userId, page, size, category);
 
+        List<NotificationType> types = category != null ? category.getTypes() : null;
         int offset = page * size;
-        List<NotificationResponse> content = notificationMapper.findByUserId(userId, size, offset).stream()
+        List<NotificationResponse> content = notificationMapper.findByUserId(userId, types, size, offset).stream()
                 .map(NotificationResponse::from)
                 .toList();
-        long totalElements = notificationMapper.countByUserId(userId);
+        long totalElements = notificationMapper.countByUserId(userId, types);
 
         return NotificationPageResponse.of(content, page, size, totalElements);
     }

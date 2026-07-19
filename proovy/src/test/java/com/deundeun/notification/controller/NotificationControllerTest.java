@@ -63,26 +63,26 @@ class NotificationControllerTest {
     @DisplayName("목록 조회 시 userId/page/size를 서비스에 그대로 전달한다")
     void getNotifications_delegatesToService() throws Exception {
         NotificationPageResponse response = NotificationPageResponse.of(List.of(), 0, 20, 0);
-        when(notificationService.getNotifications(1L, 0, 20)).thenReturn(response);
+        when(notificationService.getNotifications(1L, 0, 20, null)).thenReturn(response);
 
         mockMvc.perform(get("/api/notifications?page=0&size=20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("알림 목록 조회를 완료했습니다."));
 
-        verify(notificationService).getNotifications(1L, 0, 20);
+        verify(notificationService).getNotifications(1L, 0, 20, null);
     }
 
     @Test
     @DisplayName("page/size 생략 시 기본값(0, 20)으로 조회한다")
     void getNotifications_usesDefaultPageAndSize() throws Exception {
         NotificationPageResponse response = NotificationPageResponse.of(List.of(), 0, 20, 0);
-        when(notificationService.getNotifications(1L, 0, 20)).thenReturn(response);
+        when(notificationService.getNotifications(1L, 0, 20, null)).thenReturn(response);
 
         mockMvc.perform(get("/api/notifications"))
                 .andExpect(status().isOk());
 
-        verify(notificationService).getNotifications(1L, 0, 20);
+        verify(notificationService).getNotifications(1L, 0, 20, null);
     }
 
     @Test
