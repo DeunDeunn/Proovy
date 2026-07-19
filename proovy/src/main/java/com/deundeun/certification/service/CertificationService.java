@@ -295,7 +295,7 @@ public class CertificationService {
         // TODO: 반려글 24시간 후 자동삭제 (스케줄러 — 별도)
     }
 
-    // 검수 대기 목록 조회 (그 챌린지 방장 또는 관리자만, 커서 무한스크롤·최신순)
+    // 검수 대기 목록 조회 (그 챌린지 방장 또는 관리자만, 커서 무한스크롤·오래된 순)
     public List<PendingCertificationResponse> getPendingCertifications(Long challengeId, Long userId,
                                                                        Long cursor, Integer size) {
         ChallengeForCertification challenge = certificationMapper.findChallengeById(challengeId);
