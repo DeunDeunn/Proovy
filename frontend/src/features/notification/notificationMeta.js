@@ -2,6 +2,14 @@ import { FilePlus, FileCheck, FileX, Coins, HandCoins, BadgeCheck, BadgeX } from
 
 export const FILTER_GROUPS = ["전체", "인증", "정산", "기타"];
 
+// 프론트 필터 탭 → 백엔드 NotificationCategory(com.deundeun.notification.domain.NotificationCategory) 파라미터값
+// "전체"는 매핑값이 없고, undefined로 넘겨서 서버가 필터 없이 전체 조회하도록 한다.
+export const FILTER_GROUP_TO_CATEGORY = {
+  인증: "VERIFICATION",
+  정산: "SETTLEMENT",
+  기타: "ETC",
+};
+
 // 백엔드 NotificationType(com.deundeun.notification.domain.NotificationType)과 1:1 매칭
 export const NOTIFICATION_TYPE_META = {
   VERIFICATION_SUBMITTED: {

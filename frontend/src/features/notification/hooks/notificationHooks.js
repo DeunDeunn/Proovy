@@ -14,10 +14,10 @@ import { notificationKeys } from "./notificationQueryKeys";
 
 const PAGE_SIZE = 20;
 
-export const useNotifications = () =>
+export const useNotifications = (category) =>
   useInfiniteQuery({
-    queryKey: notificationKeys.list({ size: PAGE_SIZE }),
-    queryFn: ({ pageParam }) => getNotifications({ page: pageParam, size: PAGE_SIZE }),
+    queryKey: notificationKeys.list({ size: PAGE_SIZE, category }),
+    queryFn: ({ pageParam }) => getNotifications({ page: pageParam, size: PAGE_SIZE, category }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
   });
@@ -86,21 +86,14 @@ export const useNotificationSubscription = (onNotificationCreated) => {
   }, []);
 };
 
-// SSE로 새 알림이 오면 목록 캐시 맨 앞에 바로 꽂아넣고, 안읽음 개수는 무효화해서 재조회한다.
+// SSE로 새 알림이 오면 목록/안읽음 캐시를 무효화해서 재조회한다.
+// 필터(category)별로 캐시가 여러 개 동시에 존재할 수 있어(전체/인증/정산/기타), 특정 캐시 하나만
+// 직접 수정하는 대신 notificationKeys.lists()로 모든 변형을 한 번에 무효화한다.
 export const useNotificationRealtimeSync = () => {
   const queryClient = useQueryClient();
 
-  useNotificationSubscription((notification) => {
-    queryClient.setQueryData(notificationKeys.list({ size: PAGE_SIZE }), (data) => {
-      if (!data) return data;
-
-      const [firstPage, ...restPages] = data.pages;
-      return {
-        ...data,
-        pages: [{ ...firstPage, content: [notification, ...firstPage.content] }, ...restPages],
-      };
-    });
-
+  useNotificationSubscription(() => {
+    queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
     queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
   });
 };

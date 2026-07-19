@@ -7,7 +7,11 @@ import { Bell, BellOff, Check, MoreVertical } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Loading from "@/components/ui/Loading";
 import NotificationCard from "@/features/notification/components/NotificationCard";
-import { FILTER_GROUPS, NOTIFICATION_TYPE_META, formatDateLabel } from "@/features/notification/notificationMeta";
+import {
+  FILTER_GROUPS,
+  FILTER_GROUP_TO_CATEGORY,
+  formatDateLabel,
+} from "@/features/notification/notificationMeta";
 import {
   useDeleteAllNotifications,
   useDeleteNotification,
@@ -18,27 +22,22 @@ import {
 } from "@/features/notification/hooks/notificationHooks";
 
 const NotificationPage = () => {
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useNotifications();
+  const [activeGroup, setActiveGroup] = useState("전체");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const sentinelRef = useRef(null);
+
+  const category = FILTER_GROUP_TO_CATEGORY[activeGroup];
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useNotifications(category);
   const { data: unreadCountData } = useUnreadCount();
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
   const deleteMutation = useDeleteNotification();
   const deleteAllMutation = useDeleteAllNotifications();
 
-  const [activeGroup, setActiveGroup] = useState("전체");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const sentinelRef = useRef(null);
-
-  const notifications = useMemo(() => data?.pages.flatMap((page) => page.content) ?? [], [data]);
+  // 서버가 이미 category로 필터링해서 주므로, 여기 담긴 목록은 항상 현재 필터에 맞는 알림만 있다.
+  const visibleItems = useMemo(() => data?.pages.flatMap((page) => page.content) ?? [], [data]);
   const unreadCount = unreadCountData?.unreadCount ?? 0;
-
-  const visibleItems = useMemo(
-    () =>
-      activeGroup === "전체"
-        ? notifications
-        : notifications.filter((n) => NOTIFICATION_TYPE_META[n.type]?.group === activeGroup),
-    [notifications, activeGroup],
-  );
 
   const handleRead = (notification) => {
     if (notification.readAt != null) return;
@@ -61,7 +60,7 @@ const NotificationPage = () => {
         if (!entry.isIntersecting || isFetchingNextPage) return;
         fetchNextPage();
       },
-      { rootMargin: "200px" },
+      { rootMargin: "200px" }
     );
 
     observer.observe(sentinel);
@@ -142,7 +141,7 @@ const NotificationPage = () => {
       ) : (
         <>
           <div className="mt-5 flex flex-col gap-2">
-            {visibleItems.length === 0 && notifications.length === 0 && (
+            {visibleItems.length === 0 && activeGroup === "전체" && (
               <div className="flex flex-col items-center gap-4 py-16 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400">
                   <BellOff size={26} />
@@ -161,7 +160,7 @@ const NotificationPage = () => {
                 </Link>
               </div>
             )}
-            {visibleItems.length === 0 && notifications.length > 0 && (
+            {visibleItems.length === 0 && activeGroup !== "전체" && (
               <p className="py-12 text-center text-sm text-gray-400">해당하는 알림이 없습니다.</p>
             )}
             {visibleItems.map((notification, index) => {
