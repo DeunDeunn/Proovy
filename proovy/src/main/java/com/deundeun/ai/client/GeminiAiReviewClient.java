@@ -130,7 +130,7 @@ public class GeminiAiReviewClient implements AiReviewClient {
                 )));
             }
         }
-
+ 
         return new GeminiRequest(List.of(new GeminiContent(parts)));
     }
 
