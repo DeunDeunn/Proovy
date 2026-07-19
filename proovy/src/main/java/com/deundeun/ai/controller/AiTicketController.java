@@ -21,4 +21,5 @@ public class AiTicketController {
     public ApiResponse<List<AiTicketPlanResponse>> findActivePlans() {
         return ApiResponse.success(aiTicketService.findActivePlans());
     }
+
 }
