@@ -46,10 +46,12 @@ jobs:
               echo "redis container is missing"
               exit 1
             }
-            docker network inspect app-network \
-              --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}' 
-              grep -qx redis ||
-              docker network connect app-network redis
+            if ! docker network connect app-network redis 2>/tmp/redis-network-connect.log; then
+              grep -q "already exists in network" /tmp/redis-network-connect.log || {
+                cat /tmp/redis-network-connect.log >&2
+                exit 1
+              }
+            fi
             docker pull ${{ secrets.DOCKER_USERNAME }}/proovy:latest
             docker stop proovy || true
             docker rm proovy || true
