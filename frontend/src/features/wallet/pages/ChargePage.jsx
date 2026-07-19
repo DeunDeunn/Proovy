@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Script from "next/script";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -9,6 +10,7 @@ import Loading from "@/components/ui/Loading";
 
 import { useRequestCharge, useWallet } from "../hooks";
 import { formatCurrency } from "../format";
+import { NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY, NAVERPAY_SDK_URL, createNaverPay } from "../naverpay";
 
 const MIN_AMOUNT = 1_000;
 const MAX_AMOUNT = 50_000;
@@ -44,10 +46,18 @@ const ChargePage = () => {
 
     requestChargeMutation.mutate(amount, {
       onSuccess: (chargeResponse) => {
-        // TODO: 네이버페이 JS SDK 로드 후 실제 연동 필요
-        // oPay.open({ merchantPayKey: chargeResponse.merchantPayKey, ... })로 결제창을 띄우고,
-        // 완료 후 returnUrl(chargeResponse.returnUrl)로 돌아오면 /api/payments/naverpay/callback 호출
-        console.log("충전 요청 성공, 결제창 연동 필요:", chargeResponse);
+        sessionStorage.setItem(NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY, chargeResponse.merchantPayKey);
+
+        const oPay = createNaverPay();
+        oPay.open({
+          merchantPayKey: chargeResponse.merchantPayKey,
+          productName: chargeResponse.productName,
+          productCount: chargeResponse.productCount,
+          totalPayAmount: chargeResponse.totalPayAmount,
+          taxScopeAmount: chargeResponse.taxScopeAmount,
+          taxExScopeAmount: chargeResponse.taxExScopeAmount,
+          returnUrl: chargeResponse.returnUrl,
+        });
       },
     });
   };
@@ -57,6 +67,7 @@ const ChargePage = () => {
 
   return (
     <div>
+      <Script src={NAVERPAY_SDK_URL} strategy="afterInteractive" />
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900">캐시 충전</h1>
         <p className="mt-1 text-sm text-gray-500">
