@@ -15,11 +15,17 @@ import { NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY } from "../naverpay";
 const ChargeReturnPage = () => {
   const searchParams = useSearchParams();
   const paymentId = searchParams.get("paymentId");
+  const resultCode = searchParams.get("resultCode");
+  const resultMessage = searchParams.get("resultMessage");
+  // 네이버페이가 returnUrl에 실어 보내주는 결과 코드 - Success가 아니면 취소/실패/만료 등이라
+  // 굳이 백엔드 콜백을 호출할 필요 없이 그 자리에서 바로 실패로 안내한다.
+  const isKnownFailure = resultCode !== "Success";
+
   const confirmMutation = useConfirmNaverPayCharge();
   const hasRequestedRef = useRef(false);
 
   useEffect(() => {
-    if (hasRequestedRef.current) return;
+    if (hasRequestedRef.current || isKnownFailure) return;
     hasRequestedRef.current = true;
 
     const merchantPayKey = sessionStorage.getItem(NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY);
@@ -27,12 +33,19 @@ const ChargeReturnPage = () => {
 
     confirmMutation.mutate({ merchantPayKey, paymentId });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentId]);
+  }, [paymentId, isKnownFailure]);
 
   return (
     <div className="mx-auto max-w-md py-16">
       <Card className="text-center">
-        {confirmMutation.isSuccess ? (
+        {isKnownFailure ? (
+          <>
+            <p className="text-lg font-semibold text-danger">충전이 실패했어요.</p>
+            <p className="mt-2 text-sm text-gray-500">
+              {resultMessage || "결제가 완료되지 않았어요. 다시 시도해주세요."}
+            </p>
+          </>
+        ) : confirmMutation.isSuccess ? (
           confirmMutation.data?.status === "COMPLETED" ? (
             <>
               <p className="text-lg font-semibold text-success">충전이 완료됐어요.</p>
