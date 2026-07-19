@@ -5,8 +5,12 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   createCertificationPost,
   createComment,
+  createReport,
+  deleteCertificationPost,
+  deleteComment,
   getCertificationPost,
   getComments,
+  updateComment,
   updateCertificationPost,
 } from "./api";
 
@@ -54,6 +58,47 @@ export const useCreateComment = (postId) => {
 
   return useMutation({
     mutationFn: (payload) => createComment(postId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certification-comments", postId] });
+      queryClient.invalidateQueries({ queryKey: ["certification-post", postId] });
+    },
+  });
+};
+
+export const useCreateReport = () =>
+  useMutation({
+    mutationFn: (payload) => createReport(payload),
+  });
+
+export const useDeleteCertificationPost = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (postId) => deleteCertificationPost(postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["challenge-feed"] });
+      queryClient.invalidateQueries({ queryKey: ["certification-post"] });
+    },
+  });
+};
+
+export const useUpdateComment = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ commentId, payload }) => updateComment(commentId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certification-comments", postId] });
+    },
+  });
+};
+
+export const useDeleteComment = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (commentId) => deleteComment(commentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["certification-comments", postId] });
       queryClient.invalidateQueries({ queryKey: ["certification-post", postId] });
