@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
-import ChatConversationPanel from "@/features/chat/ChatConversationPanel";
-import ChatRoomList from "@/features/chat/ChatRoomList";
+import ChatConversationPanel from "@/features/chat/components/ChatConversationPanel";
+import ChatRoomList from "@/features/chat/components/ChatRoomList";
 import { useChatStore } from "@/features/chat/store";
 
 const LIST_WIDTH_OPEN_REM = 20;

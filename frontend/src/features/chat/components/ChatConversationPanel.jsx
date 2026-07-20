@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
 
-import MessageBubble from "@/features/chat/MessageBubble";
+import MessageBubble from "@/features/chat/components/MessageBubble";
 import { CURRENT_USER } from "@/features/chat/currentUser";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
 

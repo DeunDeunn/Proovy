@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 
-import ChatRoomItem from "@/features/chat/ChatRoomItem";
+import ChatRoomItem from "@/features/chat/components/ChatRoomItem";
 import { FILTER_GROUPS, getRoomDisplayName } from "@/features/chat/mockData";
 
 const ChatRoomList = ({ rooms, selectedRoomId, onSelectRoom }) => {
