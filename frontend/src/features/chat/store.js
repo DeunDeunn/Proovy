@@ -13,9 +13,33 @@ export const useChatStore = create((set) => ({
   markRoomRead: (chatRoomId) =>
     set((state) => ({
       rooms: state.rooms.map((room) =>
-        room.chatRoomId === chatRoomId ? { ...room, unreadCount: 0 } : room,
+        room.chatRoomId === chatRoomId ? { ...room, unreadCount: 0 } : room
       ),
     })),
+
+  receiveMessage: (event) =>
+    set((state) => {
+      if (event.eventType !== "MESSAGE_CREATED") return state;
+
+      const message = { ...event, createdAt: new Date(event.createdAt) };
+      const { chatRoomId } = message;
+
+      return {
+        messagesByRoomId: {
+          ...state.messagesByRoomId,
+          [chatRoomId]: [...(state.messagesByRoomId[chatRoomId] ?? []), message],
+        },
+        rooms: state.rooms.map((room) =>
+          room.chatRoomId === chatRoomId
+            ? {
+                ...room,
+                lastMessage: { senderNickname: message.senderNickname, content: message.content },
+                createdAt: message.createdAt,
+              }
+            : room
+        ),
+      };
+    }),
 
   sendMessage: (chatRoomId, content) =>
     set((state) => {
@@ -40,8 +64,12 @@ export const useChatStore = create((set) => ({
         },
         rooms: state.rooms.map((room) =>
           room.chatRoomId === chatRoomId
-            ? { ...room, lastMessage: { senderNickname: CURRENT_USER.nickname, content }, createdAt: message.createdAt }
-            : room,
+            ? {
+                ...room,
+                lastMessage: { senderNickname: CURRENT_USER.nickname, content },
+                createdAt: message.createdAt,
+              }
+            : room
         ),
       };
     }),

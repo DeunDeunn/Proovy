@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 
 import ChatConversationPanel from "@/features/chat/components/ChatConversationPanel";
 import ChatRoomList from "@/features/chat/components/ChatRoomList";
+import { useChatRoomSubscription } from "@/features/chat/hooks/chatHooks";
 import { useChatStore } from "@/features/chat/store";
 
 const LIST_WIDTH_OPEN_REM = 20;
@@ -15,10 +16,13 @@ const ChatPage = () => {
   const messagesByRoomId = useChatStore((state) => state.messagesByRoomId);
   const markRoomRead = useChatStore((state) => state.markRoomRead);
   const sendMessage = useChatStore((state) => state.sendMessage);
+  const receiveMessage = useChatStore((state) => state.receiveMessage);
 
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [panelRoomId, setPanelRoomId] = useState(null);
   const [pendingOpenId, setPendingOpenId] = useState(null);
+
+  useChatRoomSubscription(panelRoomId, receiveMessage);
 
   const panelOpen = selectedRoomId != null;
   const isRoomMode = panelRoomId != null;
@@ -82,7 +86,11 @@ const ChatPage = () => {
               marginLeft: isRoomMode ? "0px" : "max(0px, calc((100% - 48rem) / 2))",
             }}
           >
-            <ChatRoomList rooms={rooms} selectedRoomId={selectedRoomId} onSelectRoom={handleSelectRoom} />
+            <ChatRoomList
+              rooms={rooms}
+              selectedRoomId={selectedRoomId}
+              onSelectRoom={handleSelectRoom}
+            />
           </div>
 
           {panelRoom && (

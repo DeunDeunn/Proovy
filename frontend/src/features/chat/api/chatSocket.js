@@ -2,9 +2,20 @@ import { Client } from "@stomp/stompjs";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 const PERSONAL_ERROR_QUEUE = "/queue/errors";
+const roomTopic = (chatRoomId) => `/topic/chats/rooms/${chatRoomId}`;
 
 let client = null;
 let onError = null;
+let activeRoomSubscription = null;
+
+const subscribeActiveRoom = () => {
+  if (!activeRoomSubscription) return;
+
+  const { chatRoomId, onMessage } = activeRoomSubscription;
+  activeRoomSubscription.subscription = client.subscribe(roomTopic(chatRoomId), (message) => {
+    onMessage(JSON.parse(message.body));
+  });
+};
 
 const createClient = () =>
   new Client({
@@ -14,6 +25,7 @@ const createClient = () =>
       client.subscribe(PERSONAL_ERROR_QUEUE, (message) => {
         onError?.(JSON.parse(message.body));
       });
+      subscribeActiveRoom();
     },
   });
 
@@ -35,3 +47,16 @@ export const disconnectSocket = () => {
 };
 
 export const getSocketClient = () => client;
+
+export const subscribeRoom = (chatRoomId, onMessage) => {
+  activeRoomSubscription = { chatRoomId, onMessage, subscription: null };
+
+  if (client?.connected) {
+    subscribeActiveRoom();
+  }
+};
+
+export const unsubscribeRoom = () => {
+  activeRoomSubscription?.subscription?.unsubscribe();
+  activeRoomSubscription = null;
+};
