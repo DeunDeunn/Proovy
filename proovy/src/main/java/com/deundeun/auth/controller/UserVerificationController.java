@@ -26,20 +26,20 @@ public class UserVerificationController {
 
     private final UserVerificationService userVerificationService;
 
-    @PostMapping("/user-verifications")
+    @PostMapping("/api/user-verifications")
     public ApiResponse<Void> apply() {
         Long userId = CurrentUser.getUserId();
         userVerificationService.apply(userId);
         return ApiResponse.success(null);
     }
 
-    @GetMapping("/user-verifications/status")
+    @GetMapping("/api/user-verifications/status")
     public ApiResponse<UserVerificationStatusResponse> getMyStatus() {
         Long userId = CurrentUser.getUserId();
         return ApiResponse.success(userVerificationService.getMyStatus(userId));
     }
 
-    @GetMapping("/admin/user-verifications")
+    @GetMapping("/api/admin/user-verifications")
     public ApiResponse<UserVerificationListResponse> getList(
             @RequestParam(required = false) UserVerificationStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -47,7 +47,7 @@ public class UserVerificationController {
         return ApiResponse.success(userVerificationService.getList(status, page, size));
     }
 
-    @PatchMapping("/admin/user-verifications/{id}")
+    @PatchMapping("/api/admin/user-verifications/{id}")
     public ApiResponse<Void> review(@PathVariable Long id, @RequestBody UserVerificationReviewRequest request) {
         userVerificationService.review(id, request.status(), request.rejectionReason());
         return ApiResponse.success(null);
