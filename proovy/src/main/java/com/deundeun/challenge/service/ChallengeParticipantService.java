@@ -4,6 +4,7 @@ import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.domain.ChallengeParticipant;
 import com.deundeun.challenge.domain.ChallengeStatus;
 import com.deundeun.challenge.domain.ParticipantStatus;
+import com.deundeun.challenge.dto.response.ChallengeParticipantListItemResponse;
 import com.deundeun.challenge.dto.response.ChallengeParticipantResponse;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.challenge.mapper.ChallengeParticipantMapper;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -81,5 +83,13 @@ public class ChallengeParticipantService {
         if (challenge.getStatus() == ChallengeStatus.RECRUITING && challenge.getEntryFee() > 0) {
             walletHoldService.cancel(userId, challenge.getEntryFee(), challengeId);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChallengeParticipantListItemResponse> getParticipants(Long challengeId) {
+        if (challengeMapper.findById(challengeId) == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        return challengeParticipantMapper.findAllByChallengeId(challengeId);
     }
 }

@@ -2,15 +2,19 @@ package com.deundeun.challenge.mapper;
 
 import com.deundeun.challenge.domain.ChallengeParticipant;
 import com.deundeun.challenge.domain.ParticipantStatus;
+import com.deundeun.challenge.dto.response.ChallengeParticipantListItemResponse;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Mapper
 public interface ChallengeParticipantMapper {
 
     void insert(ChallengeParticipant participant);
+
+    List<ChallengeParticipantListItemResponse> findAllByChallengeId(@Param("challengeId") Long challengeId);
 
     ChallengeParticipant findByChallengeIdAndUserId(
             @Param("challengeId") Long challengeId,
