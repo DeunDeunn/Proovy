@@ -8,6 +8,8 @@ import com.deundeun.challenge.dto.response.ChallengeParticipantListItemResponse;
 import com.deundeun.challenge.dto.response.ChallengeParticipantResponse;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.challenge.mapper.ChallengeParticipantMapper;
+import com.deundeun.chat.service.ChatRoomMemberService;
+import com.deundeun.chat.service.ChatRoomService;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.service.WalletHoldService;
@@ -25,6 +27,8 @@ public class ChallengeParticipantService {
     private final ChallengeMapper challengeMapper;
     private final ChallengeParticipantMapper challengeParticipantMapper;
     private final WalletHoldService walletHoldService;
+    private final ChatRoomService chatRoomService;
+    private final ChatRoomMemberService chatRoomMemberService;
 
     @Transactional
     public ChallengeParticipantResponse join(Long challengeId, Long userId) {
@@ -53,6 +57,9 @@ public class ChallengeParticipantService {
         participant.setUserId(userId);
         participant.setStatus(ParticipantStatus.ACTIVE);
         challengeParticipantMapper.insert(participant);
+
+        Long chatRoomId = chatRoomService.getChatRoomIdByChallengeId(challengeId);
+        chatRoomMemberService.join(chatRoomId, userId);
 
         // joined_at은 DB 기본값(now())으로 채워지므로 다시 조회해서 응답에 담는다
         ChallengeParticipant saved = challengeParticipantMapper.findByChallengeIdAndUserId(challengeId, userId);
@@ -107,6 +114,9 @@ public class ChallengeParticipantService {
         if (challenge.getStatus() == ChallengeStatus.RECRUITING && challenge.getEntryFee() > 0) {
             walletHoldService.cancel(targetUserId, challenge.getEntryFee(), challenge.getId());
         }
+
+        Long chatRoomId = chatRoomService.getChatRoomIdByChallengeId(challenge.getId());
+        chatRoomMemberService.leave(chatRoomId, targetUserId);
     }
 
     @Transactional(readOnly = true)

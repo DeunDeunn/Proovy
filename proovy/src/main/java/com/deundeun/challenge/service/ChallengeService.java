@@ -14,6 +14,9 @@ import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.mapper.CategoryMapper;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.challenge.mapper.ChallengeParticipantMapper;
+import com.deundeun.chat.domain.ChatRoom;
+import com.deundeun.chat.service.ChatRoomMemberService;
+import com.deundeun.chat.service.ChatRoomService;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.service.WalletHoldService;
@@ -34,6 +37,8 @@ public class ChallengeService {
     private final CategoryMapper  categoryMapper;
     private final ChallengeParticipantMapper challengeParticipantMapper;
     private final WalletHoldService walletHoldService;
+    private final ChatRoomService chatRoomService;
+    private final ChatRoomMemberService chatRoomMemberService;
 
     @Transactional
     public ChallengeCreateResponse create(Long hostId, ChallengeCreateRequest request) {
@@ -69,6 +74,9 @@ public class ChallengeService {
                 .build();
 
         challengeMapper.insert(challenge);
+
+        ChatRoom chatRoom = chatRoomService.createChallengeRoom(challenge.getId());
+        chatRoomMemberService.join(chatRoom.getId(), hostId);
 
         return ChallengeCreateResponse.from(challenge);
     }
@@ -160,11 +168,14 @@ public class ChallengeService {
         if (challenge.getStatus() != ChallengeStatus.RECRUITING) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
         }
-        // 참가자 전원의 참가비 홀딩을 해제한 뒤 전원 탈퇴 처리하고 챌린지를 취소한다
-        if (challenge.getEntryFee() > 0) {
-            for (Long participantUserId : challengeParticipantMapper.findActiveUserIdsByChallengeId(challengeId)) {
+        // 참가자 전원의 참가비 홀딩을 해제하고 채팅방에서도 내보낸 뒤 탈퇴 처리하고 챌린지를 취소한다
+        List<Long> activeUserIds = challengeParticipantMapper.findActiveUserIdsByChallengeId(challengeId);
+        Long chatRoomId = chatRoomService.getChatRoomIdByChallengeId(challengeId);
+        for (Long participantUserId : activeUserIds) {
+            if (challenge.getEntryFee() > 0) {
                 walletHoldService.cancel(participantUserId, challenge.getEntryFee(), challengeId);
             }
+            chatRoomMemberService.leave(chatRoomId, participantUserId);
         }
         challengeParticipantMapper.withdrawAllActiveByChallengeId(challengeId, LocalDateTime.now());
 
