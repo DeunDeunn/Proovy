@@ -6,6 +6,7 @@ import com.deundeun.challenge.domain.ParticipantResult;
 import com.deundeun.challenge.domain.ParticipantResultCandidate;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.challenge.mapper.ChallengeParticipantMapper;
+import com.deundeun.challenge.mapper.HostDisqualificationMapper;
 import com.deundeun.pay.service.WalletSettlementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class ChallengeCompletionService {
 
     private final ChallengeMapper challengeMapper;
     private final ChallengeParticipantMapper challengeParticipantMapper;
+    private final HostDisqualificationMapper hostDisqualificationMapper;
     private final WalletSettlementService walletSettlementService;
 
     @Transactional
@@ -49,9 +51,12 @@ public class ChallengeCompletionService {
             }
         }
 
-        // TODO: 방장 자격 박탈(isHostDisqualified) 판단 기준이 아직 확정되지 않아 우선 false로 고정한다.
-        walletSettlementService.settle(
-                challenge.getId(), successUserIds, failUserIds, challenge.getHostId(), false, challenge.getEntryFee());
+        // 이 챌린지에서 자동승인(방장 미검수) 경고를 받은 적이 있으면 이번 정산에서 방장 수수료를 박탈한다.
+        boolean isHostDisqualified = hostDisqualificationMapper.existsWarningForChallenge(
+                challenge.getId(), challenge.getHostId());
+
+        walletSettlementService.settle(challenge.getId(), successUserIds, failUserIds, challenge.getHostId(),
+                isHostDisqualified, challenge.getEntryFee());
 
         challengeMapper.updateStatus(challenge.getId(), ChallengeStatus.COMPLETED);
     }
