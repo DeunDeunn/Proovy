@@ -13,13 +13,16 @@ import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
 import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.mapper.CategoryMapper;
 import com.deundeun.challenge.mapper.ChallengeMapper;
+import com.deundeun.challenge.mapper.ChallengeParticipantMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.pay.service.WalletHoldService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -29,6 +32,8 @@ public class ChallengeService {
 
     private final ChallengeMapper  challengeMapper;
     private final CategoryMapper  categoryMapper;
+    private final ChallengeParticipantMapper challengeParticipantMapper;
+    private final WalletHoldService walletHoldService;
 
     @Transactional
     public ChallengeCreateResponse create(Long hostId, ChallengeCreateRequest request) {
@@ -155,10 +160,13 @@ public class ChallengeService {
         if (challenge.getStatus() != ChallengeStatus.RECRUITING) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
         }
-        // TODO: 참가 API 구현 후, 거부 대신 참가자 전원의 참가비 홀딩을 해제(cancel)하고 취소 허용으로 교체
-        if (challengeMapper.countActiveParticipantsExceptHost(challengeId) > 0) {
-            throw new ApiException(ErrorCode.CHALLENGE_HAS_PARTICIPANTS);
+        // 참가자 전원의 참가비 홀딩을 해제한 뒤 전원 탈퇴 처리하고 챌린지를 취소한다
+        if (challenge.getEntryFee() > 0) {
+            for (Long participantUserId : challengeParticipantMapper.findActiveUserIdsByChallengeId(challengeId)) {
+                walletHoldService.cancel(participantUserId, challenge.getEntryFee(), challengeId);
+            }
         }
+        challengeParticipantMapper.withdrawAllActiveByChallengeId(challengeId, LocalDateTime.now());
 
         challengeMapper.updateStatus(challengeId, ChallengeStatus.CANCELLED);
     }
@@ -185,6 +193,24 @@ public class ChallengeService {
         }
         progress.calculateProgress();
         return progress;
+    }
+
+    /**
+     * 모집중이면서 시작일이 지난 챌린지를 진행중으로 전환한다 (스케줄러 전용).
+     */
+    @Transactional
+    public void startDueChallenges() {
+        challengeMapper.startDueChallenges();
+    }
+
+    /**
+     * 진행중이면서 종료일이 지난, 아직 종료 처리 안 된 챌린지 목록 (스케줄러 전용).
+     * 실제 종료 처리(참가자별 성공/실패 확정 + 정산)는 챌린지 하나씩 별도 트랜잭션으로 처리해야 해서
+     * {@link ChallengeCompletionService}에 맡기고, 여기서는 대상만 조회한다.
+     */
+    @Transactional(readOnly = true)
+    public List<Challenge> findChallengesToComplete() {
+        return challengeMapper.findChallengesToComplete();
     }
 
 }

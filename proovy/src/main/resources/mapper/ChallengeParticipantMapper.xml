@@ -47,4 +47,35 @@
         WHERE id = #{id}
     </update>
 
+    <select id="findActiveUserIdsByChallengeId" resultType="long">
+        SELECT user_id
+        FROM challenge_participants
+        WHERE challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </select>
+
+    <update id="withdrawAllActiveByChallengeId">
+        UPDATE challenge_participants
+        SET status = 'WITHDRAWN', left_at = #{leftAt}
+        WHERE challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <!-- 승인(APPROVED)된 인증글 개수: 삭제된(deleted_at IS NOT NULL) 인증글은 세지 않는다 -->
+    <select id="findActiveParticipantsWithApprovedCount" resultType="ParticipantResultCandidate">
+        SELECT p.id, p.user_id,
+               COUNT(cp.id) FILTER (WHERE cp.certification_status = 'APPROVED' AND cp.deleted_at IS NULL) AS approved_count
+        FROM challenge_participants p
+        LEFT JOIN certification_posts cp ON cp.challenge_participant_id = p.id
+        WHERE p.challenge_id = #{challengeId}
+          AND p.status = 'ACTIVE'
+        GROUP BY p.id, p.user_id
+    </select>
+
+    <update id="updateResult">
+        UPDATE challenge_participants
+        SET result = #{result}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

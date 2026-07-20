@@ -184,4 +184,22 @@
         WHERE id = #{id}
     </update>
 
+    <update id="startDueChallenges">
+        UPDATE challenges
+        SET status = 'IN_PROGRESS'
+        WHERE status = 'RECRUITING'
+          AND start_date &lt;= CURRENT_DATE
+    </update>
+
+    <select id="findChallengesToComplete" resultType="Challenge">
+        SELECT id, host_id, title, description, category_id, entry_fee,
+               verification_method, cert_frequency, daily_cert_limit,
+               success_criteria_rate, ai_review_enabled,
+               start_date, end_date, max_participants, status,
+               created_at, updated_at, cert_start_time, cert_end_time, feed_visibility
+        FROM challenges
+        WHERE status = 'IN_PROGRESS'
+          AND end_date &lt; CURRENT_DATE
+    </select>
+
 </mapper>
