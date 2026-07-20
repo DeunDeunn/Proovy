@@ -14,6 +14,8 @@ import { formatCurrency } from "../format";
 // 실제 수수료는 서버(applyWithdrawal 응답의 feeAmount)에서 계산됨 - 여기선 신청 전 미리보기용
 const FEE_RATES = { CHARGED: 0.05, REWARD: 0.01 };
 const QUICK_ADD_AMOUNTS = [10_000, 50_000];
+// 서버(WithdrawalService.MIN_REWARD_WITHDRAWAL_AMOUNT)와 동일한 값
+const MIN_REWARD_WITHDRAWAL_AMOUNT = 5_000;
 
 const SourceOption = ({ label, withdrawable, total, note, selected, disabled, onSelect }) => (
   <button
@@ -57,7 +59,9 @@ const WithdrawPage = () => {
       ? withdrawable?.chargedWithdrawableAmount ?? 0
       : withdrawable?.rewardWithdrawableAmount ?? 0;
 
-  const isValidAmount = amount > 0 && amount <= maxWithdrawable;
+  const minWithdrawAmount = sourceType === "REWARD" ? MIN_REWARD_WITHDRAWAL_AMOUNT : 0;
+  const isBelowMinAmount = amount > 0 && amount < minWithdrawAmount;
+  const isValidAmount = amount > 0 && amount <= maxWithdrawable && !isBelowMinAmount;
 
   const { feeAmount, netAmount } = useMemo(() => {
     const rate = FEE_RATES[sourceType];
@@ -120,6 +124,9 @@ const WithdrawPage = () => {
                 label="리워드 캐시"
                 withdrawable={withdrawable?.rewardWithdrawableAmount}
                 total={wallet?.rewardBalance}
+                note={`(전체: ${formatCurrency(wallet?.rewardBalance)}) · 최소 ${formatCurrency(
+                  MIN_REWARD_WITHDRAWAL_AMOUNT
+                )}부터`}
                 selected={sourceType === "REWARD"}
                 onSelect={() => handleSelectSource("REWARD")}
               />
@@ -128,38 +135,49 @@ const WithdrawPage = () => {
 
           <Card>
             <h2 className="mb-3 font-semibold text-gray-900">출금 금액</h2>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={amount}
-                onChange={(e) =>
-                  setAmount(Math.max(0, Math.min(maxWithdrawable, Number(e.target.value) || 0)))
-                }
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-right text-sm outline-none focus:border-primary [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                onChange={(e) => {
+                  const digitsOnly = e.target.value.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "");
+                  setAmount(Math.max(0, Math.min(maxWithdrawable, Number(digitsOnly) || 0)));
+                }}
+                className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-right text-sm outline-none focus:border-primary"
               />
               <span className="text-sm text-gray-500">원</span>
+            </div>
+            <div className="mt-2 flex gap-2">
               {QUICK_ADD_AMOUNTS.map((inc) => (
                 <button
                   key={inc}
                   onClick={() =>
                     setAmount((prev) => Math.min(maxWithdrawable, prev + inc))
                   }
-                  className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                 >
                   +{inc / 10_000}만원
                 </button>
               ))}
               <button
                 onClick={() => setAmount(maxWithdrawable)}
-                className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
               >
                 전액
               </button>
             </div>
             <p className="mt-2 text-xs text-gray-400">
               출금 가능 금액: {formatCurrency(maxWithdrawable)}
+              {sourceType === "REWARD" &&
+                ` · 최소 ${formatCurrency(MIN_REWARD_WITHDRAWAL_AMOUNT)}부터 출금 가능`}
             </p>
-            {amount > 0 && !isValidAmount && (
+            {amount > 0 && isBelowMinAmount && (
+              <p className="mt-1 text-xs text-danger">
+                리워드 캐시는 {formatCurrency(MIN_REWARD_WITHDRAWAL_AMOUNT)} 이상부터 출금할 수 있어요.
+              </p>
+            )}
+            {amount > 0 && !isBelowMinAmount && !isValidAmount && (
               <p className="mt-1 text-xs text-danger">출금 가능 금액을 초과했어요.</p>
             )}
           </Card>
