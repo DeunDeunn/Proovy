@@ -5,7 +5,6 @@
 import Link from "next/link";
 import { Award } from "lucide-react";
 
-import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
@@ -63,10 +62,11 @@ const ChallengeSummaryCard = ({ title, count, challenges, emptyText, renderRight
       </ul>
     )}
 
-    <Link href="/my-challenges">
-      <Button variant="outline" className="w-full">
-        전체 보기
-      </Button>
+    <Link
+      href="/my-challenges"
+      className="block w-full cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-center text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+    >
+      전체 보기
     </Link>
   </Card>
 );
@@ -148,8 +148,11 @@ const MyPage = () => {
             <span className="text-sm text-gray-500">{verificationMeta.text}</span>
           </div>
         </div>
-        <Link href="/mypage/verification">
-          <Button variant="outline">{verificationMeta.action}</Button>
+        <Link
+          href="/mypage/verification"
+          className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          {verificationMeta.action}
         </Link>
       </Card>
     </div>
