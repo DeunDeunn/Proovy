@@ -3,6 +3,14 @@ import { create } from "zustand";
 import { publishMessage } from "@/features/chat/api/chatSocket";
 import { createMockChatRooms } from "@/features/chat/mockData";
 
+const mergeMessages = (base, extra) => {
+  const byId = new Map(base.map((message) => [message.messageId, message]));
+  extra.forEach((message) => {
+    if (!byId.has(message.messageId)) byId.set(message.messageId, message);
+  });
+  return Array.from(byId.values()).sort((a, b) => a.messageId - b.messageId);
+};
+
 export const useChatStore = create((set) => ({
   rooms: createMockChatRooms(),
   messagesByRoomId: {},
@@ -16,7 +24,11 @@ export const useChatStore = create((set) => ({
 
   setRoomMessages: (chatRoomId, messages) =>
     set((state) => ({
-      messagesByRoomId: { ...state.messagesByRoomId, [chatRoomId]: messages },
+      messagesByRoomId: {
+        ...state.messagesByRoomId,
+        // REST 조회 응답 도착 전에 WS로 먼저 들어온 실시간 메시지가 있을 수 있어 교체 대신 병합한다.
+        [chatRoomId]: mergeMessages(messages, state.messagesByRoomId[chatRoomId] ?? []),
+      },
     })),
 
   prependRoomMessages: (chatRoomId, olderMessages) =>

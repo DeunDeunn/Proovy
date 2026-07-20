@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
 
 import { useMe } from "@/features/auth/hooks";
+import { getSocketClient } from "@/features/chat/api/chatSocket";
 import MessageBubble from "@/features/chat/components/MessageBubble";
 import { useChatRoomHistory, useChatRoomSubscription } from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
@@ -18,9 +19,9 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
     room.chatRoomId
   );
 
-  const [isDisconnected, setIsDisconnected] = useState(false);
-  const handleDisconnect = useCallback(() => setIsDisconnected(true), []);
-  const handleConnected = useCallback(() => setIsDisconnected(false), []);
+  const [isConnected, setIsConnected] = useState(() => getSocketClient()?.connected ?? false);
+  const handleDisconnect = useCallback(() => setIsConnected(false), []);
+  const handleConnected = useCallback(() => setIsConnected(true), []);
   useChatRoomSubscription(room.chatRoomId, receiveMessage, {
     onDisconnect: handleDisconnect,
     onConnected: handleConnected,
@@ -60,7 +61,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   const handleSubmit = (event) => {
     event.preventDefault();
     const trimmed = draft.trim();
-    if (!trimmed) return;
+    if (!trimmed || !isConnected) return;
 
     onSendMessage(trimmed);
     setDraft("");
@@ -116,9 +117,9 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         </div>
       </div>
 
-      {isDisconnected && (
+      {!isConnected && (
         <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">
-          연결이 끊겼습니다. 재연결 시도 중...
+          연결되지 않았습니다. 메시지를 보낼 수 없습니다.
         </p>
       )}
 
@@ -191,7 +192,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         </button>
         <button
           type="submit"
-          disabled={!draft.trim()}
+          disabled={!draft.trim() || !isConnected}
           aria-label="전송"
           className="flex shrink-0 items-center justify-center rounded-full bg-primary p-2 text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
         >

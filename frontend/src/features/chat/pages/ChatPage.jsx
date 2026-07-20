@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
+import ErrorMessage from "@/components/ui/ErrorMessage";
 import LoginRequiredModal from "@/components/ui/LoginRequiredModal";
 import { useMe } from "@/features/auth/hooks";
 import ChatConversationPanel from "@/features/chat/components/ChatConversationPanel";
@@ -13,7 +14,8 @@ const LIST_WIDTH_OPEN_REM = 20;
 const PANEL_TRANSITION_MS = 300;
 
 const ChatPage = () => {
-  const { isLoading: isMeLoading, isError: isMeError } = useMe();
+  const { isLoading: isMeLoading, isError: isMeError, error: meError } = useMe();
+  const isUnauthorized = isMeError && meError?.status === 401;
   const rooms = useChatStore((state) => state.rooms);
   const messagesByRoomId = useChatStore((state) => state.messagesByRoomId);
   const markRoomRead = useChatStore((state) => state.markRoomRead);
@@ -70,7 +72,15 @@ const ChatPage = () => {
   const panelMessages = panelRoomId ? (messagesByRoomId[panelRoomId] ?? []) : [];
 
   if (isMeLoading) return null;
-  if (isMeError) return <LoginRequiredModal description="채팅은 로그인 후 이용할 수 있어요." />;
+  if (isUnauthorized)
+    return <LoginRequiredModal description="채팅은 로그인 후 이용할 수 있어요." />;
+  if (isMeError) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center px-4">
+        <ErrorMessage error={meError} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
