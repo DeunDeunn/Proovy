@@ -171,4 +171,9 @@ public class ChallengeService {
         return detail;
     }
 
+    @Transactional(readOnly = true)
+    public List<ChallengeSummaryResponse> getMyChallenges(Long userId) {
+        return challengeMapper.findMyChallenges(userId);
+    }
+
 }

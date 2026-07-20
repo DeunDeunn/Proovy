@@ -14,6 +14,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/challenges")
 @RequiredArgsConstructor
@@ -32,6 +34,12 @@ public class ChallengeController {
     public ApiResponse<PageResponse<ChallengeSummaryResponse>> searchChallenges(
             @ModelAttribute ChallengeSearchCondition condition) {
         return ApiResponse.success(challengeService.search(condition));
+    }
+
+    @GetMapping("/me")
+    public ApiResponse<List<ChallengeSummaryResponse>> getMyChallenges() {
+        Long userId = CurrentUser.getUserId();
+        return ApiResponse.success(challengeService.getMyChallenges(userId));
     }
 
     @GetMapping("/{challengeId}")

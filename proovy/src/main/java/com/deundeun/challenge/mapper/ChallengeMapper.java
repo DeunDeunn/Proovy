@@ -27,6 +27,8 @@ public interface ChallengeMapper {
             @Param("status") ChallengeStatus status,
             @Param("keyword") String keyword);
 
+    List<ChallengeSummaryResponse> findMyChallenges(@Param("userId") Long userId);
+
     ChallengeDetailResponse findDetailById(@Param("id") Long id);
 
     Challenge findById(@Param("id") Long id);
