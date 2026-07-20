@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.challenge.mapper.HostDisqualificationMapper">
+
+    <select id="existsWarningForChallenge" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM user_warnings
+            WHERE challenge_id = #{challengeId}
+              AND user_id = #{hostId}
+        )
+    </select>
+
+</mapper>
