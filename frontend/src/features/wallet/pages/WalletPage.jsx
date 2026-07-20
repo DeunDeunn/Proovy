@@ -43,7 +43,10 @@ const WalletPage = () => {
 
   const totalBalance = (wallet?.chargedBalance ?? 0) + (wallet?.rewardBalance ?? 0);
   const totalLocked = (wallet?.lockedChargedBalance ?? 0) + (wallet?.lockedRewardBalance ?? 0);
-  const recentTransactions = (transactionHistory?.content ?? []).slice(0, RECENT_TRANSACTIONS_COUNT);
+  const recentTransactions = (transactionHistory?.content ?? []).slice(
+    0,
+    RECENT_TRANSACTIONS_COUNT
+  );
 
   return (
     <div>
@@ -83,9 +86,6 @@ const WalletPage = () => {
             </div>
             <div className="mt-2 text-3xl font-bold text-gray-900">
               {formatCurrency(totalBalance)}
-            </div>
-            <div className="mt-1">
-              <span className="text-xs text-gray-500">(실사용 가능 캐시 + 홀딩 캐시)</span>
             </div>
           </div>
         </div>

@@ -10,7 +10,11 @@ import Loading from "@/components/ui/Loading";
 
 import { useRequestCharge, useWallet } from "../hooks";
 import { formatCurrency } from "../format";
-import { NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY, NAVERPAY_SDK_URL, createNaverPay } from "../naverpay";
+import {
+  NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY,
+  NAVERPAY_SDK_URL,
+  createNaverPay,
+} from "../naverpay";
 
 const MIN_AMOUNT = 1_000;
 const MAX_AMOUNT = 50_000;
@@ -36,8 +40,10 @@ const ChargePage = () => {
 
   const handleCustomChange = (e) => {
     const normalized = e.target.value.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "");
-    setCustomInput(normalized);
-    setAmount(clampAmount(Number(normalized) || 0));
+    const numeric = Number(normalized) || 0;
+    const clamped = clampAmount(numeric);
+    setCustomInput(numeric > MAX_AMOUNT ? String(clamped) : normalized);
+    setAmount(clamped);
   };
 
   const handleIncrement = (inc) => {
@@ -64,7 +70,10 @@ const ChargePage = () => {
 
     requestChargeMutation.mutate(amount, {
       onSuccess: (chargeResponse) => {
-        sessionStorage.setItem(NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY, chargeResponse.merchantPayKey);
+        sessionStorage.setItem(
+          NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY,
+          chargeResponse.merchantPayKey
+        );
 
         const oPay = createNaverPay();
         oPay.open({
@@ -193,7 +202,9 @@ const ChargePage = () => {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">충전 후 총 보유 캐시</span>
-                <span className="font-semibold text-success">{formatCurrency(totalAfterCharge)}</span>
+                <span className="font-semibold text-success">
+                  {formatCurrency(totalAfterCharge)}
+                </span>
               </div>
               <div className="flex justify-between pl-3">
                 <span className="text-gray-500">충전 캐시</span>
