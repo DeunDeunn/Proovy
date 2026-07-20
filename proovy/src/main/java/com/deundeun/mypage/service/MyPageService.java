@@ -47,6 +47,7 @@ public class MyPageService {
                 user.getProfileImageUrl(),
                 verified,
                 verificationStatus,
+                user.getCreatedAt(),
                 followerCount,
                 followingCount,
                 participatingChallenges,
