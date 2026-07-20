@@ -2,17 +2,21 @@ import { create } from "zustand";
 
 import { publishMessage } from "@/features/chat/api/chatSocket";
 import { createMockChatRooms } from "@/features/chat/mockData";
-import { createMockMessages } from "@/features/chat/mockMessages";
 
 export const useChatStore = create((set) => ({
   rooms: createMockChatRooms(),
-  messagesByRoomId: createMockMessages(),
+  messagesByRoomId: {},
 
   markRoomRead: (chatRoomId) =>
     set((state) => ({
       rooms: state.rooms.map((room) =>
         room.chatRoomId === chatRoomId ? { ...room, unreadCount: 0 } : room
       ),
+    })),
+
+  setRoomMessages: (chatRoomId, messages) =>
+    set((state) => ({
+      messagesByRoomId: { ...state.messagesByRoomId, [chatRoomId]: messages },
     })),
 
   receiveMessage: (event) =>

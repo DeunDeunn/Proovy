@@ -5,7 +5,7 @@ import { MessageCircle } from "lucide-react";
 
 import ChatConversationPanel from "@/features/chat/components/ChatConversationPanel";
 import ChatRoomList from "@/features/chat/components/ChatRoomList";
-import { useChatRoomSubscription } from "@/features/chat/hooks/chatHooks";
+import { useChatRoomHistory, useChatRoomSubscription } from "@/features/chat/hooks/chatHooks";
 import { useChatStore } from "@/features/chat/store";
 
 const LIST_WIDTH_OPEN_REM = 20;
@@ -22,6 +22,7 @@ const ChatPage = () => {
   const [panelRoomId, setPanelRoomId] = useState(null);
   const [pendingOpenId, setPendingOpenId] = useState(null);
 
+  useChatRoomHistory(panelRoomId);
   useChatRoomSubscription(panelRoomId, receiveMessage);
 
   const panelOpen = selectedRoomId != null;
