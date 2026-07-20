@@ -23,7 +23,8 @@ const PREVIEW_SIZE = 3;
 const NICKNAME_MIN = 2;
 const NICKNAME_MAX = 10;
 
-const isValidNicknameFormat = (nickname) => nickname.length >= NICKNAME_MIN && nickname.length <= NICKNAME_MAX;
+const isValidNicknameFormat = (nickname) =>
+  nickname.trim().length >= NICKNAME_MIN && nickname.trim().length <= NICKNAME_MAX;
 
 const formatJoinDate = (value) => {
   if (!value) return "";
