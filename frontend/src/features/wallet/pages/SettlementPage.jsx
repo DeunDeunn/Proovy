@@ -11,9 +11,11 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useSettlementHistory } from "../hooks";
 import { formatCurrency, formatDate } from "../format";
 
-const SettlementCard = ({ settlement }) => (
-  <Link href={`/wallet/settlements/${settlement.challengeId}`}>
-    <Card className="transition-shadow hover:shadow-md">
+const SettlementCard = ({ settlement }) => {
+  // 실패한 챌린지는 참가자 쪽 cash_transactions 기록이 없을 수 있어 상세 조회가 안 되므로
+  // 목록에는 보여주되 상세 페이지로 이동은 막는다.
+  const content = (
+    <Card className={settlement.isSuccess ? "transition-shadow hover:shadow-md" : ""}>
       <div className="flex items-center gap-4">
         <div className="h-16 w-20 shrink-0 rounded-lg bg-gray-100" />
         <div className="min-w-0 flex-1">
@@ -27,15 +29,23 @@ const SettlementCard = ({ settlement }) => (
           </div>
           <p className="mt-1 text-sm text-gray-500">정산일 {formatDate(settlement.settledAt)}</p>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="text-xs text-gray-500">정산 수익</p>
-          <p className="font-semibold text-success">+{formatCurrency(settlement.profitAmount)}</p>
-        </div>
-        <ChevronRight size={18} className="shrink-0 text-gray-400" />
+        {settlement.isSuccess && (
+          <div className="shrink-0 text-right">
+            <p className="text-xs text-gray-500">정산 수익</p>
+            <p className="font-semibold text-success">+{formatCurrency(settlement.profitAmount)}</p>
+          </div>
+        )}
+        {settlement.isSuccess && <ChevronRight size={18} className="shrink-0 text-gray-400" />}
       </div>
     </Card>
-  </Link>
-);
+  );
+
+  if (!settlement.isSuccess) {
+    return content;
+  }
+
+  return <Link href={`/wallet/settlements/${settlement.challengeId}`}>{content}</Link>;
+};
 
 const SettlementPage = () => {
   const { data, isLoading, error } = useSettlementHistory({ page: 0 });
