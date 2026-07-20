@@ -37,12 +37,15 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/refresh").permitAll()
-                        .requestMatchers("/auth/**").authenticated()
+                        .requestMatchers("/api/auth/refresh").permitAll()
+                        .requestMatchers("/api/auth/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(a -> a.authorizationRequestRepository(authorizationRequestRepository))
+                        .authorizationEndpoint(a -> a
+                                .baseUri("/api/oauth2/authorization")
+                                .authorizationRequestRepository(authorizationRequestRepository))
+                        .redirectionEndpoint(r -> r.baseUri("/api/login/oauth2/code/*"))
                         .userInfoEndpoint(u -> u
                                 .userService(customOAuth2UserService)
                                 .oidcUserService(customOidcUserService)

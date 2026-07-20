@@ -12,11 +12,12 @@ spring:
       client:
         registration:
           google:
+            redirect-uri: "{baseUrl}/api/login/oauth2/code/{registrationId}"
             scope:
               - email
               - profile
           kakao:
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            redirect-uri: "{baseUrl}/api/login/oauth2/code/{registrationId}"
             scope:
               - profile_nickname
         provider:
