@@ -112,6 +112,21 @@
         WHERE c.id = #{id}
     </select>
 
+    <!-- 진행 현황: 참가 인원·성공/실패 확정 인원. 진행률(daysElapsed/progressPercentage)은 서비스단에서 계산 -->
+    <select id="findProgressById" resultType="ChallengeProgressResponse">
+        SELECT
+            c.id, c.title, c.status,
+            c.start_date, c.end_date, c.max_participants,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.result = 'SUCCESS') AS success_count,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.result = 'FAIL') AS fail_count
+        FROM challenges c
+        WHERE c.id = #{id}
+    </select>
+
     <select id="findById" resultType="Challenge">
         SELECT id, host_id, title, description, category_id, entry_fee,
                verification_method, cert_frequency, daily_cert_limit,

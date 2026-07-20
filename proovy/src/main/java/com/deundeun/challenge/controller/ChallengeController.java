@@ -5,6 +5,7 @@ import com.deundeun.challenge.dto.request.ChallengeSearchCondition;
 import com.deundeun.challenge.dto.request.ChallengeUpdateRequest;
 import com.deundeun.challenge.dto.response.ChallengeCreateResponse;
 import com.deundeun.challenge.dto.response.ChallengeDetailResponse;
+import com.deundeun.challenge.dto.response.ChallengeProgressResponse;
 import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
 import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.service.ChallengeService;
@@ -46,6 +47,12 @@ public class ChallengeController {
     public ApiResponse<ChallengeDetailResponse> getChallengeDetail(
             @PathVariable Long challengeId) {
         return ApiResponse.success(challengeService.getDetail(challengeId));
+    }
+
+    @GetMapping("/{challengeId}/summary")
+    public ApiResponse<ChallengeProgressResponse> getChallengeProgress(
+            @PathVariable Long challengeId) {
+        return ApiResponse.success(challengeService.getProgress(challengeId));
     }
 
     @PatchMapping("/{challengeId}")
