@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -31,6 +31,7 @@ import {
   useToggleCertificationPostLike,
 } from "./hooks";
 import ReportDialog from "./ReportDialog";
+import { useDismissable } from "./useDismissable";
 
 const formatCreatedAt = (value) => {
   if (!value) return "";
@@ -132,28 +133,9 @@ const CertificationPostDetailPage = ({ postId }) => {
   const { data: me } = useMe();
   const deletePostMutation = useDeleteCertificationPost();
   const toggleLikeMutation = useToggleCertificationPostLike(postId);
+  const closePostMenu = useCallback(() => setIsPostMenuOpen(false), []);
 
-  useEffect(() => {
-    if (!isPostMenuOpen) return undefined;
-
-    const closeOnOutsidePointerDown = (event) => {
-      if (!postMenuRef.current?.contains(event.target)) {
-        setIsPostMenuOpen(false);
-      }
-    };
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setIsPostMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", closeOnOutsidePointerDown);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [isPostMenuOpen]);
+  useDismissable(isPostMenuOpen, postMenuRef, closePostMenu);
 
   if (isLoading) return <Loading label="인증 게시글을 불러오는 중..." />;
   if (error) return <ErrorMessage error={error} />;

@@ -12,7 +12,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -28,6 +28,7 @@ import {
   useUpdateComment,
 } from "./hooks";
 import ReportDialog from "./ReportDialog";
+import { useDismissable } from "./useDismissable";
 
 const formatCreatedAt = (value) => {
   if (!value) return "";
@@ -121,28 +122,9 @@ const CommentKebabMenu = ({
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const isAuthor = currentUserId === comment.authorId;
+  const closeMenu = useCallback(() => setIsOpen(false), []);
 
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    const closeOnOutsidePointerDown = (event) => {
-      if (!menuRef.current?.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", closeOnOutsidePointerDown);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [isOpen]);
+  useDismissable(isOpen, menuRef, closeMenu);
 
   if (currentUserId == null || comment.deleted) return null;
 
