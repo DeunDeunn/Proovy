@@ -11,8 +11,10 @@ import java.time.LocalDateTime;
 public class SettlementHistoryItem {
     private Long challengeId;
     private String title;
-    // Lombok의 isSuccess() getter를 Jackson이 "is" 접두사를 벗겨 success로 직렬화하는 것을 막기 위해 키를 고정
-    @JsonProperty("isSuccess")
+    // 필드에 @JsonProperty를 붙이면 Jackson이 getter(isSuccess())에서 유추한 "success"와
+    // 별개 프로퍼티로 취급해 success/isSuccess가 중복으로 직렬화된다. 생성되는 getter
+    // 메서드 자체에 annotation을 붙여야 "isSuccess" 하나로만 나간다.
+    @Getter(onMethod_ = @__(@JsonProperty("isSuccess")))
     private boolean isSuccess;
     private LocalDateTime settledAt;
     private Long profitAmount;
