@@ -195,4 +195,22 @@ public class ChallengeService {
         return progress;
     }
 
+    /**
+     * 모집중이면서 시작일이 지난 챌린지를 진행중으로 전환한다 (스케줄러 전용).
+     */
+    @Transactional
+    public void startDueChallenges() {
+        challengeMapper.startDueChallenges();
+    }
+
+    /**
+     * 진행중이면서 종료일이 지난, 아직 종료 처리 안 된 챌린지 목록 (스케줄러 전용).
+     * 실제 종료 처리(참가자별 성공/실패 확정 + 정산)는 챌린지 하나씩 별도 트랜잭션으로 처리해야 해서
+     * {@link ChallengeCompletionService}에 맡기고, 여기서는 대상만 조회한다.
+     */
+    @Transactional(readOnly = true)
+    public List<Challenge> findChallengesToComplete() {
+        return challengeMapper.findChallengesToComplete();
+    }
+
 }

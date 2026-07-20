@@ -44,4 +44,14 @@ public interface ChallengeMapper {
 
     void updateStatus(@Param("id") Long id, @Param("status") ChallengeStatus status);
 
+    /**
+     * 모집중이면서 시작일이 지난 챌린지를 전부 진행중으로 전환한다 (스케줄러용, 매번 조건 검사라 누락분도 자동 처리됨).
+     */
+    void startDueChallenges();
+
+    /**
+     * 진행중이면서 종료일이 지난, 아직 종료 처리 안 된 챌린지 목록 (스케줄러용).
+     */
+    List<Challenge> findChallengesToComplete();
+
 }
