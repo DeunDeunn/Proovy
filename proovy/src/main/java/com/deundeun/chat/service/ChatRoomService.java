@@ -155,6 +155,11 @@ public class ChatRoomService {
 
         return ChallengeChatRoomResponse.of(room, challenge.getTitle(), memberCount, lastMessage, unreadCount, member);
     }
+    
+    @Transactional(readOnly = true)
+    public Long getChatRoomIdByChallengeId(Long challengeId) {
+        return getChatRoomByChallengeId(challengeId).getId();
+    }
 
     private Challenge findChallenge(Long challengeId) {
         Challenge challenge = challengeMapper.findById(challengeId);

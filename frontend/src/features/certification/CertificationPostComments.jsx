@@ -6,12 +6,13 @@ import {
   BadgeCheck,
   CornerDownRight,
   Flag,
+  Heart,
   MessageCircle,
   MoreVertical,
   Pencil,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -19,8 +20,15 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 
-import { useComments, useCreateComment, useDeleteComment, useUpdateComment } from "./hooks";
+import {
+  useComments,
+  useCreateComment,
+  useDeleteComment,
+  useToggleCommentLike,
+  useUpdateComment,
+} from "./hooks";
 import ReportDialog from "./ReportDialog";
+import { useDismissable } from "./useDismissable";
 
 const formatCreatedAt = (value) => {
   if (!value) return "";
@@ -37,7 +45,7 @@ const formatCreatedAt = (value) => {
 };
 
 const CommentMeta = ({ comment }) => (
-  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400">
+  <div className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-gray-400">
     <span>{formatCreatedAt(comment.createdAt)}</span>
     {comment.edited && <span>수정됨</span>}
   </div>
@@ -46,7 +54,7 @@ const CommentMeta = ({ comment }) => (
 const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
 
 const ProfileAvatar = ({ nickname, profileImageUrl, compact = false }) => {
-  const sizeClassName = compact ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm";
+  const sizeClassName = compact ? "h-7 w-7 text-[11px]" : "h-8 w-8 text-xs";
   const [failedImageUrl, setFailedImageUrl] = useState(null);
   const showProfileImage = Boolean(profileImageUrl) && failedImageUrl !== profileImageUrl;
 
@@ -68,17 +76,39 @@ const ProfileAvatar = ({ nickname, profileImageUrl, compact = false }) => {
 };
 
 const AuthorName = ({ nickname, badgeApproved }) => (
-  <div className="flex min-w-0 items-center gap-1.5">
-    <p className="truncate text-sm font-semibold text-gray-800">
+  <div className="flex min-w-0 items-center gap-1">
+    <p className="truncate text-[13px] font-semibold text-gray-800">
       {nickname ?? "알 수 없는 사용자"}
     </p>
     {badgeApproved && (
       <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
-        <BadgeCheck size={16} aria-hidden="true" />
+        <BadgeCheck size={15} aria-hidden="true" />
         <span className="sr-only">인증 회원</span>
       </span>
     )}
   </div>
+);
+
+const CommentLikeButton = ({ comment, canLike, isPending, onToggle }) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    disabled={!canLike || isPending}
+    title={canLike ? "댓글 좋아요" : "승인된 인증글의 댓글에만 좋아요할 수 있어요."}
+    aria-label={comment.liked ? "댓글 좋아요 취소" : "댓글 좋아요"}
+    aria-pressed={comment.liked}
+    className={`inline-flex items-center gap-0.5 rounded-full px-1 py-1 text-[11px] transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 ${comment.liked ? "text-rose-500" : "text-gray-500"}`}
+  >
+    <Heart
+      size={16}
+      strokeWidth={1.8}
+      fill={comment.liked ? "currentColor" : "none"}
+      aria-hidden="true"
+    />
+    {Number(comment.likeCount ?? 0) > 0 && (
+      <span className="font-medium">{Number(comment.likeCount).toLocaleString()}</span>
+    )}
+  </button>
 );
 
 const CommentKebabMenu = ({
@@ -90,7 +120,11 @@ const CommentKebabMenu = ({
   onReport,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
   const isAuthor = currentUserId === comment.authorId;
+  const closeMenu = useCallback(() => setIsOpen(false), []);
+
+  useDismissable(isOpen, menuRef, closeMenu);
 
   if (currentUserId == null || comment.deleted) return null;
 
@@ -100,22 +134,22 @@ const CommentKebabMenu = ({
   };
 
   return (
-    <div className="relative shrink-0">
+    <div ref={menuRef} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
         aria-label="댓글 메뉴"
         aria-expanded={isOpen}
         disabled={isActionPending}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
+        className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:text-gray-300"
       >
-        <MoreVertical size={18} aria-hidden="true" />
+        <MoreVertical size={16} aria-hidden="true" />
       </button>
 
       {isOpen && (
         <div
           role="menu"
-          className="absolute right-0 top-9 z-20 w-28 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 top-8 z-20 w-28 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
         >
           {isAuthor ? (
             <>
@@ -155,7 +189,7 @@ const CommentKebabMenu = ({
   );
 };
 
-const CertificationPostComments = ({ postId, status, commentCount, embedded = false }) => {
+const CertificationPostComments = ({ postId, status, commentCount, embedded = false, footer }) => {
   const [contents, setContents] = useState("");
   const [replyTargetId, setReplyTargetId] = useState(null);
   const [replyContents, setReplyContents] = useState("");
@@ -178,10 +212,13 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   const createMutation = useCreateComment(postId);
   const updateCommentMutation = useUpdateComment(postId);
   const deleteCommentMutation = useDeleteComment(postId);
+  const toggleCommentLikeMutation = useToggleCommentLike(postId);
 
   const canWriteComment = status === "APPROVED";
   const comments = data?.pages.flat() ?? [];
   const isCommentActionPending = updateCommentMutation.isPending || deleteCommentMutation.isPending;
+  const isCommentLikePending = (commentId) =>
+    toggleCommentLikeMutation.isPending && toggleCommentLikeMutation.variables === commentId;
 
   const clearFormError = () => {
     setFormError(null);
@@ -289,9 +326,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   const commentList = (
     <div
       className={
-        embedded
-          ? "min-h-0 flex-1 overflow-y-auto border-y border-gray-100 py-4 pr-1"
-          : "mt-6 border-t border-gray-100 pt-5"
+        embedded ? "min-h-0 flex-1 overflow-y-auto px-5 py-4" : "mt-6 border-t border-gray-100 pt-5"
       }
     >
       {isLoading ? (
@@ -301,37 +336,45 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
       ) : comments.length === 0 ? (
         <p className="py-6 text-center text-sm text-gray-500">첫 댓글을 남겨보세요.</p>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {comments.map((comment) => (
             <article key={comment.commentId}>
               {comment.deleted ? (
                 <p className="text-sm text-gray-400">삭제된 댓글입니다.</p>
               ) : (
-                <div className="flex gap-3">
-                  <ProfileAvatar
-                    nickname={comment.authorNickname}
-                    profileImageUrl={comment.authorProfileImageUrl}
-                  />
+                <div className="flex items-start gap-2.5">
+                  <div className="-mt-1.5">
+                    <ProfileAvatar
+                      nickname={comment.authorNickname}
+                      profileImageUrl={comment.authorProfileImageUrl}
+                    />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <AuthorName
                           nickname={comment.authorNickname}
                           badgeApproved={comment.authorBadgeApproved}
                         />
-                        <div className="mt-1">
-                          <CommentMeta comment={comment} />
-                        </div>
+                        <CommentMeta comment={comment} />
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <CommentLikeButton
+                          comment={comment}
+                          canLike={canWriteComment}
+                          isPending={isCommentLikePending(comment.commentId)}
+                          onToggle={() => toggleCommentLikeMutation.mutate(comment.commentId)}
+                        />
                         {canWriteComment && (
                           <button
                             type="button"
                             onClick={() => toggleReplyForm(comment.commentId)}
                             disabled={createMutation.isPending}
-                            className="shrink-0 text-xs font-medium text-primary hover:text-primary-hover disabled:cursor-not-allowed disabled:text-gray-400"
+                            aria-label="답글 작성"
+                            title="답글 작성"
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center text-gray-400 hover:text-primary disabled:cursor-not-allowed disabled:text-gray-400"
                           >
-                            답글
+                            <CornerDownRight size={16} strokeWidth={1.8} aria-hidden="true" />
                           </button>
                         )}
                         <CommentKebabMenu
@@ -375,7 +418,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         </div>
                       </form>
                     ) : (
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-gray-700">
                         {comment.contents}
                       </p>
                     )}
@@ -384,43 +427,57 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         <ErrorMessage error={commentActionError.error} />
                       </div>
                     )}
+                    {toggleCommentLikeMutation.error &&
+                      toggleCommentLikeMutation.variables === comment.commentId && (
+                        <div className="mt-3">
+                          <ErrorMessage error={toggleCommentLikeMutation.error} />
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
 
               {(comment.replies ?? []).length > 0 && (
-                <div className="mt-4 space-y-4 border-l-2 border-gray-100 pl-4">
+                <div className="mt-3 space-y-3 border-l-2 border-gray-100 pl-3">
                   {comment.replies.map((reply) => (
-                    <div key={reply.commentId} className="flex gap-2">
+                    <div key={reply.commentId} className="flex items-start gap-2">
                       <CornerDownRight
-                        size={16}
-                        className="mt-2 shrink-0 text-gray-400"
+                        size={14}
+                        className="mt-0.5 shrink-0 text-gray-400"
                         aria-hidden="true"
                       />
-                      <ProfileAvatar
-                        nickname={reply.authorNickname}
-                        profileImageUrl={reply.authorProfileImageUrl}
-                        compact
-                      />
+                      <div className="-mt-1">
+                        <ProfileAvatar
+                          nickname={reply.authorNickname}
+                          profileImageUrl={reply.authorProfileImageUrl}
+                          compact
+                        />
+                      </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                             <AuthorName
                               nickname={reply.authorNickname}
                               badgeApproved={reply.authorBadgeApproved}
                             />
-                            <div className="mt-1">
-                              <CommentMeta comment={reply} />
-                            </div>
+                            <CommentMeta comment={reply} />
                           </div>
-                          <CommentKebabMenu
-                            comment={reply}
-                            currentUserId={me?.id}
-                            isActionPending={isCommentActionPending}
-                            onEdit={startEditingComment}
-                            onDelete={deleteComment}
-                            onReport={setReportTargetId}
-                          />
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <CommentLikeButton
+                              comment={reply}
+                              canLike={canWriteComment}
+                              isPending={isCommentLikePending(reply.commentId)}
+                              onToggle={() => toggleCommentLikeMutation.mutate(reply.commentId)}
+                            />
+                            <CommentKebabMenu
+                              comment={reply}
+                              currentUserId={me?.id}
+                              isActionPending={isCommentActionPending}
+                              onEdit={startEditingComment}
+                              onDelete={deleteComment}
+                              onReport={setReportTargetId}
+                            />
+                          </div>
                         </div>
                         {editingCommentId === reply.commentId ? (
                           <form
@@ -453,7 +510,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                             </div>
                           </form>
                         ) : (
-                          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                          <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-5 text-gray-700">
                             {reply.contents}
                           </p>
                         )}
@@ -462,6 +519,12 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                             <ErrorMessage error={commentActionError.error} />
                           </div>
                         )}
+                        {toggleCommentLikeMutation.error &&
+                          toggleCommentLikeMutation.variables === reply.commentId && (
+                            <div className="mt-3">
+                              <ErrorMessage error={toggleCommentLikeMutation.error} />
+                            </div>
+                          )}
                       </div>
                     </div>
                   ))}
@@ -526,7 +589,10 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   );
 
   const commentComposer = canWriteComment ? (
-    <form onSubmit={(event) => submitComment(event)}>
+    <form
+      onSubmit={(event) => submitComment(event)}
+      className={embedded ? "flex items-center gap-3" : ""}
+    >
       <label htmlFor="new-comment" className="sr-only">
         댓글 내용
       </label>
@@ -537,13 +603,23 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
         placeholder="따뜻한 응원 댓글을 남겨주세요."
         rows={embedded ? 2 : 3}
         disabled={createMutation.isPending}
-        className={`w-full ${embedded ? "resize-none" : "resize-y"} rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50`}
+        className={`w-full ${embedded ? "min-h-10 flex-1 resize-none border-0 px-0 py-2 focus:ring-0" : "resize-y rounded-lg border border-gray-200 px-3 py-2.5 focus:border-primary focus:ring-2 focus:ring-primary/20"} text-sm text-gray-900 outline-none placeholder:text-gray-400 disabled:bg-gray-50`}
       />
-      <div className="mt-3 flex justify-end">
-        <Button type="submit" disabled={createMutation.isPending}>
-          {createMutation.isPending ? "등록 중..." : "댓글 등록"}
-        </Button>
-      </div>
+      {embedded ? (
+        <button
+          type="submit"
+          disabled={createMutation.isPending}
+          className="shrink-0 text-sm font-semibold text-primary transition-colors hover:text-primary-hover disabled:cursor-not-allowed disabled:text-gray-400"
+        >
+          {createMutation.isPending ? "등록 중" : "게시"}
+        </button>
+      ) : (
+        <div className="mt-3 flex justify-end">
+          <Button type="submit" disabled={createMutation.isPending}>
+            {createMutation.isPending ? "등록 중..." : "댓글 등록"}
+          </Button>
+        </div>
+      )}
     </form>
   ) : (
     <p className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-500">
@@ -553,14 +629,21 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
 
   const content = (
     <>
-      <div className="flex items-center gap-2">
-        <MessageCircle size={19} className="text-primary" aria-hidden="true" />
-        <h2 id="comments-heading" className="font-semibold text-gray-900">
+      {embedded ? (
+        <h2 id="comments-heading" className="sr-only">
           댓글 {Number(commentCount ?? 0).toLocaleString()}
         </h2>
-      </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <MessageCircle size={19} className="text-primary" aria-hidden="true" />
+          <h2 id="comments-heading" className="font-semibold text-gray-900">
+            댓글 {Number(commentCount ?? 0).toLocaleString()}
+          </h2>
+        </div>
+      )}
       {commentList}
-      <div className={embedded ? "pt-4" : "mt-5"}>
+      {embedded && footer}
+      <div className={embedded ? "border-t border-gray-100 px-5 py-3" : "mt-5"}>
         {commentComposer}
         {formError && errorParentCommentId === null && (
           <div className="mt-3">
@@ -573,7 +656,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
 
   return (
     <section
-      className={embedded ? "flex min-h-0 flex-1 flex-col p-5" : "mt-6"}
+      className={embedded ? "flex min-h-0 flex-1 flex-col" : "mt-6"}
       aria-labelledby="comments-heading"
     >
       {embedded ? (

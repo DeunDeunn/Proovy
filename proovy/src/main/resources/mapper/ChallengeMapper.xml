@@ -65,6 +65,27 @@
         LIMIT #{size} OFFSET #{offset}
     </select>
 
+    <!-- 내가 참가(방장 포함) 중인 챌린지 목록: 참가 이력이 아닌 현재 활동중인 참가만 -->
+    <select id="findMyChallenges" resultType="ChallengeSummaryResponse">
+        SELECT
+        c.id,
+        c.title,
+        cat.name AS category_name,
+        c.entry_fee,
+        (SELECT COUNT(*) FROM challenge_participants p2
+        WHERE p2.challenge_id = c.id AND p2.status = 'ACTIVE') AS current_participants,
+        c.max_participants,
+        c.start_date,
+        c.end_date,
+        c.status
+        FROM challenges c
+        JOIN categories cat ON cat.id = c.category_id
+        JOIN challenge_participants p ON p.challenge_id = c.id
+        WHERE p.user_id = #{userId}
+        AND p.status = 'ACTIVE'
+        ORDER BY c.created_at DESC, c.id DESC
+    </select>
+
     <select id="countBySearch" resultType="long">
         SELECT COUNT(*)
         FROM challenges c
@@ -88,6 +109,21 @@
         FROM challenges c
                  JOIN categories cat ON cat.id = c.category_id
                  LEFT JOIN users u ON u.id = c.host_id
+        WHERE c.id = #{id}
+    </select>
+
+    <!-- 진행 현황: 참가 인원·성공/실패 확정 인원. 진행률(daysElapsed/progressPercentage)은 서비스단에서 계산 -->
+    <select id="findProgressById" resultType="ChallengeProgressResponse">
+        SELECT
+            c.id, c.title, c.status,
+            c.start_date, c.end_date, c.max_participants,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.result = 'SUCCESS') AS success_count,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.result = 'FAIL') AS fail_count
+        FROM challenges c
         WHERE c.id = #{id}
     </select>
 
@@ -147,5 +183,23 @@
         SET status = #{status}
         WHERE id = #{id}
     </update>
+
+    <update id="startDueChallenges">
+        UPDATE challenges
+        SET status = 'IN_PROGRESS'
+        WHERE status = 'RECRUITING'
+          AND start_date &lt;= CURRENT_DATE
+    </update>
+
+    <select id="findChallengesToComplete" resultType="Challenge">
+        SELECT id, host_id, title, description, category_id, entry_fee,
+               verification_method, cert_frequency, daily_cert_limit,
+               success_criteria_rate, ai_review_enabled,
+               start_date, end_date, max_participants, status,
+               created_at, updated_at, cert_start_time, cert_end_time, feed_visibility
+        FROM challenges
+        WHERE status = 'IN_PROGRESS'
+          AND end_date &lt; CURRENT_DATE
+    </select>
 
 </mapper>

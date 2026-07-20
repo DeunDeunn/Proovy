@@ -139,6 +139,7 @@ public class CertificationService {
         // 추가 이미지
         List<String> imageUrls = certificationMapper.findPostImageUrls(postId);
         detail.setImageUrls(imageUrls);
+        detail.setLiked(certificationMapper.existsLike(postId, viewerId));
 
         return detail;
     }

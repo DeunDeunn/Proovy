@@ -3,6 +3,7 @@ package com.deundeun.mypage.dto.response;
 import com.deundeun.auth.domain.UserVerificationStatus;
 import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record MyPageResponse(
@@ -11,6 +12,7 @@ public record MyPageResponse(
         String profileImageUrl,
         boolean verified,
         UserVerificationStatus verificationStatus,
+        LocalDateTime createdAt,
         long followerCount,
         long followingCount,
         List<ChallengeSummaryResponse> participatingChallenges,

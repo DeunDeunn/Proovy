@@ -1,5 +1,6 @@
 package com.deundeun.notification.controller;
 
+import com.deundeun.notification.domain.NotificationCategory;
 import com.deundeun.notification.dto.response.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -43,10 +44,11 @@ public class NotificationController {
     @GetMapping
     public ApiResponse<NotificationPageResponse> getNotifications(
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) NotificationCategory category
     ) {
         Long userId = CurrentUser.getUserId();
-        NotificationPageResponse notifications = notificationService.getNotifications(userId, page, size);
+        NotificationPageResponse notifications = notificationService.getNotifications(userId, page, size, category);
 
         return ApiResponse.success(notifications, "알림 목록 조회를 완료했습니다.");
     }

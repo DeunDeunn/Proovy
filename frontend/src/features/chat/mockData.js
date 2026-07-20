@@ -19,9 +19,6 @@ export const getAvatarColor = (id) => AVATAR_PALETTE[id % AVATAR_PALETTE.length]
 export const getRoomDisplayName = (room) =>
   room.chatRoomType === "CHALLENGE" ? room.challengeTitle : room.directChatPartner.nickname;
 
-const MINUTE = 60 * 1000;
-const HOUR = 60 * MINUTE;
-
 const isSameDay = (a, b) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
@@ -48,21 +45,21 @@ const ROOM_TEMPLATES = [
     participantCount: 24,
     lastMessage: { senderNickname: "민지", content: "오늘도 수고하셨어요! 내일도 화이팅🔥" },
     unreadCount: 8,
-    createdAt: new Date(Date.now() - 30 * MINUTE),
+    createdAt: new Date("2026-07-21T01:00:00"),
   },
   {
     chatRoomType: "DIRECT",
     directChatPartner: { userId: 101, nickname: "이지훈" },
     lastMessage: { senderNickname: "이지훈", content: "네! 감사합니다 🙏" },
     unreadCount: 1,
-    createdAt: new Date(Date.now() - 3.5 * HOUR),
+    createdAt: new Date("2026-07-20T21:30:00"),
   },
   {
     chatRoomType: "DIRECT",
     directChatPartner: { userId: 102, nickname: "박민지" },
     lastMessage: { senderNickname: "박민지", content: "인증 사진 확인 부탁드려요~" },
     unreadCount: 1,
-    createdAt: new Date(Date.now() - 5 * HOUR),
+    createdAt: new Date("2026-07-20T20:00:00"),
   },
 ];
 

@@ -151,6 +151,7 @@ public enum ErrorCode {
     COMMENT_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST, "CF020", "대댓글에는 다시 댓글을 달 수 없습니다."),
     COMMENT_CONTENTS_REQUIRED(HttpStatus.BAD_REQUEST, "CF021", "댓글 내용은 필수 입력사항입니다."),
     NO_COMMENT_PERMISSION(HttpStatus.FORBIDDEN, "CF022", "댓글에 대한 권한이 없습니다."),
+    CANNOT_LIKE_COMMENT_UNAPPROVED(HttpStatus.CONFLICT, "CF023", "승인된 인증글의 댓글에만 좋아요할 수 있습니다."),
 
     //파일 업로드
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "F001", "업로드할 파일이 비어 있습니다."),

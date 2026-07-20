@@ -16,6 +16,8 @@ export const updateComment = (commentId, payload) => api.put(`/v1/comments/${com
 
 export const deleteComment = (commentId) => api.delete(`/v1/comments/${commentId}`);
 
+export const toggleCommentLike = (commentId) => api.post(`/v1/comments/${commentId}/like`);
+
 export const createCertificationPost = (challengeId, { contents, thumbnail, images }) => {
   const formData = new FormData();
 
@@ -45,3 +47,6 @@ export const updateCertificationPost = (postId, { contents, thumbnail, images })
 };
 
 export const deleteCertificationPost = (postId) => api.delete(`/v1/certification-post/${postId}`);
+
+export const toggleCertificationPostLike = (postId) =>
+  api.post(`/v1/certification-post/${postId}/like`);

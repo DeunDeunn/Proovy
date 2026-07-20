@@ -47,6 +47,13 @@
                COALESCE(latest_verification.status = 'APPROVED', false)
                                                            AS author_badge_approved,
                c.contents,
+               c.like_count                                AS like_count,
+               EXISTS (
+                   SELECT 1
+                   FROM comment_like cl
+                   WHERE cl.comment_id = c.id
+                     AND cl.user_id = #{viewerId}
+               )                                           AS liked,
                (c.deleted_at IS NOT NULL)                    AS deleted,
                (c.modified_at IS NOT NULL AND c.deleted_at IS NULL) AS edited,
                c.parent_comment_id,
@@ -88,6 +95,13 @@
                COALESCE(latest_verification.status = 'APPROVED', false)
                                    AS author_badge_approved,
                c.contents,
+               c.like_count          AS like_count,
+               EXISTS (
+                   SELECT 1
+                   FROM comment_like cl
+                   WHERE cl.comment_id = c.id
+                     AND cl.user_id = #{viewerId}
+               )                     AS liked,
                false               AS deleted,
                (c.modified_at IS NOT NULL) AS edited,
                c.parent_comment_id,
@@ -107,6 +121,45 @@
                   #{pid}
               </foreach>
         ORDER BY c.id ASC
+    </select>
+
+    <!-- ── 댓글 좋아요(토글) ── -->
+
+    <!-- 좋아요 취소 -->
+    <delete id="deleteCommentLike">
+        DELETE FROM comment_like
+        WHERE comment_id = #{commentId}
+          AND user_id = #{userId}
+    </delete>
+
+    <!-- 좋아요 등록, 중복 X -->
+    <insert id="insertCommentLike">
+        INSERT INTO comment_like (comment_id, user_id)
+        VALUES (#{commentId}, #{userId})
+        ON CONFLICT (comment_id, user_id) DO NOTHING
+    </insert>
+
+    <!-- 카운터 +1 -->
+    <update id="incrementCommentLikeCount">
+        UPDATE comments
+        SET like_count = like_count + 1
+        WHERE id = #{commentId}
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- 카운터 -1 / 0보다 작을 수 없음 -->
+    <update id="decrementCommentLikeCount">
+        UPDATE comments
+        SET like_count = GREATEST(like_count - 1, 0)
+        WHERE id = #{commentId}
+          AND deleted_at IS NULL
+    </update>
+
+    <!-- 현재 좋아요 수 -->
+    <select id="findCommentLikeCount" resultType="long">
+        SELECT like_count
+        FROM comments
+        WHERE id = #{commentId}
     </select>
 
     <!-- 댓글 수 +1 -->

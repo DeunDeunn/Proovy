@@ -14,7 +14,7 @@ public class MyPageController {
 
     private final MyPageService myPageService;
 
-    @GetMapping("/mypage")
+    @GetMapping("/api/mypage")
     public ApiResponse<MyPageResponse> getMyPage() {
         Long userId = CurrentUser.getUserId();
         return ApiResponse.success(myPageService.getMyPage(userId));
