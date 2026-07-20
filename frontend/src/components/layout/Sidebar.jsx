@@ -165,7 +165,7 @@ const Sidebar = () => {
                   {unreadNotificationCount}
                 </span>
               )}
-              {menu.href === "/chat" && unreadChatCount > 0 && (
+              {menu.href === "/chat" && me && unreadChatCount > 0 && (
                 <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
                   {unreadChatCount}
                 </span>
@@ -180,7 +180,12 @@ const Sidebar = () => {
 
         <div className="my-3 border-t border-gray-200" />
 
-        <SidebarDropdown icon={User} label="마이페이지" items={mypageMenuItems} pathname={pathname} />
+        <SidebarDropdown
+          icon={User}
+          label="마이페이지"
+          items={mypageMenuItems}
+          pathname={pathname}
+        />
       </nav>
 
       {/* 하단 프로필 자리 */}

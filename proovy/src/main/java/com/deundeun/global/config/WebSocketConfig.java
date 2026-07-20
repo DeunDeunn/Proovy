@@ -4,6 +4,7 @@ import com.deundeun.global.websocket.ChatSubscribeChannelInterceptor;
 import com.deundeun.global.websocket.CustomHandshakeHandler;
 import com.deundeun.global.websocket.JwtHandshakeInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -19,10 +20,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
     private final ChatSubscribeChannelInterceptor chatSubscribeChannelInterceptor;
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry
             .addEndpoint("/ws")
+            .setAllowedOrigins(frontendUrl)
             .addInterceptors(jwtHandshakeInterceptor)
             .setHandshakeHandler(new CustomHandshakeHandler());
     }
