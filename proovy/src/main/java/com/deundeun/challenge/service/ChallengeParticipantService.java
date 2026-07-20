@@ -70,18 +70,42 @@ public class ChallengeParticipantService {
             throw new ApiException(ErrorCode.HOST_CANNOT_LEAVE);
         }
 
-        // 행 잠금: 중복 탈퇴 요청이 홀딩을 두 번 취소하는 경쟁 조건 방지
+        removeParticipant(challenge, userId, ParticipantStatus.WITHDRAWN);
+    }
+
+    @Transactional
+    public void kick(Long challengeId, Long hostId, Long targetUserId) {
+        // 행 잠금: 환불 여부를 가르는 challenge.status를 경쟁 없이 읽는다
+        Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        if (!challenge.getHostId().equals(hostId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+        if (targetUserId.equals(hostId)) {
+            throw new ApiException(ErrorCode.HOST_CANNOT_LEAVE);
+        }
+
+        removeParticipant(challenge, targetUserId, ParticipantStatus.KICKED);
+    }
+
+    /**
+     * 탈퇴/강퇴 공통 처리: 참가자 row를 잠그고 상태를 바꾼 뒤, 챌린지 시작 전(RECRUITING)일 때만 홀딩을 해제한다.
+     * 시작 후에는 자발적 탈퇴든 강퇴든 참가비를 몰수한다.
+     */
+    private void removeParticipant(Challenge challenge, Long targetUserId, ParticipantStatus newStatus) {
+        // 행 잠금: 중복 탈퇴/강퇴 요청이 홀딩을 두 번 취소하는 경쟁 조건 방지
         ChallengeParticipant participant =
-                challengeParticipantMapper.findByChallengeIdAndUserIdForUpdate(challengeId, userId);
+                challengeParticipantMapper.findByChallengeIdAndUserIdForUpdate(challenge.getId(), targetUserId);
         if (participant == null || participant.getStatus() != ParticipantStatus.ACTIVE) {
             throw new ApiException(ErrorCode.NOT_CHALLENGE_PARTICIPANT);
         }
 
-        challengeParticipantMapper.updateStatus(participant.getId(), ParticipantStatus.WITHDRAWN, LocalDateTime.now());
+        challengeParticipantMapper.updateStatus(participant.getId(), newStatus, LocalDateTime.now());
 
-        // 홀딩 해제는 챌린지 시작 전(RECRUITING)에만 허용된다 — 시작 후 탈퇴는 참가비를 몰수한다
         if (challenge.getStatus() == ChallengeStatus.RECRUITING && challenge.getEntryFee() > 0) {
-            walletHoldService.cancel(userId, challenge.getEntryFee(), challengeId);
+            walletHoldService.cancel(targetUserId, challenge.getEntryFee(), challenge.getId());
         }
     }
 
