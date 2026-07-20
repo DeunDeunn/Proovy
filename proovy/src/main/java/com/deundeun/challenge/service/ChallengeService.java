@@ -178,6 +178,7 @@ public class ChallengeService {
             chatRoomMemberService.leave(chatRoomId, participantUserId);
         }
         challengeParticipantMapper.withdrawAllActiveByChallengeId(challengeId, LocalDateTime.now());
+        chatRoomMemberService.leave(chatRoomId, challenge.getHostId());
 
         challengeMapper.updateStatus(challengeId, ChallengeStatus.CANCELLED);
     }
