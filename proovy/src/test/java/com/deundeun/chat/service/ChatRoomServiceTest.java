@@ -199,6 +199,32 @@ class ChatRoomServiceTest {
     }
 
     @Test
+    @DisplayName("챌린지 채팅방 id를 멤버십 검증 없이 조회한다")
+    void getChatRoomIdByChallengeId_returnsChatRoomId() {
+        Long challengeId = 100L;
+        ChatRoom room = ChatRoom.createChallengeRoom(challengeId);
+        ReflectionTestUtils.setField(room, "id", 5L);
+        when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.of(room));
+
+        Long chatRoomId = chatRoomService.getChatRoomIdByChallengeId(challengeId);
+
+        assertThat(chatRoomId).isEqualTo(5L);
+        verify(chatRoomMemberFinder, never()).findMember(any(), any());
+    }
+
+    @Test
+    @DisplayName("조회 대상 챌린지 채팅방이 없으면 예외를 던진다")
+    void getChatRoomIdByChallengeId_roomNotFound_throwsException() {
+        Long challengeId = 100L;
+        when(chatRoomMapper.findByChallengeId(challengeId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> chatRoomService.getChatRoomIdByChallengeId(challengeId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ROOM_NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("참여자가 아니면 접근 검증 예외가 그대로 전파된다")
     void getChallengeRoom_notMember_propagatesValidatorException() {
         Long challengeId = 100L;
