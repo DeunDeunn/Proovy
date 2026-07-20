@@ -1,28 +1,24 @@
+<img width="602" height="229" alt="image" src="https://github.com/user-attachments/assets/1bc0ac2b-fef7-4096-abd2-1938aaa5b05d" />
+
 # Proovy
 
 습관 인증 챌린지를 주제로 한 Spring Boot + Next.js 기반 웹 서비스입니다. 사용자가 챌린지를 만들어 참가비를 걸고, 정해진 기간 동안 인증 게시물을 올려 습관을 이어가면, 종료 후 성공/실패 여부에 따라 참가비가 정산되는 구조입니다.
 
 ## 기술 스택
 
+<img src="https://skillicons.dev/icons?i=java,spring,js,postgresql,redis,aws,nextjs,react,tailwind,docker,vercel" />
+
 **Backend**
-- Java 21, Spring Boot 4
 - Spring Security + OAuth2 Client (구글/카카오 소셜 로그인), JWT
-- MyBatis, PostgreSQL, Flyway
-- Redis
+- MyBatis, Flyway
 - WebSocket(STOMP) 기반 실시간 채팅
 - AWS S3 (이미지 업로드)
 - Spring AI + Gemini (챌린지 인증 게시물 AI 검수)
 - 네이버페이 연동 (캐시 충전 결제)
 
 **Frontend**
-- Next.js 16 (App Router), React 19
 - TanStack Query, Zustand
-- Tailwind CSS 4
 - axios (Next.js `rewrites`를 통해 백엔드와 same-origin으로 통신)
-
-**Infra**
-- Docker Compose (로컬 PostgreSQL/Redis)
-- GitHub Actions → EC2 배포
 
 ## 주요 기능
 
@@ -35,26 +31,5 @@
 - **팔로우 / 알림 / 마이페이지**: 유저 팔로우, 알림, 프로필/활동 내역 관리
 
 ## 프로젝트 구조
+<img width="815" height="460" alt="image" src="https://github.com/user-attachments/assets/3eed37a8-f344-4da6-8160-40074066f642" />
 
-```
-.
-├── proovy/                     # Spring Boot 백엔드
-│   └── src/main/java/com/deundeun/
-│       ├── auth/                # 인증/유저 프로필
-│       ├── challenge/           # 챌린지/카테고리
-│       ├── certification/       # 인증 게시물/댓글/신고
-│       ├── pay/                 # 지갑/충전/출금/정산
-│       ├── chat/                # 채팅
-│       ├── follow/              # 팔로우
-│       ├── notification/        # 알림
-│       ├── mypage/              # 마이페이지
-│       ├── ai/                  # AI 인증 검수
-│       └── global/              # 공통 설정(Security, JWT, 예외처리 등)
-├── frontend/                   # Next.js 프론트엔드
-│   └── src/
-│       ├── app/                 # 라우트(App Router)
-│       ├── features/            # 기능별 페이지/훅/API
-│       └── components/          # 공통 UI 컴포넌트
-├── docker-compose.local.yml    # 로컬 PostgreSQL/Redis
-└── .github/workflows/          # CI/CD (백엔드 EC2 배포)
-```
