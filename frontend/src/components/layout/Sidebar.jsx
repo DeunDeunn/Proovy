@@ -1,7 +1,9 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- S3 외부 프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
+
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
 import {
@@ -15,12 +17,14 @@ import {
   User,
   ChevronDown,
   ChevronUp,
+  LogOut,
 } from "lucide-react";
 
 import Image from "next/image";
 
 import { useUnreadChatCount } from "@/features/chat/store";
 import { useUnreadCount } from "@/features/notification/hooks/notificationHooks";
+import { useLogout, useMe } from "@/features/auth/hooks";
 
 const menus = [
   { name: "홈", href: "/", icon: Home },
@@ -38,16 +42,16 @@ const walletMenus = [
   { name: "정산 내역", href: "/wallet/settlements" },
 ];
 
-const mypageMenus = [
+const baseMypageMenus = [
   { name: "내 정보", href: "/mypage" },
   { name: "내 인증피드", href: "/mypage/feed" },
   { name: "우수 사용자 인증", href: "/mypage/verification" },
   { name: "AI 티켓 관리", href: "/mypage/tickets" },
   { name: "설정", href: "/mypage/settings" },
-  { name: "회원탈퇴", href: "/mypage/delete" },
 ];
+const withdrawMenu = { name: "회원탈퇴", href: "/mypage/delete" };
 
-const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
+const SidebarDropdown = ({ icon: Icon, label, items, pathname, onItemAction }) => {
   const isActive = items.some((m) => m.href === pathname);
   const [manualOpen, setManualOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -76,6 +80,19 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
       </button>
       {open &&
         items.map((menu) => {
+          if (menu.action) {
+            return (
+              <button
+                key={menu.name}
+                type="button"
+                onClick={() => onItemAction(menu.action)}
+                className="block w-full rounded-lg py-2 pl-11 pr-3 text-left text-sm text-gray-600 hover:bg-gray-50"
+              >
+                {menu.name}
+              </button>
+            );
+          }
+
           const active = pathname === menu.href;
           return (
             <Link
@@ -97,9 +114,20 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
 
 const Sidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: unreadCountData } = useUnreadCount();
   const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   const unreadChatCount = useUnreadChatCount();
+  const { data: me } = useMe();
+  const logoutMutation = useLogout();
+
+  const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
+
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => router.replace("/"),
+    });
+  };
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-surface px-4 py-6">
@@ -151,17 +179,42 @@ const Sidebar = () => {
 
         <div className="my-3 border-t border-gray-200" />
 
-        <SidebarDropdown icon={User} label="마이페이지" items={mypageMenus} pathname={pathname} />
+        <SidebarDropdown icon={User} label="마이페이지" items={mypageMenuItems} pathname={pathname} />
       </nav>
 
       {/* 하단 프로필 자리 */}
-      <Link
-        href="/login"
-        className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50"
-      >
-        <div className="h-8 w-8 rounded-full bg-gray-200" />
-        <span className="text-sm text-gray-700">로그인 / 회원가입</span>
-      </Link>
+      {me ? (
+        <div className="mt-auto flex items-center gap-1 rounded-lg px-3 py-2">
+          <Link href="/mypage" className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50">
+            {me.profileImageUrl ? (
+              <img
+                src={me.profileImageUrl}
+                alt={`${me.nickname} 프로필 이미지`}
+                className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-gray-200" />
+            )}
+            <span className="truncate text-sm font-medium text-gray-700">{me.nickname}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="로그아웃"
+            className="cursor-pointer rounded-lg p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      ) : (
+        <Link
+          href="/login"
+          className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50"
+        >
+          <div className="h-8 w-8 rounded-full bg-gray-200" />
+          <span className="text-sm text-gray-700">로그인 / 회원가입</span>
+        </Link>
+      )}
     </aside>
   );
 };
