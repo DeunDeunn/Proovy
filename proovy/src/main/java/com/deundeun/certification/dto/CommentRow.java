@@ -12,6 +12,8 @@ public class CommentRow {
     private String authorProfileImageUrl;
     private boolean authorBadgeApproved;
     private String contents;
+    private long likeCount;
+    private boolean liked;
     private boolean deleted;            // soft delete 여부
     private boolean edited;             // 수정 여부 (modified_at 존재 & 미삭제)
     private Long parentCommentId;       // 대댓글 그룹핑용

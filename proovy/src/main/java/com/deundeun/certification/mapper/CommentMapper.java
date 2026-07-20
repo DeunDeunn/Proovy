@@ -25,11 +25,28 @@ public interface CommentMapper {
 
     // 최상위 댓글 목록 (커서 무한스크롤·최신순). 대댓글이 달린 삭제 댓글은 껍데기로 포함
     List<CommentRow> findTopLevelComments(@Param("postId") Long postId,
+                                          @Param("viewerId") Long viewerId,
                                           @Param("cursor") Long cursor,
                                           @Param("size") int size);
 
     // 주어진 부모 댓글들의 대댓글 목록 (오래된순). 삭제된 대댓글은 제외
-    List<CommentRow> findReplies(@Param("parentIds") List<Long> parentIds);
+    List<CommentRow> findReplies(@Param("parentIds") List<Long> parentIds,
+                                 @Param("viewerId") Long viewerId);
+
+    // 댓글 좋아요 삭제, 0 or 1
+    int deleteCommentLike(@Param("commentId") Long commentId, @Param("userId") Long userId);
+
+    // 댓글 좋아요 등록, 중복 X / 0 or 1
+    int insertCommentLike(@Param("commentId") Long commentId, @Param("userId") Long userId);
+
+    // 댓글 좋아요 +1
+    void incrementCommentLikeCount(Long commentId);
+
+    // 댓글 좋아요 -1 (0 미만 방지)
+    void decrementCommentLikeCount(Long commentId);
+
+    // 댓글 좋아요 집계
+    long findCommentLikeCount(Long commentId);
 
     // 댓글 수 +1
     void incrementCommentCount(Long postId);
