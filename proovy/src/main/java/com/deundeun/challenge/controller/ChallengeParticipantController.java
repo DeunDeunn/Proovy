@@ -35,4 +35,11 @@ public class ChallengeParticipantController {
             @PathVariable Long challengeId) {
         return ApiResponse.success(challengeParticipantService.getParticipants(challengeId));
     }
+
+    @DeleteMapping("/{userId}")
+    public ApiResponse<Void> kick(@PathVariable Long challengeId, @PathVariable Long userId) {
+        Long hostId = CurrentUser.getUserId();
+        challengeParticipantService.kick(challengeId, hostId, userId);
+        return ApiResponse.success(null);
+    }
 }
