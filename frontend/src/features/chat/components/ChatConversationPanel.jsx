@@ -5,20 +5,48 @@ import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lu
 
 import { useMe } from "@/features/auth/hooks";
 import MessageBubble from "@/features/chat/components/MessageBubble";
+import { useChatRoomHistory, useChatRoomSubscription } from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
+import { useChatStore } from "@/features/chat/store";
+
+const SCROLL_TOP_THRESHOLD = 80;
 
 const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   const { data: me } = useMe();
+  const receiveMessage = useChatStore((state) => state.receiveMessage);
+  const { loadMore, hasMore, isLoadingMore } = useChatRoomHistory(room.chatRoomId);
+  useChatRoomSubscription(room.chatRoomId, receiveMessage);
+
   const [draft, setDraft] = useState("");
   const listEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
   const isChallenge = room.chatRoomType === "CHALLENGE";
   const displayName = getRoomDisplayName(room);
   const avatarColor = getAvatarColor(room.chatRoomId);
+  const lastMessageId = messages[messages.length - 1]?.messageId;
 
+  // 새 메시지가 맨 끝에 추가됐을 때만 바닥으로 스크롤 (이전 메시지를 위에 추가하는 경우는 제외)
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ block: "end" });
-  }, [messages, room.chatRoomId]);
+  }, [lastMessageId]);
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container || !hasMore || isLoadingMore) return;
+    if (container.scrollTop > SCROLL_TOP_THRESHOLD) return;
+
+    const prevScrollHeight = container.scrollHeight;
+    const prevScrollTop = container.scrollTop;
+
+    loadMore().then(() => {
+      requestAnimationFrame(() => {
+        const target = scrollContainerRef.current;
+        if (!target) return;
+        target.scrollTop = prevScrollTop + (target.scrollHeight - prevScrollHeight);
+      });
+    });
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -79,7 +107,14 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
+      >
+        {isLoadingMore && (
+          <p className="py-1 text-center text-xs text-gray-400">이전 메시지 불러오는 중...</p>
+        )}
         {messages.map((message, index) => {
           const isOwn = message.senderId === me?.id;
           const prevMessage = messages[index - 1];

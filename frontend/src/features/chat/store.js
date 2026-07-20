@@ -19,6 +19,14 @@ export const useChatStore = create((set) => ({
       messagesByRoomId: { ...state.messagesByRoomId, [chatRoomId]: messages },
     })),
 
+  prependRoomMessages: (chatRoomId, olderMessages) =>
+    set((state) => ({
+      messagesByRoomId: {
+        ...state.messagesByRoomId,
+        [chatRoomId]: [...olderMessages, ...(state.messagesByRoomId[chatRoomId] ?? [])],
+      },
+    })),
+
   receiveMessage: (event) =>
     set((state) => {
       if (event.eventType !== "MESSAGE_CREATED") return state;
