@@ -25,6 +25,7 @@ import Image from "next/image";
 import { useUnreadChatCount } from "@/features/chat/store";
 import { useUnreadCount } from "@/features/notification/hooks/notificationHooks";
 import { useLogout, useMe } from "@/features/auth/hooks";
+import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 
 const menus = [
   { name: "홈", href: "/", icon: Home },
@@ -49,7 +50,7 @@ const baseMypageMenus = [
   { name: "AI 티켓 관리", href: "/mypage/tickets" },
   { name: "설정", href: "/mypage/settings" },
 ];
-const withdrawMenu = { name: "회원탈퇴", href: "/mypage/delete" };
+const withdrawMenu = { name: "회원탈퇴", href: "/mypage/withdraw" };
 
 const SidebarDropdown = ({ icon: Icon, label, items, pathname, onItemAction }) => {
   const isActive = items.some((m) => m.href === pathname);
@@ -190,19 +191,12 @@ const Sidebar = () => {
       {/* 하단 프로필 자리 */}
       {me ? (
         <div className="mt-auto flex items-center gap-1 rounded-lg px-3 py-2">
-          <Link
-            href="/mypage"
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50"
-          >
-            {me.profileImageUrl ? (
-              <img
-                src={me.profileImageUrl}
-                alt={`${me.nickname} 프로필 이미지`}
-                className="h-8 w-8 rounded-full border border-gray-200 object-cover"
-              />
-            ) : (
-              <div className="h-8 w-8 rounded-full bg-gray-200" />
-            )}
+          <Link href="/mypage" className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50">
+            <img
+              src={me.profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
+              alt={`${me.nickname} 프로필 이미지`}
+              className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+            />
             <span className="truncate text-sm font-medium text-gray-700">{me.nickname}</span>
           </Link>
           <button

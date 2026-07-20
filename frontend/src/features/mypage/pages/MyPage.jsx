@@ -2,18 +2,28 @@
 
 /* eslint-disable @next/next/no-img-element -- S3 외부 프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Award } from "lucide-react";
+import { Award, Camera, Check, Pencil, X } from "lucide-react";
 
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
+import {
+  useCheckNicknameDuplicate,
+  useUpdateNickname,
+  useUpdateProfileImage,
+} from "@/features/auth/hooks";
+import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 
 import { useMyPage } from "../hooks";
 
 const PREVIEW_SIZE = 3;
+const NICKNAME_MIN = 2;
+const NICKNAME_MAX = 10;
 
-const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
+const isValidNicknameFormat = (nickname) =>
+  nickname.trim().length >= NICKNAME_MIN && nickname.trim().length <= NICKNAME_MAX;
 
 const formatJoinDate = (value) => {
   if (!value) return "";
@@ -74,38 +84,150 @@ const ChallengeSummaryCard = ({ title, count, challenges, emptyText, renderRight
 const MyPage = () => {
   const { data: me, isLoading, isError, error } = useMyPage();
 
+  const fileInputRef = useRef(null);
+  const updateProfileImage = useUpdateProfileImage();
+
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [checkedNickname, setCheckedNickname] = useState(null);
+  const checkDuplicate = useCheckNicknameDuplicate();
+  const updateNickname = useUpdateNickname();
+
   if (isLoading) return <Loading />;
   if (isError) return <ErrorMessage error={error} />;
   if (!me) return null;
 
   const verificationMeta = VERIFICATION_STATUS_META[me.verificationStatus] ?? DEFAULT_VERIFICATION_META;
+  const isNicknameChecked = checkedNickname === nicknameInput && checkDuplicate.data?.available === true;
+
+  const handleAvatarClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    updateProfileImage.mutate(file);
+  };
+
+  const startEditingNickname = () => {
+    setNicknameInput(me.nickname);
+    setCheckedNickname(null);
+    setIsEditingNickname(true);
+  };
+
+  const cancelEditingNickname = () => {
+    setIsEditingNickname(false);
+    checkDuplicate.reset();
+    updateNickname.reset();
+  };
+
+  const handleNicknameInputChange = (e) => {
+    setNicknameInput(e.target.value);
+    setCheckedNickname(null);
+  };
+
+  const handleCheckDuplicate = () => {
+    if (!isValidNicknameFormat(nicknameInput) || nicknameInput === me.nickname) return;
+    checkDuplicate.mutate(nicknameInput, {
+      onSuccess: () => setCheckedNickname(nicknameInput),
+    });
+  };
+
+  const handleSaveNickname = () => {
+    if (!isNicknameChecked) return;
+    updateNickname.mutate(nicknameInput, {
+      onSuccess: () => setIsEditingNickname(false),
+    });
+  };
 
   return (
     <div className="flex flex-col gap-4">
       {/* 프로필 요약 */}
       <div className="flex items-center gap-4">
-        {me.profileImageUrl ? (
+        <div className="relative shrink-0">
           <img
-            src={me.profileImageUrl}
+            src={me.profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
             alt={`${me.nickname} 프로필 이미지`}
             className="h-16 w-16 rounded-full border border-gray-200 object-cover"
           />
-        ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-light text-2xl font-bold text-primary">
-            {getAvatarInitial(me.nickname)}
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={handleAvatarClick}
+            disabled={updateProfileImage.isPending}
+            title="프로필 사진 변경"
+            className="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Camera size={12} />
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        </div>
 
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-gray-900">{me.nickname}</span>
-            {me.verified && (
-              <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-                <Award size={12} />
-                우수 사용자
-              </span>
-            )}
-          </div>
+          {isEditingNickname ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={nicknameInput}
+                  onChange={handleNicknameInputChange}
+                  maxLength={NICKNAME_MAX}
+                  autoFocus
+                  className="rounded-lg border border-gray-300 px-2 py-1 text-sm outline-none focus:border-primary"
+                />
+                <button
+                  type="button"
+                  onClick={handleCheckDuplicate}
+                  disabled={
+                    !isValidNicknameFormat(nicknameInput) ||
+                    nicknameInput === me.nickname ||
+                    checkDuplicate.isPending
+                  }
+                  className="cursor-pointer rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  중복확인
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNickname}
+                  disabled={!isNicknameChecked || updateNickname.isPending}
+                  title="저장"
+                  className="cursor-pointer rounded-lg p-1 text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Check size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditingNickname}
+                  title="취소"
+                  className="cursor-pointer rounded-lg p-1 text-gray-400 hover:bg-gray-50"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {isNicknameChecked && <p className="text-xs text-primary">사용할 수 있는 닉네임이에요.</p>}
+              {checkDuplicate.isError && <ErrorMessage error={checkDuplicate.error} />}
+              {updateNickname.isError && <ErrorMessage error={updateNickname.error} />}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-gray-900">{me.nickname}</span>
+              {me.verified && (
+                <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                  <Award size={12} />
+                  우수 사용자
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={startEditingNickname}
+                title="닉네임 수정"
+                className="cursor-pointer rounded-lg p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+              >
+                <Pencil size={14} />
+              </button>
+            </div>
+          )}
+
           <span className="text-sm text-gray-500">가입일 {formatJoinDate(me.createdAt)}</span>
           <div className="flex gap-3 text-sm text-gray-700">
             <span>
@@ -117,6 +239,8 @@ const MyPage = () => {
           </div>
         </div>
       </div>
+
+      {updateProfileImage.isError && <ErrorMessage error={updateProfileImage.error} />}
 
       {/* 챌린지 요약 */}
       <div className="grid grid-cols-2 gap-4">
