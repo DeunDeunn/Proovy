@@ -10,6 +10,7 @@ import {
   deleteComment,
   getCertificationPost,
   getComments,
+  toggleCertificationPostLike,
   updateComment,
   updateCertificationPost,
 } from "./api";
@@ -79,6 +80,21 @@ export const useDeleteCertificationPost = () => {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       queryClient.invalidateQueries({ queryKey: ["challenge-feed"] });
       queryClient.invalidateQueries({ queryKey: ["certification-post"] });
+    },
+  });
+};
+
+export const useToggleCertificationPostLike = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => toggleCertificationPostLike(postId),
+    onSuccess: ({ liked, likeCount }) => {
+      queryClient.setQueryData(["certification-post", postId], (post) =>
+        post ? { ...post, liked, likeCount } : post
+      );
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["challenge-feed"] });
     },
   });
 };

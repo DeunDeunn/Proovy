@@ -4,7 +4,7 @@
 
 import {
   BadgeCheck,
-  CalendarDays,
+  Bookmark,
   ChevronLeft,
   ChevronRight,
   Flag,
@@ -13,19 +13,23 @@ import {
   MessageCircle,
   MoreVertical,
   Pencil,
+  Send,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 
 import CertificationPostComments from "./CertificationPostComments";
-import { useCertificationPost, useDeleteCertificationPost } from "./hooks";
+import {
+  useCertificationPost,
+  useDeleteCertificationPost,
+  useToggleCertificationPostLike,
+} from "./hooks";
 import ReportDialog from "./ReportDialog";
 
 const formatCreatedAt = (value) => {
@@ -61,6 +65,63 @@ const ProfileAvatar = ({ nickname, profileImageUrl }) =>
     </span>
   );
 
+const PostReactionBar = ({
+  liked,
+  likeCount,
+  commentCount,
+  createdAt,
+  canLike,
+  isLikePending,
+  likeError,
+  onToggleLike,
+}) => (
+  <div className="border-t border-gray-100 px-5 py-4">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4 text-gray-900">
+        <button
+          type="button"
+          onClick={onToggleLike}
+          disabled={!canLike || isLikePending}
+          title={canLike ? "좋아요" : "승인된 인증글에만 좋아요할 수 있어요."}
+          aria-label={liked ? "좋아요 취소" : "좋아요"}
+          aria-pressed={liked}
+          className={`inline-flex transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40 ${liked ? "text-rose-500" : "text-gray-900"}`}
+        >
+          <Heart
+            size={25}
+            strokeWidth={1.8}
+            fill={liked ? "currentColor" : "none"}
+            aria-hidden="true"
+          />
+          <span className="sr-only">좋아요</span>
+        </button>
+        <span className="inline-flex" title="댓글">
+          <MessageCircle size={24} strokeWidth={1.8} aria-hidden="true" />
+          <span className="sr-only">댓글</span>
+        </span>
+        <span className="inline-flex" title="공유">
+          <Send size={24} strokeWidth={1.8} aria-hidden="true" />
+          <span className="sr-only">공유</span>
+        </span>
+      </div>
+      <span className="inline-flex" title="저장">
+        <Bookmark size={24} strokeWidth={1.8} aria-hidden="true" />
+        <span className="sr-only">저장</span>
+      </span>
+    </div>
+    <p className="mt-3 text-sm font-semibold text-gray-900">
+      좋아요 {Number(likeCount ?? 0).toLocaleString()}개 · 댓글{" "}
+      {Number(commentCount ?? 0).toLocaleString()}개
+    </p>
+    <p className="mt-1 text-xs text-gray-400">{formatCreatedAt(createdAt)}</p>
+    {likeError && (
+      <div className="mt-3">
+        <ErrorMessage error={likeError} />
+      </div>
+    )}
+  </div>
+);
+
 const CertificationPostDetailPage = ({ postId }) => {
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -69,6 +130,7 @@ const CertificationPostDetailPage = ({ postId }) => {
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
   const deletePostMutation = useDeleteCertificationPost();
+  const toggleLikeMutation = useToggleCertificationPostLike(postId);
 
   if (isLoading) return <Loading label="인증 게시글을 불러오는 중..." />;
   if (error) return <ErrorMessage error={error} />;
@@ -89,11 +151,9 @@ const CertificationPostDetailPage = ({ postId }) => {
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">인증 게시글</h1>
-
-      <Card className="overflow-hidden p-0 lg:flex lg:h-[680px]">
-        <section className="relative flex aspect-square items-center justify-center bg-black lg:aspect-auto lg:w-3/5">
+    <div className="mx-auto max-w-[1440px]">
+      <Card className="overflow-hidden rounded-2xl p-0 lg:flex lg:h-[min(720px,calc(100vh-6rem))]">
+        <section className="relative flex aspect-square items-center justify-center bg-black lg:aspect-auto lg:w-[58%]">
           {currentImageUrl ? (
             <>
               <img
@@ -141,8 +201,8 @@ const CertificationPostDetailPage = ({ postId }) => {
           )}
         </section>
 
-        <aside className="flex min-h-[540px] flex-1 flex-col bg-surface lg:min-h-0">
-          <div className="border-b border-gray-100 p-5">
+        <aside className="flex min-h-[560px] flex-1 flex-col bg-surface lg:min-h-0 lg:w-[42%]">
+          <header className="shrink-0 border-b border-gray-100 px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-center gap-3">
                 <ProfileAvatar
@@ -160,10 +220,6 @@ const CertificationPostDetailPage = ({ postId }) => {
                         <span className="sr-only">인증 회원</span>
                       </span>
                     )}
-                  </div>
-                  <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
-                    <CalendarDays size={14} aria-hidden="true" />
-                    <span>{formatCreatedAt(post.createdAt)}</span>
                   </div>
                 </div>
               </div>
@@ -226,27 +282,27 @@ const CertificationPostDetailPage = ({ postId }) => {
                 </div>
               )}
             </div>
+          </header>
 
-            <p className="mt-5 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
-              {post.contents || "작성한 인증 내용이 없습니다."}
-            </p>
+          <div className="shrink-0 border-b border-gray-100 px-5 py-4">
+            <div className="flex gap-3">
+              <ProfileAvatar
+                nickname={post.authorNickname}
+                profileImageUrl={post.authorProfileImageUrl}
+              />
+              <p className="min-w-0 whitespace-pre-wrap break-words pt-1 text-sm leading-6 text-gray-700">
+                <span className="mr-1.5 font-semibold text-gray-900">
+                  {post.authorNickname ?? "알 수 없는 사용자"}
+                </span>
+                {post.contents || "작성한 인증 내용이 없습니다."}
+              </p>
+            </div>
 
             {deletePostMutation.error && (
               <div className="mt-4">
                 <ErrorMessage error={deletePostMutation.error} />
               </div>
             )}
-
-            <div className="mt-5 flex items-center gap-5 text-sm text-gray-500">
-              <span className="flex items-center gap-1.5">
-                <Heart size={18} aria-hidden="true" />
-                좋아요 {Number(post.likeCount ?? 0).toLocaleString()}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <MessageCircle size={18} aria-hidden="true" />
-                댓글 {Number(post.commentCount ?? 0).toLocaleString()}
-              </span>
-            </div>
           </div>
 
           <CertificationPostComments
@@ -254,15 +310,21 @@ const CertificationPostDetailPage = ({ postId }) => {
             status={post.status}
             commentCount={post.commentCount}
             embedded
+            footer={
+              <PostReactionBar
+                likeCount={post.likeCount}
+                commentCount={post.commentCount}
+                createdAt={post.createdAt}
+                liked={post.liked}
+                canLike={post.status === "APPROVED"}
+                isLikePending={toggleLikeMutation.isPending}
+                likeError={toggleLikeMutation.error}
+                onToggleLike={() => toggleLikeMutation.mutate()}
+              />
+            }
           />
         </aside>
       </Card>
-
-      <div className="mt-8 flex justify-end">
-        <Button type="button" variant="outline" onClick={() => router.back()}>
-          이전으로
-        </Button>
-      </div>
 
       {isReportDialogOpen && (
         <ReportDialog
