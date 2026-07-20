@@ -1,10 +1,8 @@
 import { create } from "zustand";
 
-import { CURRENT_USER } from "@/features/chat/currentUser";
+import { publishMessage } from "@/features/chat/api/chatSocket";
 import { createMockChatRooms } from "@/features/chat/mockData";
 import { createMockMessages } from "@/features/chat/mockMessages";
-
-let nextMessageId = 1000;
 
 export const useChatStore = create((set) => ({
   rooms: createMockChatRooms(),
@@ -41,38 +39,14 @@ export const useChatStore = create((set) => ({
       };
     }),
 
-  sendMessage: (chatRoomId, content) =>
-    set((state) => {
-      const message = {
-        messageId: nextMessageId++,
-        chatRoomId,
-        senderId: CURRENT_USER.id,
-        senderNickname: CURRENT_USER.nickname,
-        senderBadgeApproved: false,
-        content,
-        messageType: "TEXT",
-        sharedCertification: null,
-        deletedAt: null,
-        createdAt: new Date(),
-        read: false,
-      };
-
-      return {
-        messagesByRoomId: {
-          ...state.messagesByRoomId,
-          [chatRoomId]: [...(state.messagesByRoomId[chatRoomId] ?? []), message],
-        },
-        rooms: state.rooms.map((room) =>
-          room.chatRoomId === chatRoomId
-            ? {
-                ...room,
-                lastMessage: { senderNickname: CURRENT_USER.nickname, content },
-                createdAt: message.createdAt,
-              }
-            : room
-        ),
-      };
-    }),
+  sendMessage: (chatRoomId, content) => {
+    publishMessage(chatRoomId, {
+      messageType: "TEXT",
+      content,
+      referenceType: null,
+      referenceId: null,
+    });
+  },
 }));
 
 export const useUnreadChatCount = () =>

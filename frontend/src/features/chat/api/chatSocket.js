@@ -70,3 +70,10 @@ export const unsubscribeRoom = () => {
   activeRoomSubscription?.subscription?.unsubscribe();
   activeRoomSubscription = null;
 };
+
+export const publishMessage = (chatRoomId, payload) => {
+  client?.publish({
+    destination: `/app/chats/rooms/${chatRoomId}/messages`,
+    body: JSON.stringify(payload),
+  });
+};
