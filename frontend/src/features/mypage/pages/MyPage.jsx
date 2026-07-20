@@ -4,7 +4,6 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
 import { Award, Camera, Check, Pencil, X } from "lucide-react";
 
 import Card from "@/components/ui/Card";
@@ -84,7 +83,6 @@ const ChallengeSummaryCard = ({ title, count, challenges, emptyText, renderRight
 
 const MyPage = () => {
   const { data: me, isLoading, isError, error } = useMyPage();
-  const queryClient = useQueryClient();
 
   const fileInputRef = useRef(null);
   const updateProfileImage = useUpdateProfileImage();
@@ -108,9 +106,7 @@ const MyPage = () => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    updateProfileImage.mutate(file, {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mypage"] }),
-    });
+    updateProfileImage.mutate(file);
   };
 
   const startEditingNickname = () => {
@@ -140,10 +136,7 @@ const MyPage = () => {
   const handleSaveNickname = () => {
     if (!isNicknameChecked) return;
     updateNickname.mutate(nicknameInput, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["mypage"] });
-        setIsEditingNickname(false);
-      },
+      onSuccess: () => setIsEditingNickname(false),
     });
   };
 

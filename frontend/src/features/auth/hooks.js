@@ -30,6 +30,7 @@ export const useUpdateNickname = () => {
     mutationFn: (nickname) => updateNickname(nickname),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["mypage"] });
     },
   });
 };
@@ -41,6 +42,7 @@ export const useUpdateProfileImage = () => {
     mutationFn: (file) => updateProfileImage(file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["mypage"] });
     },
   });
 };
