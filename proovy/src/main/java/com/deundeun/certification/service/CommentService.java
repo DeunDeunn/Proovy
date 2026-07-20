@@ -6,6 +6,7 @@ import com.deundeun.certification.dto.CommentResponse;
 import com.deundeun.certification.dto.CommentRow;
 import com.deundeun.certification.dto.CreateCommentRequest;
 import com.deundeun.certification.dto.CreateCommentSqlParam;
+import com.deundeun.certification.dto.LikeToggleResponse;
 import com.deundeun.certification.dto.UpdateCommentRequest;
 import com.deundeun.certification.enums.CertificationStatus;
 import com.deundeun.certification.mapper.CertificationMapper;
@@ -126,6 +127,41 @@ public class CommentService {
         commentMapper.decrementCommentCount(comment.getPostId());
     }
 
+    // 댓글 좋아요 토글 (읽을 수 있는 APPROVED 글의 삭제되지 않은 댓글에만)
+    @Transactional
+    public LikeToggleResponse toggleCommentLike(Long commentId, Long userId) {
+        CommentForAuth comment = commentMapper.findCommentForAuth(commentId);
+        if (comment == null) {
+            throw new ApiException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        CertificationPostDetailResponse post = certificationMapper.findPostDetail(comment.getPostId());
+        if (post == null) {
+            throw new ApiException(ErrorCode.POST_NOT_FOUND);
+        }
+        certificationService.assertPostReadable(comment.getPostId(), userId);
+
+        if (post.getStatus() != CertificationStatus.APPROVED) {
+            throw new ApiException(ErrorCode.CANNOT_LIKE_COMMENT_UNAPPROVED);
+        }
+
+        // 토글: 삭제됐으면 취소, 없으면 삽입 후 등록
+        boolean liked;
+        int deleted = commentMapper.deleteCommentLike(commentId, userId);
+        if (deleted > 0) {
+            commentMapper.decrementCommentLikeCount(commentId);
+            liked = false;
+        } else {
+            int inserted = commentMapper.insertCommentLike(commentId, userId);
+            if (inserted > 0) {
+                commentMapper.incrementCommentLikeCount(commentId);
+            }
+            liked = true;
+        }
+
+        return new LikeToggleResponse(liked, commentMapper.findCommentLikeCount(commentId));
+    }
+
     // 댓글 목록 조회 (읽을 수 있는 글) — 최상위 커서 페이징 + 대댓글 중첩
     public List<CommentResponse> getComments(Long postId, Long viewerId, Long cursor, Integer size) {
         CertificationPostDetailResponse post = certificationMapper.findPostDetail(postId);
@@ -134,14 +170,15 @@ public class CommentService {
         }
         certificationService.assertPostReadable(postId, viewerId);
 
-        List<CommentRow> topLevel = commentMapper.findTopLevelComments(postId, cursor, clampSize(size));
+        List<CommentRow> topLevel = commentMapper.findTopLevelComments(
+                postId, viewerId, cursor, clampSize(size));
         if (topLevel.isEmpty()) {
             return new ArrayList<>();
         }
 
         // 이번 페이지 최상위 댓글들의 대댓글을 한 번에 조회 후 부모별로 그룹핑
         List<Long> parentIds = topLevel.stream().map(CommentRow::getCommentId).toList();
-        Map<Long, List<CommentResponse>> repliesByParent = commentMapper.findReplies(parentIds).stream()
+        Map<Long, List<CommentResponse>> repliesByParent = commentMapper.findReplies(parentIds, viewerId).stream()
                 .collect(Collectors.groupingBy(CommentRow::getParentCommentId,
                         Collectors.mapping(this::toResponse, Collectors.toList())));
 
@@ -169,6 +206,8 @@ public class CommentService {
             res.setAuthorProfileImageUrl(row.getAuthorProfileImageUrl());
             res.setAuthorBadgeApproved(row.isAuthorBadgeApproved());
             res.setContents(row.getContents());
+            res.setLikeCount(row.getLikeCount());
+            res.setLiked(row.isLiked());
         }
         return res;
     }

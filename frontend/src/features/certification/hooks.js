@@ -10,6 +10,7 @@ import {
   deleteComment,
   getCertificationPost,
   getComments,
+  toggleCommentLike,
   toggleCertificationPostLike,
   updateComment,
   updateCertificationPost,
@@ -95,6 +96,41 @@ export const useToggleCertificationPostLike = (postId) => {
       );
       queryClient.invalidateQueries({ queryKey: ["feed"] });
       queryClient.invalidateQueries({ queryKey: ["challenge-feed"] });
+    },
+  });
+};
+
+const updateCommentLikeState = (comment, commentId, liked, likeCount) => {
+  if (comment.commentId === commentId) {
+    return { ...comment, liked, likeCount };
+  }
+
+  if (!comment.replies) return comment;
+
+  return {
+    ...comment,
+    replies: comment.replies.map((reply) =>
+      reply.commentId === commentId ? { ...reply, liked, likeCount } : reply
+    ),
+  };
+};
+
+export const useToggleCommentLike = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (commentId) => toggleCommentLike(commentId),
+    onSuccess: ({ liked, likeCount }, commentId) => {
+      queryClient.setQueryData(["certification-comments", postId], (data) =>
+        data
+          ? {
+              ...data,
+              pages: data.pages.map((page) =>
+                page.map((comment) => updateCommentLikeState(comment, commentId, liked, likeCount))
+              ),
+            }
+          : data
+      );
     },
   });
 };

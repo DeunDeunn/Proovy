@@ -13,6 +13,8 @@ public class CommentResponse {
     private String authorProfileImageUrl;
     private boolean authorBadgeApproved;
     private String contents;            // 삭제된 댓글이면 null (프론트에서 "삭제된 댓글입니다" 표시)
+    private long likeCount;
+    private boolean liked;              // 현재 로그인 사용자의 좋아요 여부
     private boolean deleted;            // soft delete 여부 → "삭제된 댓글입니다"
     private boolean edited;             // 수정 여부 → "수정됨"
     private LocalDateTime createdAt;

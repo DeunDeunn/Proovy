@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -127,10 +127,33 @@ const CertificationPostDetailPage = ({ postId }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const postMenuRef = useRef(null);
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
   const deletePostMutation = useDeleteCertificationPost();
   const toggleLikeMutation = useToggleCertificationPostLike(postId);
+
+  useEffect(() => {
+    if (!isPostMenuOpen) return undefined;
+
+    const closeOnOutsidePointerDown = (event) => {
+      if (!postMenuRef.current?.contains(event.target)) {
+        setIsPostMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsPostMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isPostMenuOpen]);
 
   if (isLoading) return <Loading label="인증 게시글을 불러오는 중..." />;
   if (error) return <ErrorMessage error={error} />;
@@ -221,10 +244,13 @@ const CertificationPostDetailPage = ({ postId }) => {
                       </span>
                     )}
                   </div>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+                    {post.contents || "작성한 인증 내용이 없습니다."}
+                  </p>
                 </div>
               </div>
               {me?.id != null && (
-                <div className="relative shrink-0">
+                <div ref={postMenuRef} className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsPostMenuOpen((open) => !open)}
@@ -284,26 +310,11 @@ const CertificationPostDetailPage = ({ postId }) => {
             </div>
           </header>
 
-          <div className="shrink-0 border-b border-gray-100 px-5 py-4">
-            <div className="flex gap-3">
-              <ProfileAvatar
-                nickname={post.authorNickname}
-                profileImageUrl={post.authorProfileImageUrl}
-              />
-              <p className="min-w-0 whitespace-pre-wrap break-words pt-1 text-sm leading-6 text-gray-700">
-                <span className="mr-1.5 font-semibold text-gray-900">
-                  {post.authorNickname ?? "알 수 없는 사용자"}
-                </span>
-                {post.contents || "작성한 인증 내용이 없습니다."}
-              </p>
+          {deletePostMutation.error && (
+            <div className="shrink-0 border-b border-gray-100 px-5 py-4">
+              <ErrorMessage error={deletePostMutation.error} />
             </div>
-
-            {deletePostMutation.error && (
-              <div className="mt-4">
-                <ErrorMessage error={deletePostMutation.error} />
-              </div>
-            )}
-          </div>
+          )}
 
           <CertificationPostComments
             postId={postId}
