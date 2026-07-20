@@ -7,6 +7,7 @@ const roomTopic = (chatRoomId) => `/topic/chats/rooms/${chatRoomId}`;
 let client = null;
 let onError = null;
 let onDisconnect = null;
+let onConnected = null;
 let activeRoomSubscription = null;
 
 const subscribeActiveRoom = () => {
@@ -29,8 +30,12 @@ const createClient = () =>
         onError?.(JSON.parse(message.body));
       });
       subscribeActiveRoom();
+      onConnected?.();
     },
     onWebSocketClose: () => {
+      onDisconnect?.();
+    },
+    onWebSocketError: () => {
       onDisconnect?.();
     },
   });
@@ -38,9 +43,11 @@ const createClient = () =>
 export const connectSocket = ({
   onError: onErrorHandler,
   onDisconnect: onDisconnectHandler,
+  onConnected: onConnectedHandler,
 } = {}) => {
   onError = onErrorHandler ?? null;
   onDisconnect = onDisconnectHandler ?? null;
+  onConnected = onConnectedHandler ?? null;
 
   if (!client) {
     client = createClient();

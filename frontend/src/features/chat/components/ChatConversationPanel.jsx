@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
 
 import { useMe } from "@/features/auth/hooks";
@@ -14,8 +14,17 @@ const SCROLL_TOP_THRESHOLD = 80;
 const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   const { data: me } = useMe();
   const receiveMessage = useChatStore((state) => state.receiveMessage);
-  const { loadMore, hasMore, isLoadingMore } = useChatRoomHistory(room.chatRoomId);
-  useChatRoomSubscription(room.chatRoomId, receiveMessage);
+  const { loadMore, hasMore, isLoadingInitial, isLoadingMore, error } = useChatRoomHistory(
+    room.chatRoomId
+  );
+
+  const [isDisconnected, setIsDisconnected] = useState(false);
+  const handleDisconnect = useCallback(() => setIsDisconnected(true), []);
+  const handleConnected = useCallback(() => setIsDisconnected(false), []);
+  useChatRoomSubscription(room.chatRoomId, receiveMessage, {
+    onDisconnect: handleDisconnect,
+    onConnected: handleConnected,
+  });
 
   const [draft, setDraft] = useState("");
   const listEndRef = useRef(null);
@@ -107,11 +116,26 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         </div>
       </div>
 
+      {isDisconnected && (
+        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">
+          연결이 끊겼습니다. 재연결 시도 중...
+        </p>
+      )}
+
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
       >
+        {isLoadingInitial && (
+          <p className="py-4 text-center text-xs text-gray-400">메시지를 불러오는 중...</p>
+        )}
+        {!isLoadingInitial && error && (
+          <p className="py-4 text-center text-xs text-red-500">메시지를 불러오지 못했습니다.</p>
+        )}
+        {!isLoadingInitial && !error && messages.length === 0 && (
+          <p className="py-4 text-center text-xs text-gray-400">아직 주고받은 메시지가 없습니다.</p>
+        )}
         {isLoadingMore && (
           <p className="py-1 text-center text-xs text-gray-400">이전 메시지 불러오는 중...</p>
         )}
