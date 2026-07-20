@@ -8,6 +8,8 @@ public record UserVerificationStatusResponse(
     UserVerificationStatus status,
     LocalDateTime appliedAt,
     LocalDateTime approvedAt,
-    String rejectionReason
+    String rejectionReason,
+    long successCount,
+    long requiredCount
 ) {
 }
