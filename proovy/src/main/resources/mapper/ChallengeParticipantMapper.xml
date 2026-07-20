@@ -8,6 +8,16 @@
         VALUES (#{challengeId}, #{userId}, #{status})
     </insert>
 
+    <!-- 활동 중인 참가자만 목록으로 보여준다 (탈퇴/강퇴된 이력은 제외) -->
+    <select id="findAllByChallengeId" resultType="ChallengeParticipantListItemResponse">
+        SELECT p.user_id, u.nickname, p.status, p.joined_at
+        FROM challenge_participants p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.challenge_id = #{challengeId}
+          AND p.status = 'ACTIVE'
+        ORDER BY p.joined_at ASC
+    </select>
+
     <!-- 상태 무관 전체 이력 조회: 탈퇴(WITHDRAWN) 이력이 있으면 재참가를 막기 위해 상태를 걸지 않는다 -->
     <select id="findByChallengeIdAndUserId" resultType="ChallengeParticipant">
         SELECT id, challenge_id, user_id, status, result, joined_at, left_at
