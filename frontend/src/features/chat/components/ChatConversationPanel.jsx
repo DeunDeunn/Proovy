@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
 
+import { useMe } from "@/features/auth/hooks";
 import MessageBubble from "@/features/chat/components/MessageBubble";
-import { CURRENT_USER } from "@/features/chat/currentUser";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
 
 const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
+  const { data: me } = useMe();
   const [draft, setDraft] = useState("");
   const listEndRef = useRef(null);
 
@@ -46,7 +47,9 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               </span>
             )}
           </div>
-          {isChallenge && <p className="mt-0.5 text-xs text-gray-400">참여자 {room.participantCount}명</p>}
+          {isChallenge && (
+            <p className="mt-0.5 text-xs text-gray-400">참여자 {room.participantCount}명</p>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1 text-gray-400">
@@ -54,14 +57,23 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
             <Search size={18} />
           </button>
           {isChallenge && (
-            <button type="button" aria-label="참여자 목록" className="rounded-lg p-2 hover:bg-gray-100">
+            <button
+              type="button"
+              aria-label="참여자 목록"
+              className="rounded-lg p-2 hover:bg-gray-100"
+            >
               <Users size={18} />
             </button>
           )}
           <button type="button" aria-label="더보기" className="rounded-lg p-2 hover:bg-gray-100">
             <MoreVertical size={18} />
           </button>
-          <button type="button" onClick={onClose} aria-label="채팅방 닫기" className="rounded-lg p-2 hover:bg-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="채팅방 닫기"
+            className="rounded-lg p-2 hover:bg-gray-100"
+          >
             <X size={18} />
           </button>
         </div>
@@ -69,7 +81,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
         {messages.map((message, index) => {
-          const isOwn = message.senderId === CURRENT_USER.id;
+          const isOwn = message.senderId === me?.id;
           const prevMessage = messages[index - 1];
           const showSenderInfo = !prevMessage || prevMessage.senderId !== message.senderId;
 
@@ -86,8 +98,15 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         <div ref={listEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex shrink-0 items-center gap-2 border-t border-gray-100 px-4 py-3">
-        <button type="button" aria-label="파일 첨부" className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+      <form
+        onSubmit={handleSubmit}
+        className="flex shrink-0 items-center gap-2 border-t border-gray-100 px-4 py-3"
+      >
+        <button
+          type="button"
+          aria-label="파일 첨부"
+          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+        >
           <Plus size={20} />
         </button>
         <input
@@ -97,10 +116,18 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
           placeholder="메시지 입력..."
           className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
         />
-        <button type="button" aria-label="이모지" className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+        <button
+          type="button"
+          aria-label="이모지"
+          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+        >
           <Smile size={18} />
         </button>
-        <button type="button" aria-label="이미지 첨부" className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100">
+        <button
+          type="button"
+          aria-label="이미지 첨부"
+          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+        >
           <ImagePlus size={18} />
         </button>
         <button
