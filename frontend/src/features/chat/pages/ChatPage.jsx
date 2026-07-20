@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
+import LoginRequiredModal from "@/components/ui/LoginRequiredModal";
+import { useMe } from "@/features/auth/hooks";
 import ChatConversationPanel from "@/features/chat/components/ChatConversationPanel";
 import ChatRoomList from "@/features/chat/components/ChatRoomList";
 import { useChatStore } from "@/features/chat/store";
@@ -11,6 +13,7 @@ const LIST_WIDTH_OPEN_REM = 20;
 const PANEL_TRANSITION_MS = 300;
 
 const ChatPage = () => {
+  const { isLoading: isMeLoading, isError: isMeError } = useMe();
   const rooms = useChatStore((state) => state.rooms);
   const messagesByRoomId = useChatStore((state) => state.messagesByRoomId);
   const markRoomRead = useChatStore((state) => state.markRoomRead);
@@ -65,6 +68,9 @@ const ChatPage = () => {
 
   const panelRoom = rooms.find((room) => room.chatRoomId === panelRoomId) ?? null;
   const panelMessages = panelRoomId ? (messagesByRoomId[panelRoomId] ?? []) : [];
+
+  if (isMeLoading) return null;
+  if (isMeError) return <LoginRequiredModal description="채팅은 로그인 후 이용할 수 있어요." />;
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
