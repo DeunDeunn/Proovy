@@ -19,6 +19,12 @@
         FROM notifications
         WHERE user_id = #{userId}
           AND deleted_at IS NULL
+        <if test="types != null and !types.isEmpty()">
+            AND type IN
+            <foreach item="type" collection="types" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
         ORDER BY created_at DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
@@ -38,6 +44,12 @@
         FROM notifications
         WHERE user_id = #{userId}
           AND deleted_at IS NULL
+        <if test="types != null and !types.isEmpty()">
+            AND type IN
+            <foreach item="type" collection="types" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
     </select>
 
     <select id="countUnread" resultType="int">

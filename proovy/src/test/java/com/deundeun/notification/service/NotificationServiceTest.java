@@ -25,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.notification.domain.Notification;
+import com.deundeun.notification.domain.NotificationCategory;
 import com.deundeun.notification.domain.NotificationType;
 import com.deundeun.notification.domain.TargetType;
 import com.deundeun.notification.dto.NotificationCreateCommand;
@@ -117,10 +118,10 @@ class NotificationServiceTest {
                 userId, NotificationType.SETTLEMENT_COMPLETED, "제목2", "내용2",
                 TargetType.SETTLEMENT, 20L, "KEY2"));
 
-        when(notificationMapper.findByUserId(userId, 20, 0)).thenReturn(List.of(n1, n2));
-        when(notificationMapper.countByUserId(userId)).thenReturn(25);
+        when(notificationMapper.findByUserId(userId, null, 20, 0)).thenReturn(List.of(n1, n2));
+        when(notificationMapper.countByUserId(userId, null)).thenReturn(25);
 
-        NotificationPageResponse result = notificationService.getNotifications(userId, 0, 20);
+        NotificationPageResponse result = notificationService.getNotifications(userId, 0, 20, null);
 
         assertThat(result.content()).hasSize(2);
         assertThat(result.content().get(0).title()).isEqualTo("제목1");
@@ -136,25 +137,38 @@ class NotificationServiceTest {
     @DisplayName("0부터 시작하는 page를 offset으로 변환한다")
     void getNotifications_convertsZeroBasedPageToOffset() {
         Long userId = 1L;
-        when(notificationMapper.findByUserId(userId, 20, 40)).thenReturn(List.of());
-        when(notificationMapper.countByUserId(userId)).thenReturn(0);
+        when(notificationMapper.findByUserId(userId, null, 20, 40)).thenReturn(List.of());
+        when(notificationMapper.countByUserId(userId, null)).thenReturn(0);
 
-        notificationService.getNotifications(userId, 2, 20);
+        notificationService.getNotifications(userId, 2, 20, null);
 
-        verify(notificationMapper).findByUserId(userId, 20, 40);
+        verify(notificationMapper).findByUserId(userId, null, 20, 40);
     }
 
     @Test
     @DisplayName("마지막 페이지에서는 hasNext가 false다")
     void getNotifications_hasNextFalseOnLastPage() {
         Long userId = 1L;
-        when(notificationMapper.findByUserId(userId, 20, 20)).thenReturn(List.of());
-        when(notificationMapper.countByUserId(userId)).thenReturn(25);
+        when(notificationMapper.findByUserId(userId, null, 20, 20)).thenReturn(List.of());
+        when(notificationMapper.countByUserId(userId, null)).thenReturn(25);
 
-        NotificationPageResponse result = notificationService.getNotifications(userId, 1, 20);
+        NotificationPageResponse result = notificationService.getNotifications(userId, 1, 20, null);
 
         assertThat(result.totalPages()).isEqualTo(2);
         assertThat(result.hasNext()).isFalse();
+    }
+
+    @Test
+    @DisplayName("category가 주어지면 해당 카테고리에 속한 타입 목록으로 필터링한다")
+    void getNotifications_withCategory_filtersByCategoryTypes() {
+        Long userId = 1L;
+        when(notificationMapper.findByUserId(eq(userId), any(), eq(20), eq(0))).thenReturn(List.of());
+        when(notificationMapper.countByUserId(eq(userId), any())).thenReturn(0);
+
+        notificationService.getNotifications(userId, 0, 20, NotificationCategory.SETTLEMENT);
+
+        verify(notificationMapper).findByUserId(userId, NotificationCategory.SETTLEMENT.getTypes(), 20, 0);
+        verify(notificationMapper).countByUserId(userId, NotificationCategory.SETTLEMENT.getTypes());
     }
 
     @Test
