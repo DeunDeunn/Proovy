@@ -11,6 +11,18 @@ import { formatCurrency } from "../format";
 
 const PERCENT = (value) => `${Number(value ?? 0)}%`;
 
+// 성공률 구간별로 다른 축하 문구를 보여주기 위한 표 - 높은 min부터 먼저 검사한다
+const SUCCESS_RATE_MESSAGE_TIERS = [
+  { min: 80, message: "챌린지원 모두 힘을 모아 성공했어요!" },
+  { min: 50, message: "참가자 절반 이상이 함께 성공을 거뒀어요!" },
+  { min: 30, message: "쉽지 않은 챌린지였지만 끝까지 해냈어요!" },
+  { min: 10, message: "정말 어려운 챌린지였어요. 완주한 것만으로도 대단해요!" },
+  { min: 0, message: "대단해요! 10명 중 1명도 통과하기 힘든 챌린지를 해냈어요!" },
+];
+
+const getSuccessRateMessage = (rate) =>
+  SUCCESS_RATE_MESSAGE_TIERS.find((tier) => rate >= tier.min)?.message ?? "";
+
 const SettlementResultPage = ({ challengeId }) => {
   const {
     data: settlement,
@@ -44,6 +56,9 @@ const SettlementResultPage = ({ challengeId }) => {
   );
   const isSuccess = myResult?.type === "CHALLENGE_PRINCIPAL_SUCCESS";
   const hasResult = !!myResult;
+  const successRate = settlement.totalParticipantCount
+    ? Math.round((settlement.successUserCount / settlement.totalParticipantCount) * 100)
+    : 0;
 
   return (
     <div>
@@ -54,8 +69,8 @@ const SettlementResultPage = ({ challengeId }) => {
 
       <div className="grid grid-cols-3 gap-6">
         <Card className="col-span-2">
-          <div className="mb-4 flex items-center gap-4">
-            <div className="h-20 w-28 shrink-0 rounded-lg bg-gray-100" />
+          <div className="mb-4 flex items-center gap-5">
+            <div className="h-32 w-44 shrink-0 rounded-lg bg-gray-100" />
             <div>
               <h2 className="font-semibold text-gray-900">{challenge?.title ?? `챌린지 #${challengeId}`}</h2>
               {challenge?.startDate && challenge?.endDate && (
@@ -92,6 +107,9 @@ const SettlementResultPage = ({ challengeId }) => {
               <p className="text-sm text-gray-600">
                 {isSuccess ? "축하해요! 챌린지에 성공했어요." : "아쉽지만 이번엔 성공하지 못했어요."}
               </p>
+              {isSuccess && (
+                <p className="mt-1 text-sm text-gray-600">{getSuccessRateMessage(successRate)}</p>
+              )}
             </div>
           ) : (
             <div className="rounded-lg border border-gray-100 p-4 text-sm text-gray-500">
