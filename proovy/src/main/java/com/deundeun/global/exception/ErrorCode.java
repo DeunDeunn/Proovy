@@ -73,6 +73,7 @@ public enum ErrorCode {
     AI_TICKET_PLAN_INACTIVE(HttpStatus.BAD_REQUEST, "A017", "판매 중인 AI 티켓 상품이 아닙니다."),
     AI_TICKET_PURCHASE_INVALID_REQUEST(HttpStatus.BAD_REQUEST, "A018", "AI 티켓 구매 요청이 올바르지 않습니다."),
     AI_TICKET_ALREADY_ACTIVE(HttpStatus.CONFLICT, "A019", "이미 활성화된 AI 티켓 이용권이 있습니다."),
+    AI_TICKET_HISTORY_TYPE_INVALID(HttpStatus.BAD_REQUEST, "A020", "유효하지 않은 AI 티켓 이력 타입입니다."),
 
     // 결제/캐시/정산
     INVALID_CHARGE_AMOUNT(HttpStatus.BAD_REQUEST, "CG001", "충전 금액은 1,000원 이상 50,000원 이하, 1,000원 단위여야 합니다."),

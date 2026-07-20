@@ -1,9 +1,11 @@
 package com.deundeun.ai.service;
 
 import com.deundeun.ai.client.AiReviewClient;
+import com.deundeun.ai.dto.AiPageResponse;
 import com.deundeun.ai.dto.AiReviewAiResult;
 import com.deundeun.ai.dto.AiReviewContext;
 import com.deundeun.ai.dto.AiReviewResponse;
+import com.deundeun.ai.dto.AiReviewResultItemResponse;
 import com.deundeun.ai.enums.AiReviewDecision;
 import com.deundeun.ai.mapper.AiReviewMapper;
 import com.deundeun.ai.mapper.AiReviewRuleMapper;
@@ -27,6 +29,8 @@ public class AiReviewServiceImpl implements AiReviewService {
 
     private static final String COMPLETED = "COMPLETED";
     private static final String PROCESSING = "PROCESSING";
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 100;
     private static final double AUTO_DECISION_CONFIDENCE_THRESHOLD = 0.85;
     private static final String LOW_CONFIDENCE_REASON_FORMAT =
             "AI 신뢰도가 0.85 미만이라 추가 검증이 필요합니다. 원래 AI 판단: %s. 원래 사유: %s";
@@ -49,6 +53,31 @@ public class AiReviewServiceImpl implements AiReviewService {
         validateAiResult(aiResult);
 
         return transactionOperations.execute(status -> completeReview(reservedReview.resultId(), context, rule, aiResult));
+    }
+
+    @Override
+    public AiPageResponse<AiReviewResultItemResponse> findReviewResultsByChallengeId(
+            Long requesterId,
+            Long challengeId,
+            int page,
+            int size
+    ) {
+        validateIds(requesterId, challengeId);
+        validateChallengeOwner(requesterId, challengeId);
+
+        int safePage = Math.max(page, 0);
+        int safeSize = size <= 0
+                ? DEFAULT_PAGE_SIZE
+                : Math.min(size, MAX_PAGE_SIZE);
+        long offset = (long) safePage * safeSize;
+
+        List<AiReviewResultItemResponse> content = aiReviewMapper
+                .findReviewResultsByChallengeId(challengeId, safeSize, offset)
+                .stream()
+                .map(AiReviewResultItemResponse::from)
+                .toList();
+        long totalElements = aiReviewMapper.countReviewResultsByChallengeId(challengeId);
+        return AiPageResponse.of(content, safePage, safeSize, totalElements);
     }
 
     private ReservedReview reserveReview(Long requesterId, Long postId) {
@@ -109,6 +138,14 @@ public class AiReviewServiceImpl implements AiReviewService {
         if (!requesterId.equals(hostId)) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
+    }
+
+    private void validateChallengeOwner(Long requesterId, Long challengeId) {
+        Long hostId = aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId);
+        if (hostId == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        validateHost(requesterId, hostId);
     }
 
     private void validatePending(AiReviewContext context) {

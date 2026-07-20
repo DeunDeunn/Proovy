@@ -1,6 +1,8 @@
 package com.deundeun.ai.service;
 
 import com.deundeun.ai.dto.AiTicketActiveResponse;
+import com.deundeun.ai.dto.AiPageResponse;
+import com.deundeun.ai.dto.AiTicketHistoryItemResponse;
 import com.deundeun.ai.dto.AiTicketPlanResponse;
 import com.deundeun.ai.dto.AiTicketPurchaseRequest;
 import com.deundeun.ai.dto.AiTicketPurchaseResponse;
@@ -25,6 +27,8 @@ public class AiTicketService {
 
     private static final String SUBSCRIPTION_STATUS_ACTIVE = "ACTIVE";
     private static final String TICKET_HISTORY_TYPE_PURCHASE = "PURCHASE";
+    private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final AiTicketMapper aiTicketMapper;
     private final WalletTicketService walletTicketService;
@@ -45,6 +49,32 @@ public class AiTicketService {
             return AiTicketActiveResponse.empty();
         }
         return AiTicketActiveResponse.active(subscription);
+    }
+
+    @Transactional(readOnly = true)
+    public AiPageResponse<AiTicketHistoryItemResponse> findTicketHistories(
+            Long userId,
+            String type,
+            int page,
+            int size
+    ) {
+        validateUserId(userId);
+        String historyType = normalizeHistoryType(type);
+        int safePage = Math.max(page, 0);
+        int safeSize = size <= 0 ? DEFAULT_PAGE_SIZE : Math.min(size, MAX_PAGE_SIZE);
+        int maxPage = Integer.MAX_VALUE / safeSize;
+        if (safePage > maxPage) {
+            safePage = maxPage;
+        }
+        long offset = (long) safePage * safeSize;
+
+        List<AiTicketHistoryItemResponse> content = aiTicketMapper
+                .findTicketHistoriesByHostId(userId, historyType, safeSize, offset)
+                .stream()
+                .map(AiTicketHistoryItemResponse::from)
+                .toList();
+        long totalElements = aiTicketMapper.countTicketHistoriesByHostId(userId, historyType);
+        return AiPageResponse.of(content, safePage, safeSize, totalElements);
     }
 
     @Transactional
@@ -103,6 +133,19 @@ public class AiTicketService {
         if (aiTicketMapper.findActiveSubscriptionByHostId(userId) != null) {
             throw new ApiException(ErrorCode.AI_TICKET_ALREADY_ACTIVE);
         }
+    }
+
+    private String normalizeHistoryType(String type) {
+        if (type == null || type.isBlank()) {
+            return null;
+        }
+        return switch (type.trim().toUpperCase()) {
+            case "PURCHASED", "PURCHASE" -> "PURCHASE";
+            case "USED", "USE" -> "USE";
+            case "EXPIRED", "EXPIRE" -> "EXPIRE";
+            case "REFUNDED", "REFUND" -> "REFUND";
+            default -> throw new ApiException(ErrorCode.AI_TICKET_HISTORY_TYPE_INVALID);
+        };
     }
 
     private boolean isActiveSubscriptionConflict(DataIntegrityViolationException e) {
