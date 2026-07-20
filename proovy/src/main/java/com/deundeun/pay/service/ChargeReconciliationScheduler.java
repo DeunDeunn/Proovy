@@ -1,5 +1,7 @@
 package com.deundeun.pay.service;
 
+import com.deundeun.global.exception.ApiException;
+import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.client.NaverPayApiClient;
 import com.deundeun.pay.domain.CashTransaction;
 import com.deundeun.pay.dto.naverpay.NaverPayApplyBody;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * PG 승인(applyPayment)은 성공했는데 그 직후 우리 쪽 DB 반영이 실패해서 PROCESSING에
@@ -31,6 +34,13 @@ import java.util.Optional;
 public class ChargeReconciliationScheduler {
 
     private static final long STUCK_THRESHOLD_SECONDS = 30;
+
+    // PG가 이 거래 자체에 대해 이미 최종 판정을 내린 코드 - 재시도해도 판정이 바뀌지 않으므로 즉시 실패 처리한다.
+    private static final Set<ErrorCode> TERMINAL_FAILURE_CODES = Set.of(
+            ErrorCode.PG_TIME_EXPIRED,
+            ErrorCode.PG_INSUFFICIENT_BALANCE,
+            ErrorCode.PG_OWNER_AUTH_FAIL
+    );
 
     private final CashTransactionMapper cashTransactionMapper;
     private final NaverPayApiClient naverPayApiClient;
@@ -78,6 +88,13 @@ public class ChargeReconciliationScheduler {
 
             chargeTransactionStateService.completeCharge(transaction, detail, processingToken);
             log.info("충전 보정 완료 - transactionId={}", transaction.getId());
+        } catch (ApiException e) {
+            if (TERMINAL_FAILURE_CODES.contains(e.getErrorCode())) {
+                log.warn("충전 보정 영구 실패로 종료 처리 - transactionId={}", transaction.getId(), e);
+                chargeTransactionStateService.markFailed(transaction.getId(), processingToken);
+            } else {
+                log.error("충전 보정 중 예외 발생, 다음 주기에 재시도됨 - transactionId={}", transaction.getId(), e);
+            }
         } catch (Exception e) {
             log.error("충전 보정 중 예외 발생, 다음 주기에 재시도됨 - transactionId={}", transaction.getId(), e);
         }

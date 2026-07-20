@@ -12,6 +12,13 @@ public enum AiReviewMode {
         }
 
         String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if ("AUTO_DECISION".equals(normalized)) {
+            return AUTO.name();
+        }
+        if ("ASSIST_ONLY".equals(normalized)) {
+            return MANUAL.name();
+        }
+
         AiReviewMode.valueOf(normalized);
         return normalized;
     }

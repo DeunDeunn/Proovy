@@ -5,33 +5,11 @@ import { ChevronRight } from "lucide-react";
 
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
+import Loading from "@/components/ui/Loading";
+import ErrorMessage from "@/components/ui/ErrorMessage";
 
+import { useSettlementHistory } from "../hooks";
 import { formatCurrency, formatDate } from "../format";
-
-// TODO: 정산 내역 목록 API 연동 필요 (예: GET /wallets/settlements 등) - 백엔드 준비 후 useQuery로 교체
-const settlements = [
-  {
-    challengeId: 1,
-    title: "매일 아침 6시 기상 인증 챌린지",
-    isSuccess: true,
-    settledAt: "2026-07-10T09:00:00",
-    profitAmount: 12000,
-  },
-  {
-    challengeId: 2,
-    title: "하루 만보 걷기",
-    isSuccess: false,
-    settledAt: "2026-07-05T09:00:00",
-    profitAmount: 0,
-  },
-  {
-    challengeId: 3,
-    title: "퇴근 후 헬스장 30일 인증",
-    isSuccess: true,
-    settledAt: "2026-06-28T09:00:00",
-    profitAmount: 8500,
-  },
-];
 
 const SettlementCard = ({ settlement }) => (
   <Link href={`/wallet/settlements/${settlement.challengeId}`}>
@@ -60,6 +38,9 @@ const SettlementCard = ({ settlement }) => (
 );
 
 const SettlementPage = () => {
+  const { data, isLoading, error } = useSettlementHistory({ page: 0 });
+  const settlements = data?.content ?? [];
+
   return (
     <div>
       <div className="mb-6">
@@ -67,7 +48,11 @@ const SettlementPage = () => {
         <p className="mt-1 text-sm text-gray-500">참여한 챌린지의 정산 결과를 확인하세요.</p>
       </div>
 
-      {settlements.length === 0 ? (
+      {isLoading ? (
+        <Loading label="정산 내역을 불러오는 중..." />
+      ) : error ? (
+        <ErrorMessage error={error} />
+      ) : settlements.length === 0 ? (
         <Card>
           <p className="py-12 text-center text-sm text-gray-500">정산 완료된 챌린지가 없습니다.</p>
         </Card>

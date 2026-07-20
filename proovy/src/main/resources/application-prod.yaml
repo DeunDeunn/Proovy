@@ -34,6 +34,7 @@ cookie:
   secure: ${COOKIE_SECURE}
 
 naverpay:
+  api-domain: ${NAVERPAY_API_DOMAIN}
   client-id: ${NAVERPAY_CLIENT_ID}
   client-secret: ${NAVERPAY_CLIENT_SECRET}
   chain-id: ${NAVERPAY_CHAIN_ID}

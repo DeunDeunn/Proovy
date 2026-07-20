@@ -19,6 +19,7 @@ import {
 
 import Image from "next/image";
 
+import { useUnreadChatCount } from "@/features/chat/store";
 import { useUnreadNotificationCount } from "@/features/notification/store";
 
 const menus = [
@@ -97,6 +98,7 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
 const Sidebar = () => {
   const pathname = usePathname();
   const unreadNotificationCount = useUnreadNotificationCount();
+  const unreadChatCount = useUnreadChatCount();
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-surface px-4 py-6">
@@ -131,6 +133,11 @@ const Sidebar = () => {
               {menu.href === "/notifications" && unreadNotificationCount > 0 && (
                 <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
                   {unreadNotificationCount}
+                </span>
+              )}
+              {menu.href === "/chat" && unreadChatCount > 0 && (
+                <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
+                  {unreadChatCount}
                 </span>
               )}
             </Link>
