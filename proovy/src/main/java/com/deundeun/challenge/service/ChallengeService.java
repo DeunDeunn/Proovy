@@ -8,6 +8,7 @@ import com.deundeun.challenge.dto.request.ChallengeSearchCondition;
 import com.deundeun.challenge.dto.request.ChallengeUpdateRequest;
 import com.deundeun.challenge.dto.response.ChallengeCreateResponse;
 import com.deundeun.challenge.dto.response.ChallengeDetailResponse;
+import com.deundeun.challenge.dto.response.ChallengeProgressResponse;
 import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
 import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.mapper.CategoryMapper;
@@ -174,6 +175,16 @@ public class ChallengeService {
     @Transactional(readOnly = true)
     public List<ChallengeSummaryResponse> getMyChallenges(Long userId) {
         return challengeMapper.findMyChallenges(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public ChallengeProgressResponse getProgress(Long challengeId) {
+        ChallengeProgressResponse progress = challengeMapper.findProgressById(challengeId);
+        if (progress == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        progress.calculateProgress();
+        return progress;
     }
 
 }

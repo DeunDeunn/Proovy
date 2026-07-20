@@ -5,6 +5,7 @@ import java.util.List;
 import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.domain.ChallengeStatus;
 import com.deundeun.challenge.dto.response.ChallengeDetailResponse;
+import com.deundeun.challenge.dto.response.ChallengeProgressResponse;
 import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -30,6 +31,8 @@ public interface ChallengeMapper {
     List<ChallengeSummaryResponse> findMyChallenges(@Param("userId") Long userId);
 
     ChallengeDetailResponse findDetailById(@Param("id") Long id);
+
+    ChallengeProgressResponse findProgressById(@Param("id") Long id);
 
     Challenge findById(@Param("id") Long id);
 
