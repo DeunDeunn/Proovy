@@ -47,4 +47,18 @@
         WHERE id = #{id}
     </update>
 
+    <select id="findActiveUserIdsByChallengeId" resultType="long">
+        SELECT user_id
+        FROM challenge_participants
+        WHERE challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </select>
+
+    <update id="withdrawAllActiveByChallengeId">
+        UPDATE challenge_participants
+        SET status = 'WITHDRAWN', left_at = #{leftAt}
+        WHERE challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </update>
+
 </mapper>

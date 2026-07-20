@@ -29,8 +29,17 @@ public interface ChallengeParticipantMapper {
 
     int countActiveParticipants(@Param("challengeId") Long challengeId);
 
+    List<Long> findActiveUserIdsByChallengeId(@Param("challengeId") Long challengeId);
+
     void updateStatus(
             @Param("id") Long id,
             @Param("status") ParticipantStatus status,
+            @Param("leftAt") LocalDateTime leftAt);
+
+    /**
+     * 챌린지 취소 시 활동중이던 참가자 전원을 한 번에 WITHDRAWN 처리한다.
+     */
+    void withdrawAllActiveByChallengeId(
+            @Param("challengeId") Long challengeId,
             @Param("leftAt") LocalDateTime leftAt);
 }
