@@ -59,7 +59,8 @@ public class ChallengeParticipantService {
 
     @Transactional
     public void leave(Long challengeId, Long userId) {
-        Challenge challenge = challengeMapper.findById(challengeId);
+        // 행 잠금: 환불 여부를 가르는 challenge.status를 경쟁 없이 읽는다
+        Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
         if (challenge == null) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
         }
