@@ -1,4 +1,4 @@
-import { Client } from "@stomp/stompjs";
+import { Client, ReconnectionTimeMode } from "@stomp/stompjs";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 const PERSONAL_ERROR_QUEUE = "/queue/errors";
@@ -6,6 +6,7 @@ const roomTopic = (chatRoomId) => `/topic/chats/rooms/${chatRoomId}`;
 
 let client = null;
 let onError = null;
+let onDisconnect = null;
 let activeRoomSubscription = null;
 
 const subscribeActiveRoom = () => {
@@ -20,17 +21,26 @@ const subscribeActiveRoom = () => {
 const createClient = () =>
   new Client({
     brokerURL: WS_URL,
-    reconnectDelay: 5000,
+    reconnectDelay: 1000,
+    maxReconnectDelay: 30000,
+    reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
     onConnect: () => {
       client.subscribe(PERSONAL_ERROR_QUEUE, (message) => {
         onError?.(JSON.parse(message.body));
       });
       subscribeActiveRoom();
     },
+    onWebSocketClose: () => {
+      onDisconnect?.();
+    },
   });
 
-export const connectSocket = ({ onError: onErrorHandler } = {}) => {
+export const connectSocket = ({
+  onError: onErrorHandler,
+  onDisconnect: onDisconnectHandler,
+} = {}) => {
   onError = onErrorHandler ?? null;
+  onDisconnect = onDisconnectHandler ?? null;
 
   if (!client) {
     client = createClient();
