@@ -45,3 +45,6 @@ export const updateCertificationPost = (postId, { contents, thumbnail, images })
 };
 
 export const deleteCertificationPost = (postId) => api.delete(`/v1/certification-post/${postId}`);
+
+export const toggleCertificationPostLike = (postId) =>
+  api.post(`/v1/certification-post/${postId}/like`);

@@ -155,7 +155,7 @@ const CommentKebabMenu = ({
   );
 };
 
-const CertificationPostComments = ({ postId, status, commentCount, embedded = false }) => {
+const CertificationPostComments = ({ postId, status, commentCount, embedded = false, footer }) => {
   const [contents, setContents] = useState("");
   const [replyTargetId, setReplyTargetId] = useState(null);
   const [replyContents, setReplyContents] = useState("");
@@ -290,7 +290,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
     <div
       className={
         embedded
-          ? "min-h-0 flex-1 overflow-y-auto border-y border-gray-100 py-4 pr-1"
+          ? "min-h-0 flex-1 overflow-y-auto px-5 py-4"
           : "mt-6 border-t border-gray-100 pt-5"
       }
     >
@@ -526,7 +526,10 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
   );
 
   const commentComposer = canWriteComment ? (
-    <form onSubmit={(event) => submitComment(event)}>
+    <form
+      onSubmit={(event) => submitComment(event)}
+      className={embedded ? "flex items-center gap-3" : ""}
+    >
       <label htmlFor="new-comment" className="sr-only">
         댓글 내용
       </label>
@@ -537,13 +540,23 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
         placeholder="따뜻한 응원 댓글을 남겨주세요."
         rows={embedded ? 2 : 3}
         disabled={createMutation.isPending}
-        className={`w-full ${embedded ? "resize-none" : "resize-y"} rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50`}
+        className={`w-full ${embedded ? "min-h-10 flex-1 resize-none border-0 px-0 py-2 focus:ring-0" : "resize-y rounded-lg border border-gray-200 px-3 py-2.5 focus:border-primary focus:ring-2 focus:ring-primary/20"} text-sm text-gray-900 outline-none placeholder:text-gray-400 disabled:bg-gray-50`}
       />
-      <div className="mt-3 flex justify-end">
-        <Button type="submit" disabled={createMutation.isPending}>
-          {createMutation.isPending ? "등록 중..." : "댓글 등록"}
-        </Button>
-      </div>
+      {embedded ? (
+        <button
+          type="submit"
+          disabled={createMutation.isPending}
+          className="shrink-0 text-sm font-semibold text-primary transition-colors hover:text-primary-hover disabled:cursor-not-allowed disabled:text-gray-400"
+        >
+          {createMutation.isPending ? "등록 중" : "게시"}
+        </button>
+      ) : (
+        <div className="mt-3 flex justify-end">
+          <Button type="submit" disabled={createMutation.isPending}>
+            {createMutation.isPending ? "등록 중..." : "댓글 등록"}
+          </Button>
+        </div>
+      )}
     </form>
   ) : (
     <p className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-500">
@@ -553,14 +566,25 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
 
   const content = (
     <>
-      <div className="flex items-center gap-2">
-        <MessageCircle size={19} className="text-primary" aria-hidden="true" />
-        <h2 id="comments-heading" className="font-semibold text-gray-900">
+      {embedded ? (
+        <h2 id="comments-heading" className="sr-only">
           댓글 {Number(commentCount ?? 0).toLocaleString()}
         </h2>
-      </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <MessageCircle size={19} className="text-primary" aria-hidden="true" />
+          <h2 id="comments-heading" className="font-semibold text-gray-900">
+            댓글 {Number(commentCount ?? 0).toLocaleString()}
+          </h2>
+        </div>
+      )}
       {commentList}
-      <div className={embedded ? "pt-4" : "mt-5"}>
+      {embedded && footer}
+      <div
+        className={
+          embedded ? "border-t border-gray-100 px-5 py-3" : "mt-5"
+        }
+      >
         {commentComposer}
         {formError && errorParentCommentId === null && (
           <div className="mt-3">
@@ -573,7 +597,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
 
   return (
     <section
-      className={embedded ? "flex min-h-0 flex-1 flex-col p-5" : "mt-6"}
+      className={embedded ? "flex min-h-0 flex-1 flex-col" : "mt-6"}
       aria-labelledby="comments-heading"
     >
       {embedded ? (

@@ -107,4 +107,7 @@ public interface CertificationMapper {
 
    // 해당글 좋아요집계
    long findLikeCount(Long postId);
+
+   // 현재 사용자가 해당 글에 좋아요를 눌렀는지
+   boolean existsLike(@Param("postId") Long postId, @Param("userId") Long userId);
 }

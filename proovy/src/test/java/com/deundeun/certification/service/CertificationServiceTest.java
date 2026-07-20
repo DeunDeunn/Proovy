@@ -284,10 +284,12 @@ class CertificationServiceTest {
             when(certificationMapper.findPostDetail(POST_ID)).thenReturn(detail(USER_ID, CertificationStatus.PENDING));
             when(certificationMapper.isAdmin(USER_ID)).thenReturn(0);
             when(certificationMapper.findPostImageUrls(POST_ID)).thenReturn(List.of("a.jpg"));
+            when(certificationMapper.existsLike(POST_ID, USER_ID)).thenReturn(true);
 
             CertificationPostDetailResponse res = certificationService.getCertificationPostDetail(POST_ID, USER_ID);
 
             assertThat(res.getImageUrls()).containsExactly("a.jpg");
+            assertThat(res.isLiked()).isTrue();
         }
 
         @Test

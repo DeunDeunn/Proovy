@@ -16,6 +16,7 @@ public class CertificationPostDetailResponse {
     private String contents;
     private String thumbnailUrl;    // 대표 이미지 URL
     private CertificationStatus status;   // 방장 검수 상태
+    private boolean liked;          // 현재 로그인 사용자의 좋아요 여부
     private Long likeCount;
     private Long commentCount;
     private LocalDateTime createdAt;
