@@ -1,5 +1,189 @@
-const ChallengePage = () => {
-  return <div>ChallengePage</div>;
+"use client";
+
+import { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Search } from "lucide-react";
+
+import Loading from "@/components/ui/Loading";
+import ErrorMessage from "@/components/ui/ErrorMessage";
+
+import ChallengeCard from "./ChallengeCard";
+import { useCategories, useInfiniteChallenges } from "./hooks";
+
+const statusOptions = [
+  { label: "전체", value: undefined },
+  { label: "모집중", value: "RECRUITING" },
+  { label: "진행중", value: "IN_PROGRESS" },
+  { label: "종료", value: "COMPLETED" },
+];
+
+const FilterChip = ({ label, selected, onClick }) => (
+  <button
+    type="button"
+    aria-pressed={selected}
+    onClick={onClick}
+    className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+      selected
+        ? "border-primary bg-primary text-white"
+        : "border-gray-300 text-gray-600 hover:bg-gray-50"
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const ChallengePageContent = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [categoryId, setCategoryId] = useState(() => {
+    const raw = searchParams.get("category");
+    return raw ? Number(raw) : undefined;
+  });
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? undefined);
+  const [keywordInput, setKeywordInput] = useState(() => searchParams.get("keyword") ?? "");
+  const [keyword, setKeyword] = useState(() => searchParams.get("keyword") ?? undefined);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setKeyword(keywordInput.trim() === "" ? undefined : keywordInput.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [keywordInput]);
+
+  // 필터 상태를 URL 쿼리스트링에 반영 — 새로고침/뒤로가기 시에도 유지되고, 링크 공유도 가능해짐
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (categoryId !== undefined) params.set("category", categoryId);
+    if (status !== undefined) params.set("status", status);
+    if (keyword) params.set("keyword", keyword);
+
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [categoryId, status, keyword, pathname, router]);
+
+  const { data: categories, isError: isCategoriesError, error: categoriesError } = useCategories();
+  const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteChallenges({ categoryId, status, keyword, size: 12 });
+
+  const challenges = data?.pages.flatMap((page) => page.content) ?? [];
+
+  const observerTarget = useRef(null);
+
+  useEffect(() => {
+    const target = observerTarget.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  return (
+    <div className="mx-auto max-w-[1440px] space-y-6 pb-2">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">챌린지 찾기</h1>
+        <p className="mt-2 text-sm text-gray-500">나에게 딱 맞는 챌린지를 찾아보세요!</p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[240px] flex-1">
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+          <input
+            type="text"
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            placeholder="챌린지 제목 또는 키워드 검색"
+            className="w-full max-w-lg rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
+          />
+        </div>
+
+        <span className="rounded-lg border border-primary bg-primary-light px-3 py-2 text-sm font-semibold text-primary">
+          최신순
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <p className="mb-2 text-xs font-semibold text-gray-500">카테고리</p>
+          {isCategoriesError ? (
+            <ErrorMessage error={categoriesError} />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <FilterChip
+                label="전체"
+                selected={categoryId === undefined}
+                onClick={() => setCategoryId(undefined)}
+              />
+              {categories?.map((category) => (
+                <FilterChip
+                  key={category.id}
+                  label={category.name}
+                  selected={categoryId === category.id}
+                  onClick={() => setCategoryId(category.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-semibold text-gray-500">상태</p>
+          <div className="flex flex-wrap gap-2">
+            {statusOptions.map((option) => (
+              <FilterChip
+                key={option.label}
+                label={option.label}
+                selected={status === option.value}
+                onClick={() => setStatus(option.value)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <Loading label="챌린지 불러오는 중..." />
+      ) : isError ? (
+        <ErrorMessage error={error} />
+      ) : challenges.length === 0 ? (
+        <p className="py-12 text-center text-sm text-gray-400">조건에 맞는 챌린지가 없습니다.</p>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {challenges.map((challenge) => (
+              <ChallengeCard key={challenge.id} challenge={challenge} />
+            ))}
+          </div>
+
+          {hasNextPage && (
+            <div ref={observerTarget} className="mt-6 flex h-10 justify-center">
+              {isFetchingNextPage && <Loading label="불러오는 중..." />}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 };
+
+const ChallengePage = () => (
+  <Suspense fallback={<Loading label="불러오는 중..." />}>
+    <ChallengePageContent />
+  </Suspense>
+);
 
 export default ChallengePage;

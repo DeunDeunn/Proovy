@@ -2,6 +2,13 @@ import { BookOpen, Droplets, PenLine } from "lucide-react";
 
 import { formatChallengePeriod } from "@/lib/date";
 
+const statusBadgeMap = {
+  RECRUITING: { label: "모집중", className: "bg-primary" },
+  IN_PROGRESS: { label: "진행중", className: "bg-orange-500" },
+  COMPLETED: { label: "종료", className: "bg-gray-400" },
+  CANCELLED: { label: "취소됨", className: "bg-gray-400" },
+};
+
 const categoryVisualMap = {
   운동: "water",
   루틴: "journal",
@@ -72,37 +79,43 @@ const ChallengeVisual = ({ type }) => {
   );
 };
 
-const ChallengeCard = ({ challenge }) => (
-  <article className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-    <div className="relative">
-      <ChallengeVisual type={categoryVisualMap[challenge.categoryName] ?? "book"} />
-      <span className="absolute left-3 top-3 rounded-full bg-primary px-2 py-1 text-[11px] font-bold text-white">
-        모집중
-      </span>
-    </div>
-    <div className="p-3">
-      <h3 className="truncate text-sm font-bold text-gray-900">{challenge.title}</h3>
-      <p className="mt-1.5 text-xs text-gray-500">
-        {formatChallengePeriod(challenge.startDate, challenge.endDate)}
-      </p>
-      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-gray-100 pt-2 text-center">
-        <div>
-          <strong className="block text-xs text-gray-800">
-            {(challenge.entryFee ?? 0).toLocaleString()}
-          </strong>
-          <span className="text-[11px] text-gray-400">참가비</span>
-        </div>
-        <div>
-          <strong className="block text-xs text-gray-800">{challenge.maxParticipants}</strong>
-          <span className="text-[11px] text-gray-400">정원</span>
-        </div>
-        <div>
-          <strong className="block text-xs text-gray-800">{challenge.currentParticipants}</strong>
-          <span className="text-[11px] text-gray-400">참가자</span>
+const ChallengeCard = ({ challenge }) => {
+  const statusBadge = statusBadgeMap[challenge.status] ?? statusBadgeMap.RECRUITING;
+
+  return (
+    <article className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="relative">
+        <ChallengeVisual type={categoryVisualMap[challenge.categoryName] ?? "book"} />
+        <span
+          className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[11px] font-bold text-white ${statusBadge.className}`}
+        >
+          {statusBadge.label}
+        </span>
+      </div>
+      <div className="p-3">
+        <h3 className="truncate text-sm font-bold text-gray-900">{challenge.title}</h3>
+        <p className="mt-1.5 text-xs text-gray-500">
+          {formatChallengePeriod(challenge.startDate, challenge.endDate)}
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-gray-100 pt-2 text-center">
+          <div>
+            <strong className="block text-xs text-gray-800">
+              {(challenge.entryFee ?? 0).toLocaleString()}
+            </strong>
+            <span className="text-[11px] text-gray-400">참가비</span>
+          </div>
+          <div>
+            <strong className="block text-xs text-gray-800">{challenge.maxParticipants}</strong>
+            <span className="text-[11px] text-gray-400">정원</span>
+          </div>
+          <div>
+            <strong className="block text-xs text-gray-800">{challenge.currentParticipants}</strong>
+            <span className="text-[11px] text-gray-400">참가자</span>
+          </div>
         </div>
       </div>
-    </div>
-  </article>
-);
+    </article>
+  );
+};
 
 export default ChallengeCard;

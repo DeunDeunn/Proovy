@@ -19,6 +19,7 @@ import {
   ChevronUp,
   LogIn,
   LogOut,
+  Plus,
 } from "lucide-react";
 
 import Image from "next/image";
@@ -132,7 +133,7 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-surface px-4 py-6">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-gray-200 bg-surface px-4 py-6">
       {/* 로고 */}
       <Link href="/" className="mb-8 px-3">
         <Image
@@ -145,8 +146,8 @@ const Sidebar = () => {
         />
       </Link>
 
-      {/* 메인 메뉴 */}
-      <nav className="flex flex-col gap-1">
+      {/* 메인 메뉴: 드롭다운이 펼쳐져도 아래 버튼/프로필 위치가 안 밀리게 이 영역만 따로 스크롤 */}
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
         {menus.map((menu) => {
           const active = pathname === menu.href;
           return (
@@ -189,12 +190,23 @@ const Sidebar = () => {
         />
       </nav>
 
+      <Link
+        href="/challenges/new"
+        className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+      >
+        <Plus size={16} />
+        챌린지 개설하기
+      </Link>
+
       {/* 하단 프로필 자리 */}
       {isMeLoading ? (
         <div className="mt-auto h-11 animate-pulse rounded-lg bg-gray-100" />
       ) : me ? (
         <div className="mt-auto flex items-center gap-1 rounded-lg px-3 py-2">
-          <Link href="/mypage" className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50">
+          <Link
+            href="/mypage"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50"
+          >
             <img
               src={me.profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
               alt={`${me.nickname} 프로필 이미지`}
