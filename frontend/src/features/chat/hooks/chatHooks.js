@@ -130,6 +130,19 @@ export const useChatRooms = (params, { enabled = true } = {}) =>
     enabled,
   });
 
+// 채팅방 목록을 조회해 store에 동기화한다. 사이드바(안 읽은 개수 배지)와 채팅 페이지가
+// 함께 사용해서, 로그인 후 어느 화면에 있든 목록이 채워지도록 한다.
+export const useChatRoomsSync = ({ enabled = true } = {}) => {
+  const setRooms = useChatStore((state) => state.setRooms);
+  const query = useChatRooms(undefined, { enabled });
+
+  useEffect(() => {
+    if (query.data) setRooms(query.data.content);
+  }, [query.data, setRooms]);
+
+  return query;
+};
+
 // 방 입장 시 서버에 읽음 처리하고, 응답으로 받은 커서를 store의 방 목록에 반영한다.
 export const useMarkRoomRead = () => {
   const markRoomRead = useChatStore((state) => state.markRoomRead);
