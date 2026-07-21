@@ -133,6 +133,7 @@ const CertificationPostDetailPage = ({ postId }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const postMenuRef = useRef(null);
+  const postMenuButtonRef = useRef(null);
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
   const deletePostMutation = useDeleteCertificationPost();
@@ -156,6 +157,11 @@ const CertificationPostDetailPage = ({ postId }) => {
     });
   };
 
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    window.requestAnimationFrame(() => postMenuButtonRef.current?.focus());
+  };
+
   return (
     <div className="mx-auto max-w-[1440px]">
       <Card className="overflow-hidden rounded-2xl p-0 lg:flex lg:h-[min(720px,calc(100vh-6rem))]">
@@ -171,6 +177,7 @@ const CertificationPostDetailPage = ({ postId }) => {
               {images.length > 1 && (
                 <>
                   <button
+                    ref={postMenuButtonRef}
                     type="button"
                     onClick={() => setCurrentImageIndex((index) => Math.max(0, index - 1))}
                     disabled={displayedImageIndex === 0}
@@ -299,12 +306,6 @@ const CertificationPostDetailPage = ({ postId }) => {
             </p>
           </div>
 
-          {deletePostMutation.error && (
-            <div className="shrink-0 border-b border-gray-100 px-5 py-4">
-              <ErrorMessage error={deletePostMutation.error} />
-            </div>
-          )}
-
           <CertificationPostComments
             postId={postId}
             status={post.status}
@@ -335,8 +336,9 @@ const CertificationPostDetailPage = ({ postId }) => {
       )}
       {isDeleteDialogOpen && (
         <DeleteCertificationPostDialog
+          error={deletePostMutation.error}
           isDeleting={deletePostMutation.isPending}
-          onClose={() => setIsDeleteDialogOpen(false)}
+          onClose={closeDeleteDialog}
           onDelete={deletePost}
         />
       )}

@@ -172,7 +172,7 @@ const CertificationPostEditForm = ({ post, postId }) => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">인증 게시글 수정</h1>
         <p className="mt-2 text-sm text-gray-500">
-          남겨둔 기존 이미지는 다시 업로드해 유지하고, 제거한 추가 이미지는 삭제됩니다.
+          남겨둔 기존 이미지는 그대로 유지하며, 제거한 추가 이미지는 게시글에서 제외됩니다.
         </p>
       </div>
 
