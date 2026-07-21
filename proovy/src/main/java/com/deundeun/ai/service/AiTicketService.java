@@ -106,6 +106,11 @@ public class AiTicketService {
         return AiTicketPurchaseResponse.from(subscription, plan);
     }
 
+    @Transactional
+    public int expireActiveSubscriptions() {
+        return aiTicketMapper.expireActiveSubscriptions();
+    }
+
     private void insertSubscription(AiTicketSubscriptionVo subscription) {
         try {
             aiTicketMapper.insertSubscription(subscription);

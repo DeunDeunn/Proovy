@@ -9,8 +9,11 @@ import com.deundeun.ai.dto.AiReviewResultItemResponse;
 import com.deundeun.ai.enums.AiReviewDecision;
 import com.deundeun.ai.mapper.AiReviewMapper;
 import com.deundeun.ai.mapper.AiReviewRuleMapper;
+import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiReviewResultVo;
 import com.deundeun.ai.vo.AiReviewRuleVo;
+import com.deundeun.ai.vo.AiTicketHistoryVo;
+import com.deundeun.ai.vo.AiTicketSubscriptionVo;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,7 @@ public class AiReviewServiceImpl implements AiReviewService {
 
     private final AiReviewMapper aiReviewMapper;
     private final AiReviewRuleMapper aiReviewRuleMapper;
+    private final AiTicketMapper aiTicketMapper;
     private final AiReviewPromptService aiReviewPromptService;
     private final AiReviewClient aiReviewClient;
     private final TransactionOperations transactionOperations;
@@ -44,15 +48,24 @@ public class AiReviewServiceImpl implements AiReviewService {
     @Override
     public AiReviewResponse review(Long requesterId, Long postId) {
         ReservedReview reservedReview = transactionOperations.execute(status -> reserveReview(requesterId, postId));
+        try {
+            AiReviewContext context = reservedReview.context();
+            AiReviewRuleVo rule = reservedReview.rule();
+            List<String> imageUrls = buildImageUrls(context, aiReviewMapper.findImageUrlsByPostId(postId));
+            String prompt = aiReviewPromptService.createPrompt(context, rule, imageUrls);
+            AiReviewAiResult aiResult = aiReviewClient.review(prompt, imageUrls);
+            validateAiResult(aiResult);
 
-        AiReviewContext context = reservedReview.context();
-        AiReviewRuleVo rule = reservedReview.rule();
-        List<String> imageUrls = buildImageUrls(context, aiReviewMapper.findImageUrlsByPostId(postId));
-        String prompt = aiReviewPromptService.createPrompt(context, rule, imageUrls);
-        AiReviewAiResult aiResult = aiReviewClient.review(prompt, imageUrls);
-        validateAiResult(aiResult);
-
-        return transactionOperations.execute(status -> completeReview(reservedReview.resultId(), context, rule, aiResult));
+            return transactionOperations.execute(
+                    status -> completeReview(reservedReview.resultId(), context, rule, aiResult)
+            );
+        } catch (RuntimeException e) {
+            transactionOperations.execute(status -> {
+                aiReviewMapper.updateAiReviewResultFailed(reservedReview.resultId());
+                return null;
+            });
+            throw e;
+        }
     }
 
     @Override
@@ -87,11 +100,21 @@ public class AiReviewServiceImpl implements AiReviewService {
         validateContext(context);
         validateHost(requesterId, context.getHostId());
         validatePending(context);
+        validateAiReviewEnabled(context.getChallengeId());
+        validateActiveTicketSubscription(requesterId);
 
         AiReviewRuleVo rule = aiReviewRuleMapper.findAiReviewRuleByChallengeId(context.getChallengeId());
         validateRule(rule);
 
         AiReviewResultVo reservation = toProcessingResult(context, rule);
+        AiReviewResultVo existingResult = aiReviewMapper.findReviewResultByPostId(postId);
+        if (existingResult != null) {
+            if (!"FAILED".equals(existingResult.getStatus())
+                    || aiReviewMapper.resetFailedAiReviewResultToProcessing(existingResult.getId()) == 0) {
+                throw new ApiException(ErrorCode.AI_REVIEW_RESULT_ALREADY_EXISTS);
+            }
+            return new ReservedReview(existingResult.getId(), context, rule);
+        }
         try {
             aiReviewMapper.insertProcessingAiReviewResult(reservation);
         } catch (DuplicateKeyException e) {
@@ -107,6 +130,8 @@ public class AiReviewServiceImpl implements AiReviewService {
 
     private AiReviewResponse completeReview(Long resultId, AiReviewContext context, AiReviewRuleVo rule, AiReviewAiResult aiResult) {
         AiReviewResultVo result = toCompletedResult(resultId, context, rule, aiResult);
+        applyAutoDecisionToPost(result);
+        recordTicketUse(result.getHostId());
         if (aiReviewMapper.updateAiReviewResultCompleted(result) == 0) {
             throw new ApiException(ErrorCode.AI_REVIEW_RESULT_ALREADY_EXISTS);
         }
@@ -140,6 +165,29 @@ public class AiReviewServiceImpl implements AiReviewService {
         }
     }
 
+    private void recordTicketUse(Long hostId) {
+        AiTicketSubscriptionVo subscription = aiTicketMapper.findActiveSubscriptionByHostIdForUpdate(hostId);
+        if (subscription == null) {
+            throw new ApiException(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
+        }
+        aiTicketMapper.insertTicketHistory(AiTicketHistoryVo.builder()
+                .hostId(hostId)
+                .subscriptionId(subscription.getId())
+                .type("USE")
+                .build());
+    }
+
+    private void applyAutoDecisionToPost(AiReviewResultVo result) {
+        if (!"AUTO".equals(result.getReviewMode())
+                || AiReviewDecision.NEEDS_REVIEW.name().equals(result.getDecision())) {
+            return;
+        }
+        if (aiReviewMapper.updateCertificationPostStatus(
+                result.getVerificationPostId(), result.getNewPostStatus()) == 0) {
+            throw new ApiException(ErrorCode.NOT_PENDING_POST);
+        }
+    }
+
     private void validateChallengeOwner(Long requesterId, Long challengeId) {
         Long hostId = aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId);
         if (hostId == null) {
@@ -151,6 +199,18 @@ public class AiReviewServiceImpl implements AiReviewService {
     private void validatePending(AiReviewContext context) {
         if (!"PENDING".equals(context.getPreviousPostStatus())) {
             throw new ApiException(ErrorCode.NOT_PENDING_POST);
+        }
+    }
+
+    private void validateAiReviewEnabled(Long challengeId) {
+        if (!aiReviewMapper.isAiReviewEnabledByChallengeId(challengeId)) {
+            throw new ApiException(ErrorCode.AI_REVIEW_INVALID_REQUEST);
+        }
+    }
+
+    private void validateActiveTicketSubscription(Long hostId) {
+        if (!aiReviewMapper.existsActiveTicketSubscriptionByHostId(hostId)) {
+            throw new ApiException(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
         }
     }
 
@@ -199,6 +259,7 @@ public class AiReviewServiceImpl implements AiReviewService {
     private AiReviewResultVo toCompletedResult(Long resultId, AiReviewContext context, AiReviewRuleVo rule, AiReviewAiResult aiResult) {
         AiReviewDecision decision = resolveDecision(aiResult);
         String reason = resolveReason(aiResult, decision);
+        String newPostStatus = resolveNewPostStatus(rule, context, decision);
         return AiReviewResultVo.builder()
                 .id(resultId)
                 .challengeId(context.getChallengeId())
@@ -211,8 +272,19 @@ public class AiReviewServiceImpl implements AiReviewService {
                 .rawResponse(aiResult.getRawResponse())
                 .status(COMPLETED)
                 .previousPostStatus(context.getPreviousPostStatus())
-                .newPostStatus(context.getPreviousPostStatus())
+                .newPostStatus(newPostStatus)
                 .build();
+    }
+
+    private String resolveNewPostStatus(
+            AiReviewRuleVo rule,
+            AiReviewContext context,
+            AiReviewDecision decision
+    ) {
+        if (!"AUTO".equals(rule.getReviewMode()) || decision == AiReviewDecision.NEEDS_REVIEW) {
+            return context.getPreviousPostStatus();
+        }
+        return decision.name();
     }
 
     private record ReservedReview(

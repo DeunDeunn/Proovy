@@ -12,9 +12,24 @@ public interface AiReviewMapper {
 
     AiReviewContext findReviewContextByPostId(@Param("postId") Long postId);
 
+    boolean isAiReviewEnabledByChallengeId(@Param("challengeId") Long challengeId);
+
+    boolean existsActiveTicketSubscriptionByHostId(@Param("hostId") Long hostId);
+
     List<String> findImageUrlsByPostId(@Param("postId") Long postId);
 
     int insertProcessingAiReviewResult(AiReviewResultVo result);
+
+    AiReviewResultVo findReviewResultByPostId(@Param("postId") Long postId);
+
+    int resetFailedAiReviewResultToProcessing(@Param("id") Long id);
+
+    int updateAiReviewResultFailed(@Param("id") Long id);
+
+    int updateCertificationPostStatus(
+            @Param("postId") Long postId,
+            @Param("newStatus") String newStatus
+    );
 
     int updateAiReviewResultCompleted(AiReviewResultVo result);
 

@@ -17,9 +17,13 @@ public interface AiTicketMapper {
 
     AiTicketSubscriptionVo findActiveSubscriptionByHostId(@Param("hostId") Long hostId);
 
+    AiTicketSubscriptionVo findActiveSubscriptionByHostIdForUpdate(@Param("hostId") Long hostId);
+
     int insertSubscription(AiTicketSubscriptionVo subscription);
 
     int insertTicketHistory(AiTicketHistoryVo history);
+
+    int expireActiveSubscriptions();
 
     List<AiTicketHistoryVo> findTicketHistoriesByHostId(
             @Param("hostId") Long hostId,
