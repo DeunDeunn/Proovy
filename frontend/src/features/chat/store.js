@@ -14,6 +14,10 @@ export const useChatStore = create((set) => ({
   rooms: [],
   messagesByRoomId: {},
 
+  // 로그아웃/계정 전환 시 호출한다. setRooms는 기존 방을 병합해서 유지하므로,
+  // 초기화 없이 다른 계정으로 로그인하면 이전 계정의 방/메시지가 그대로 남아 노출될 수 있다.
+  resetChat: () => set({ rooms: [], messagesByRoomId: {} }),
+
   setRooms: (rooms) =>
     set((state) => {
       const freshIds = new Set(rooms.map((room) => room.chatRoomId));

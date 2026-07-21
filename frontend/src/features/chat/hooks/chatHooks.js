@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useMe } from "@/features/auth/hooks";
 import {
   createOrGetDirectRoom,
   deleteChatMessage,
@@ -63,6 +64,19 @@ export const useChatRoomSubscription = (chatRoomId, onMessage, options = {}) => 
 // 안 읽은 개수가 최신으로 반영되도록 하기 위함이다 (알림의 SSE 실시간 동기화와 동일한 목적).
 export const useChatRealtimeSync = () => {
   const queryClient = useQueryClient();
+  const { data: me } = useMe();
+  const resetChat = useChatStore((state) => state.resetChat);
+  const previousUserIdRef = useRef(undefined);
+
+  // setRooms/messagesByRoomId는 기존 값을 병합해서 유지하므로, 로그아웃이나 다른 계정으로의
+  // 전환(me.id 변경) 없이는 이전 사용자의 채팅 상태가 그대로 남아 다음 사용자에게 노출될 수 있다.
+  useEffect(() => {
+    const currentUserId = me?.id ?? null;
+    if (previousUserIdRef.current !== undefined && previousUserIdRef.current !== currentUserId) {
+      resetChat();
+    }
+    previousUserIdRef.current = currentUserId;
+  }, [me?.id, resetChat]);
 
   useEffect(() => {
     connectSocket({
