@@ -2,7 +2,14 @@
 
 /* eslint-disable @next/next/no-img-element -- S3 외부 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
-import { BadgeCheck, Heart, ImageOff, MessageCircle } from "lucide-react";
+import {
+  BadgeCheck,
+  ChevronDown,
+  Clock3,
+  Heart,
+  ImageOff,
+  MessageCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -59,7 +66,7 @@ const ProfileAvatar = ({ nickname, profileImageUrl }) =>
   );
 
 const ChallengeFeedCard = ({ post }) => (
-  <Card className="overflow-hidden p-0">
+  <Card className="self-start overflow-hidden !p-4">
     <Link
       href={`/certification-posts/${post.postId}`}
       aria-label="인증 게시글 상세 보기"
@@ -69,18 +76,18 @@ const ChallengeFeedCard = ({ post }) => (
         <img
           src={post.thumbnailUrl}
           alt={`${post.authorNickname ?? "사용자"}의 인증 이미지`}
-          className="aspect-video w-full bg-gray-100 object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+          className="aspect-[1.6/1] w-full bg-gray-100 object-cover transition-transform duration-200 group-hover:scale-[1.02]"
         />
       ) : (
-        <div className="flex aspect-video items-center justify-center bg-gray-100 text-gray-400 transition-colors group-hover:bg-gray-200">
+        <div className="flex aspect-[1.6/1] items-center justify-center bg-gray-100 text-gray-400 transition-colors group-hover:bg-gray-200">
           <ImageOff size={32} aria-hidden="true" />
           <span className="sr-only">인증 이미지 없음</span>
         </div>
       )}
     </Link>
 
-    <div className="p-5">
-      <div className="flex min-w-0 items-center gap-3">
+    <div className="pt-3">
+      <div className="flex min-w-0 items-center gap-2.5">
         <ProfileAvatar
           nickname={post.authorNickname}
           profileImageUrl={post.authorProfileImageUrl}
@@ -97,15 +104,15 @@ const ChallengeFeedCard = ({ post }) => (
               </span>
             )}
           </div>
-          <p className="mt-1 text-xs text-gray-400">{formatCreatedAt(post.createdAt)}</p>
+          <p className="mt-0.5 text-xs text-gray-400">{formatCreatedAt(post.createdAt)}</p>
         </div>
       </div>
 
-      <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+      <p className="mt-3 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-gray-700">
         {post.contents || "작성한 인증 내용이 없습니다."}
       </p>
 
-      <div className="mt-5 flex items-center gap-4 border-t border-gray-100 pt-4 text-sm text-gray-500">
+      <div className="mt-3 flex items-center gap-4 border-t border-gray-100 pt-3 text-sm text-gray-500">
         <span className="flex items-center gap-1.5">
           <Heart size={17} aria-hidden="true" />
           {Number(post.likeCount ?? 0).toLocaleString()}
@@ -328,8 +335,8 @@ const ChallengeFeedPage = ({ challengeId }) => {
   if (challengeError) return <ErrorMessage error={challengeError} />;
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="mb-6">
+    <div className="mx-auto max-w-[1440px]">
+      <div className="mb-5">
         <p className="text-sm font-medium text-primary">
           {challenge?.title ?? `챌린지 #${challengeId}`}
         </p>
@@ -343,11 +350,11 @@ const ChallengeFeedPage = ({ challengeId }) => {
         </p>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         {isReviewMode ? (
           <p className="text-sm font-medium text-amber-700">승인 대기 인증글 · 오래된 순</p>
         ) : (
-          <div className="flex rounded-lg bg-gray-100 p-1" role="tablist" aria-label="피드 필터">
+          <div className="flex gap-3" role="tablist" aria-label="피드 필터">
             {filters.map((item) => {
               const isSelected = filter === item.value;
               return (
@@ -357,10 +364,10 @@ const ChallengeFeedPage = ({ challengeId }) => {
                   role="tab"
                   aria-selected={isSelected}
                   onClick={() => setFilter(item.value)}
-                  className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
                     isSelected
-                      ? "bg-surface text-primary shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "border-primary bg-primary text-white shadow-sm"
+                      : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300 hover:text-gray-800"
                   }`}
                 >
                   {item.label}
@@ -382,22 +389,15 @@ const ChallengeFeedPage = ({ challengeId }) => {
             </Button>
           )}
           {!isReviewMode && (
-            <>
-              <button
-                type="button"
-                className="rounded-lg border border-primary bg-primary-light px-3 py-2 text-sm font-semibold text-primary"
-              >
-                최신순
-              </button>
-              <button
-                type="button"
-                disabled
-                title="인기순 정렬은 준비 중입니다."
-                className="cursor-not-allowed rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-400"
-              >
-                인기순 · 준비 중
-              </button>
-            </>
+            <button
+              type="button"
+              title="현재 최신순으로 정렬되어 있습니다."
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-surface px-4 py-2 text-sm font-semibold text-gray-600 shadow-sm"
+            >
+              <Clock3 size={17} aria-hidden="true" />
+              최신순
+              <ChevronDown size={16} aria-hidden="true" />
+            </button>
           )}
         </div>
       </div>

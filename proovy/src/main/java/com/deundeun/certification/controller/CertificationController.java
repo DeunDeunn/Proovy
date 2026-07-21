@@ -89,7 +89,7 @@ public class CertificationController {
     public ApiResponse<Void> updateCertificationPost(
             @PathVariable Long postId,
             @RequestPart("request") UpdateCertificationPostRequest request,
-            @RequestPart("thumbnail") MultipartFile thumbnail,
+            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         Long userId = CurrentUser.getUserId();
         certificationService.updateCertificationPost(postId, userId, request, thumbnail, images);

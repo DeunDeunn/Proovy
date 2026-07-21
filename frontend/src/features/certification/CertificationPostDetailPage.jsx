@@ -25,6 +25,7 @@ import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 
 import CertificationPostComments from "./CertificationPostComments";
+import DeleteCertificationPostDialog from "./DeleteCertificationPostDialog";
 import {
   useCertificationPost,
   useDeleteCertificationPost,
@@ -86,7 +87,7 @@ const PostReactionBar = ({
           title={canLike ? "좋아요" : "승인된 인증글에만 좋아요할 수 있어요."}
           aria-label={liked ? "좋아요 취소" : "좋아요"}
           aria-pressed={liked}
-          className={`inline-flex transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40 ${liked ? "text-rose-500" : "text-gray-900"}`}
+          className={`inline-flex items-center gap-1.5 transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-40 ${liked ? "text-rose-500" : "text-gray-900"}`}
         >
           <Heart
             size={25}
@@ -94,10 +95,16 @@ const PostReactionBar = ({
             fill={liked ? "currentColor" : "none"}
             aria-hidden="true"
           />
+          <span className="text-sm font-semibold">
+            {Number(likeCount ?? 0).toLocaleString()}
+          </span>
           <span className="sr-only">좋아요</span>
         </button>
-        <span className="inline-flex" title="댓글">
+        <span className="inline-flex items-center gap-1.5" title="댓글">
           <MessageCircle size={24} strokeWidth={1.8} aria-hidden="true" />
+          <span className="text-sm font-semibold">
+            {Number(commentCount ?? 0).toLocaleString()}
+          </span>
           <span className="sr-only">댓글</span>
         </span>
         <span className="inline-flex" title="공유">
@@ -110,11 +117,7 @@ const PostReactionBar = ({
         <span className="sr-only">저장</span>
       </span>
     </div>
-    <p className="mt-3 text-sm font-semibold text-gray-900">
-      좋아요 {Number(likeCount ?? 0).toLocaleString()}개 · 댓글{" "}
-      {Number(commentCount ?? 0).toLocaleString()}개
-    </p>
-    <p className="mt-1 text-xs text-gray-400">{formatCreatedAt(createdAt)}</p>
+    <p className="mt-3 text-xs text-gray-400">{formatCreatedAt(createdAt)}</p>
     {likeError && (
       <div className="mt-3">
         <ErrorMessage error={likeError} />
@@ -127,8 +130,10 @@ const CertificationPostDetailPage = ({ postId }) => {
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const postMenuRef = useRef(null);
+  const postMenuButtonRef = useRef(null);
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
   const deletePostMutation = useDeleteCertificationPost();
@@ -147,12 +152,14 @@ const CertificationPostDetailPage = ({ postId }) => {
   const isAuthor = me?.id != null && me.id === post.authorId;
 
   const deletePost = () => {
-    if (!window.confirm("인증 게시글을 삭제할까요?")) return;
-
-    setIsPostMenuOpen(false);
     deletePostMutation.mutate(postId, {
       onSuccess: () => router.back(),
     });
+  };
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    window.requestAnimationFrame(() => postMenuButtonRef.current?.focus());
   };
 
   return (
@@ -226,14 +233,12 @@ const CertificationPostDetailPage = ({ postId }) => {
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
-                    {post.contents || "작성한 인증 내용이 없습니다."}
-                  </p>
                 </div>
               </div>
               {me?.id != null && (
                 <div ref={postMenuRef} className="relative shrink-0">
                   <button
+                    ref={postMenuButtonRef}
                     type="button"
                     onClick={() => setIsPostMenuOpen((open) => !open)}
                     aria-label="게시글 메뉴"
@@ -263,7 +268,10 @@ const CertificationPostDetailPage = ({ postId }) => {
                           <button
                             type="button"
                             role="menuitem"
-                            onClick={deletePost}
+                            onClick={() => {
+                              setIsPostMenuOpen(false);
+                              setIsDeleteDialogOpen(true);
+                            }}
                             disabled={deletePostMutation.isPending}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400"
                           >
@@ -292,11 +300,11 @@ const CertificationPostDetailPage = ({ postId }) => {
             </div>
           </header>
 
-          {deletePostMutation.error && (
-            <div className="shrink-0 border-b border-gray-100 px-5 py-4">
-              <ErrorMessage error={deletePostMutation.error} />
-            </div>
-          )}
+          <div className="max-h-48 shrink-0 overflow-y-auto border-b border-gray-100 px-5 py-3">
+            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+              {post.contents || "작성한 인증 내용이 없습니다."}
+            </p>
+          </div>
 
           <CertificationPostComments
             postId={postId}
@@ -324,6 +332,14 @@ const CertificationPostDetailPage = ({ postId }) => {
           targetType="POST"
           targetId={post.postId}
           onClose={() => setIsReportDialogOpen(false)}
+        />
+      )}
+      {isDeleteDialogOpen && (
+        <DeleteCertificationPostDialog
+          error={deletePostMutation.error}
+          isDeleting={deletePostMutation.isPending}
+          onClose={closeDeleteDialog}
+          onDelete={deletePost}
         />
       )}
     </div>
