@@ -10,7 +10,7 @@ import LoginRequiredModal from "@/components/ui/LoginRequiredModal";
 import { useMe } from "@/features/auth/hooks";
 import ChatConversationPanel from "@/features/chat/components/ChatConversationPanel";
 import ChatRoomList from "@/features/chat/components/ChatRoomList";
-import { useChatRooms } from "@/features/chat/hooks/chatHooks";
+import { useChatRoomsSync, useMarkRoomRead } from "@/features/chat/hooks/chatHooks";
 import { useChatStore } from "@/features/chat/store";
 
 const LIST_WIDTH_OPEN_REM = 20;
@@ -25,20 +25,14 @@ const ChatPageContent = () => {
   const isUnauthorized = isMeError && meError?.status === 401;
 
   const {
-    data: roomsData,
     isLoading: isRoomsLoading,
     isError: isRoomsError,
     error: roomsError,
-  } = useChatRooms(undefined, { enabled: !isMeLoading && !isMeError });
+  } = useChatRoomsSync({ enabled: !isMeLoading && !isMeError });
   const rooms = useChatStore((state) => state.rooms);
-  const setRooms = useChatStore((state) => state.setRooms);
   const messagesByRoomId = useChatStore((state) => state.messagesByRoomId);
-  const markRoomRead = useChatStore((state) => state.markRoomRead);
   const sendMessage = useChatStore((state) => state.sendMessage);
-
-  useEffect(() => {
-    if (roomsData) setRooms(roomsData.content);
-  }, [roomsData, setRooms]);
+  const { mutate: markRoomRead } = useMarkRoomRead();
 
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [panelRoomId, setPanelRoomId] = useState(null);

@@ -26,6 +26,7 @@ import {
 
 import Image from "next/image";
 
+import { useChatRoomsSync } from "@/features/chat/hooks/chatHooks";
 import { useUnreadChatCount } from "@/features/chat/store";
 import { useUnreadCount } from "@/features/notification/hooks/notificationHooks";
 import { useLogout, useMe } from "@/features/auth/hooks";
@@ -128,8 +129,9 @@ const Sidebar = () => {
   const router = useRouter();
   const { data: unreadCountData } = useUnreadCount();
   const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
-  const unreadChatCount = useUnreadChatCount();
   const { data: me, isLoading: isMeLoading } = useMe();
+  useChatRoomsSync({ enabled: !!me });
+  const unreadChatCount = useUnreadChatCount();
   const logoutMutation = useLogout();
 
   const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
@@ -149,7 +151,7 @@ const Sidebar = () => {
           alt="Proovy"
           width={827}
           height={281}
-          className="h-6 w-auto"
+          className="h-9 w-auto"
           priority
         />
       </Link>

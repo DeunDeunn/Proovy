@@ -1,11 +1,19 @@
-import { BadgeCheck, Image as ImageIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
-import { formatChatTime, getAvatarColor } from "@/features/chat/mockData";
+import { formatChatTime, formatFileSize, getAvatarColor } from "@/features/chat/mockData";
 
-const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
+const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, isDeletePending }) => {
+  const router = useRouter();
   const avatarColor = getAvatarColor(message.senderId);
   const time = formatChatTime(message.createdAt);
   const readLabel = isOwn && !isChallenge && message.read ? "읽음" : null;
+  const canDelete = isOwn && !message.deletedAt && !!onDelete;
+
+  const handleDelete = () => {
+    if (!window.confirm("메시지를 삭제할까요?")) return;
+    onDelete(message.messageId);
+  };
 
   const renderContent = () => {
     if (message.deletedAt) {
@@ -17,10 +25,53 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
     }
 
     if (message.messageType === "IMAGE") {
+      const attachment = message.attachments?.[0];
+      if (!attachment) {
+        return (
+          <div className="flex h-36 w-56 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 text-blue-400">
+            <ImageIcon size={28} />
+          </div>
+        );
+      }
+
       return (
-        <div className="flex h-36 w-56 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 text-blue-400">
-          <ImageIcon size={28} />
-        </div>
+        <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 채팅 첨부 이미지는 S3 URL이라 next/image 설정 대상이 아니다 */}
+          <img
+            src={attachment.fileUrl}
+            alt={attachment.originalFileName}
+            className="h-36 w-56 rounded-2xl object-cover"
+          />
+        </a>
+      );
+    }
+
+    if (message.messageType === "FILE") {
+      const attachment = message.attachments?.[0];
+      if (!attachment) {
+        return (
+          <div className="flex w-64 items-center gap-3 rounded-2xl border border-gray-200 px-3 py-2.5 text-sm text-gray-400">
+            <FileText size={20} className="shrink-0" />
+            <p>파일 정보를 불러올 수 없습니다.</p>
+          </div>
+        );
+      }
+
+      return (
+        <a
+          href={attachment.fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex w-64 items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm hover:bg-gray-50 ${
+            isOwn ? "border-primary/30" : "border-gray-200"
+          }`}
+        >
+          <FileText size={20} className="shrink-0 text-gray-400" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-gray-800">{attachment.originalFileName}</p>
+            <p className="text-xs text-gray-400">{formatFileSize(attachment.fileSize)}</p>
+          </div>
+        </a>
       );
     }
 
@@ -42,7 +93,11 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
             <img src={cert.thumbnailUrl} alt="" className="mt-2 h-36 w-full rounded-xl object-cover" />
           )}
           <p className="mt-2 text-xs text-gray-400">인증일: {cert.certifiedAt}</p>
-          <button type="button" className="mt-2 text-xs font-semibold text-primary hover:underline">
+          <button
+            type="button"
+            onClick={() => router.push(`/certification-posts/${cert.certificationId}`)}
+            className="mt-2 text-xs font-semibold text-primary hover:underline"
+          >
             인증글 보기 &gt;
           </button>
         </div>
@@ -61,7 +116,7 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
   };
 
   return (
-    <div className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+    <div className={`group flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
       {!isOwn && (
         <div className="w-8 shrink-0">
           {showSenderInfo && (
@@ -89,6 +144,17 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
         )}
 
         <div className={`flex items-end gap-1.5 ${isOwn ? "flex-row-reverse" : ""}`}>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeletePending}
+              aria-label="메시지 삭제"
+              className="mb-1 shrink-0 rounded-lg p-1 text-gray-300 opacity-0 transition-opacity hover:bg-gray-100 hover:text-danger group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
           {renderContent()}
           {readLabel && (
             <div className="flex shrink-0 flex-col items-end text-[11px] text-gray-400">
