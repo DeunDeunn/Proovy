@@ -98,7 +98,9 @@ const MyPage = () => {
   if (!me) return null;
 
   const verificationMeta = VERIFICATION_STATUS_META[me.verificationStatus] ?? DEFAULT_VERIFICATION_META;
-  const isNicknameChecked = checkedNickname === nicknameInput && checkDuplicate.data?.available === true;
+  const normalizedNicknameInput = nicknameInput.trim();
+  const isNicknameChecked =
+    checkedNickname === normalizedNicknameInput && checkDuplicate.data?.available === true;
 
   const handleAvatarClick = () => fileInputRef.current?.click();
 
@@ -127,15 +129,15 @@ const MyPage = () => {
   };
 
   const handleCheckDuplicate = () => {
-    if (!isValidNicknameFormat(nicknameInput) || nicknameInput === me.nickname) return;
-    checkDuplicate.mutate(nicknameInput, {
-      onSuccess: () => setCheckedNickname(nicknameInput),
+    if (!isValidNicknameFormat(normalizedNicknameInput) || normalizedNicknameInput === me.nickname) return;
+    checkDuplicate.mutate(normalizedNicknameInput, {
+      onSuccess: () => setCheckedNickname(normalizedNicknameInput),
     });
   };
 
   const handleSaveNickname = () => {
     if (!isNicknameChecked) return;
-    updateNickname.mutate(nicknameInput, {
+    updateNickname.mutate(checkedNickname, {
       onSuccess: () => setIsEditingNickname(false),
     });
   };
@@ -172,14 +174,15 @@ const MyPage = () => {
                   onChange={handleNicknameInputChange}
                   maxLength={NICKNAME_MAX}
                   autoFocus
+                  aria-label="닉네임"
                   className="rounded-lg border border-gray-300 px-2 py-1 text-sm outline-none focus:border-primary"
                 />
                 <button
                   type="button"
                   onClick={handleCheckDuplicate}
                   disabled={
-                    !isValidNicknameFormat(nicknameInput) ||
-                    nicknameInput === me.nickname ||
+                    !isValidNicknameFormat(normalizedNicknameInput) ||
+                    normalizedNicknameInput === me.nickname ||
                     checkDuplicate.isPending
                   }
                   className="cursor-pointer rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"

@@ -113,11 +113,15 @@ export const useChatRoomHistory = (chatRoomId) => {
   return { loadMore, hasMore, isLoadingInitial, isLoadingMore, error };
 };
 
+// 훅 렌더마다 새로 만들어지면 react-query가 select 결과를 재사용하지 못해
+// roomsData 참조가 매번 바뀌므로, 모듈 스코프에 고정해 재사용한다.
+const selectChatRooms = (response) => ({ ...response, content: parseRooms(response.content) });
+
 export const useChatRooms = (params, { enabled = true } = {}) =>
   useQuery({
     queryKey: ["chat-rooms", params],
     queryFn: () => getChatRooms(params),
-    select: (response) => ({ ...response, content: parseRooms(response.content) }),
+    select: selectChatRooms,
     enabled,
   });
 

@@ -44,11 +44,13 @@ public class UserVerificationController {
             @RequestParam(required = false) UserVerificationStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        CurrentUser.requireAdmin();
         return ApiResponse.success(userVerificationService.getList(status, page, size));
     }
 
     @PatchMapping("/api/admin/user-verifications/{id}")
     public ApiResponse<Void> review(@PathVariable Long id, @RequestBody UserVerificationReviewRequest request) {
+        CurrentUser.requireAdmin();
         userVerificationService.review(id, request.status(), request.rejectionReason());
         return ApiResponse.success(null);
     }

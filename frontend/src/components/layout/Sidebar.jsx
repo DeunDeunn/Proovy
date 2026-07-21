@@ -20,6 +20,7 @@ import {
   LogIn,
   LogOut,
   Plus,
+  ShieldCheck,
 } from "lucide-react";
 
 import Image from "next/image";
@@ -43,6 +44,12 @@ const walletMenus = [
   { name: "충전하기", href: "/wallet/charge" },
   { name: "출금하기", href: "/wallet/withdraw" },
   { name: "정산 내역", href: "/wallet/settlements" },
+];
+
+const adminMenus = [
+  { name: "우수 사용자 인증", href: "/admin/user-verifications" },
+  { name: "신고 관리", href: "/admin/reports" },
+  { name: "출금 관리", href: "/admin/withdrawals" },
 ];
 
 const baseMypageMenus = [
@@ -188,6 +195,13 @@ const Sidebar = () => {
           items={mypageMenuItems}
           pathname={pathname}
         />
+
+        {me?.role === "ADMIN" && (
+          <>
+            <div className="my-3 border-t border-gray-200" />
+            <SidebarDropdown icon={ShieldCheck} label="관리자" items={adminMenus} pathname={pathname} />
+          </>
+        )}
       </nav>
 
       {/* 로그인 안 한 사용자는 어차피 개설할 수 없으니 로그인했을 때만 노출 */}
