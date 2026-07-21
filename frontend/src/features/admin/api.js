@@ -12,3 +12,12 @@ export const getReportList = ({ targetType, page = 0, size = 20 } = {}) =>
 export const processReport = (reportId) => api.patch(`/v1/admin/reports/${reportId}/process`);
 
 export const rejectReport = (reportId) => api.patch(`/v1/admin/reports/${reportId}/reject`);
+
+export const getWithdrawalList = ({ status, page = 0 } = {}) =>
+  api.get("/admin/withdrawals", { params: { status, page } });
+
+export const completeWithdrawal = (withdrawalId) =>
+  api.post(`/admin/withdrawals/${withdrawalId}/complete`);
+
+export const rejectWithdrawal = (withdrawalId, rejectReason) =>
+  api.post(`/admin/withdrawals/${withdrawalId}/reject`, { rejectReason });

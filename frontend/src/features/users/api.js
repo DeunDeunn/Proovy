@@ -6,8 +6,6 @@ export const followUser = (userId) => api.post(`/users/${userId}/follow`);
 
 export const unfollowUser = (userId) => api.delete(`/users/${userId}/follow`);
 
-export const getFollowStatus = (userId) => api.get(`/users/${userId}/follow/status`);
-
 export const getFollowers = (userId, { page = 0, size = 20 } = {}) =>
   api.get(`/users/${userId}/followers`, { params: { page, size } });
 

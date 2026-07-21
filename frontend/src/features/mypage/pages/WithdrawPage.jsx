@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -10,6 +11,7 @@ import Loading from "@/components/ui/Loading";
 import { useMe, useWithdraw } from "@/features/auth/hooks";
 
 const PROVIDER_LABEL = { google: "Google", kakao: "Kakao" };
+const CASH_REMAINING_CODE = "U006";
 
 const WithdrawPage = () => {
   const router = useRouter();
@@ -65,7 +67,19 @@ const WithdrawPage = () => {
           </div>
         )}
 
-        {withdrawMutation.isError && <ErrorMessage error={withdrawMutation.error} />}
+        {withdrawMutation.isError && (
+          <div className="flex flex-col gap-2">
+            <ErrorMessage error={withdrawMutation.error} />
+            {withdrawMutation.error?.code === CASH_REMAINING_CODE && (
+              <Link
+                href="/wallet/withdraw"
+                className="self-start rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                캐시 출금하러 가기
+              </Link>
+            )}
+          </div>
+        )}
       </Card>
     </div>
   );
