@@ -59,7 +59,7 @@ const UserFeedCard = ({ post }) => (
 );
 
 const UserProfilePage = ({ userId }) => {
-  const { data: me } = useMe();
+  const { data: me, isLoading: isMeLoading } = useMe();
   const { data: profile, isLoading, isError, error } = useUserProfile(userId);
   const followMutation = useFollow(userId);
   const unfollowMutation = useUnfollow(userId);
@@ -119,7 +119,7 @@ const UserProfilePage = ({ userId }) => {
           </div>
         </div>
 
-        {isOwnProfile ? (
+        {isMeLoading ? null : isOwnProfile ? (
           <Link
             href="/mypage"
             className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
