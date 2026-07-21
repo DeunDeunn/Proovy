@@ -1,7 +1,7 @@
-<img width="602" height="229" alt="image" src="https://github.com/user-attachments/assets/1bc0ac2b-fef7-4096-abd2-1938aaa5b05d" />
+<!-- <img width="602" height="229" alt="image" src="https://github.com/user-attachments/assets/1bc0ac2b-fef7-4096-abd2-1938aaa5b05d" /> -->
 
 # Proovy
-
+<img width="1706" height="743" alt="image" src="https://github.com/user-attachments/assets/0397fa26-95d9-4d8e-bbd8-b13ff65c4b85" />
 습관 인증 챌린지를 주제로 한 Spring Boot + Next.js 기반 웹 서비스입니다. 사용자가 챌린지를 만들어 참가비를 걸고, 정해진 기간 동안 인증 게시물을 올려 습관을 이어가면, 종료 후 성공/실패 여부에 따라 참가비가 정산되는 구조입니다.
 
 ## 기술 스택
@@ -32,4 +32,3 @@
 
 ## 프로젝트 구조
 <img width="815" height="460" alt="image" src="https://github.com/user-attachments/assets/3eed37a8-f344-4da6-8160-40074066f642" />
-
