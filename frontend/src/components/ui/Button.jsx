@@ -8,7 +8,7 @@ const Button = ({ children, variant = "primary", className = "", type = "button"
   };
 
   return (
-    <button className={`${base} ${variants[variant]} ${className}`} {...props}>
+    <button type={type} className={`${base} ${variants[variant]} ${className}`} {...props}>
       {children}
     </button>
   );
