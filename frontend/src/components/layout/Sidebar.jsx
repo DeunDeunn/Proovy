@@ -17,6 +17,7 @@ import {
   User,
   ChevronDown,
   ChevronUp,
+  LogIn,
   LogOut,
 } from "lucide-react";
 
@@ -119,7 +120,7 @@ const Sidebar = () => {
   const { data: unreadCountData } = useUnreadCount();
   const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   const unreadChatCount = useUnreadChatCount();
-  const { data: me } = useMe();
+  const { data: me, isLoading: isMeLoading } = useMe();
   const logoutMutation = useLogout();
 
   const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
@@ -189,7 +190,9 @@ const Sidebar = () => {
       </nav>
 
       {/* 하단 프로필 자리 */}
-      {me ? (
+      {isMeLoading ? (
+        <div className="mt-auto h-11 animate-pulse rounded-lg bg-gray-100" />
+      ) : me ? (
         <div className="mt-auto flex items-center gap-1 rounded-lg px-3 py-2">
           <Link href="/mypage" className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50">
             <img
@@ -211,10 +214,10 @@ const Sidebar = () => {
       ) : (
         <Link
           href="/login"
-          className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50"
+          className="mt-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
         >
-          <div className="h-8 w-8 rounded-full bg-gray-200" />
-          <span className="text-sm text-gray-700">로그인 / 회원가입</span>
+          <LogIn size={16} />
+          로그인 / 회원가입
         </Link>
       )}
     </aside>
