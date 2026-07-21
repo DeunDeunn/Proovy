@@ -13,6 +13,8 @@ import Loading from "@/components/ui/Loading";
 
 import { usePublicFeed } from "./hooks";
 
+import ProfileAvatar from "@/components/ui/ProfileAvatar";
+
 const filters = [
   { value: "all", label: "전체" },
   { value: "mine", label: "내 인증" },
@@ -32,24 +34,6 @@ const formatCreatedAt = (value) => {
     minute: "2-digit",
   }).format(date);
 };
-
-const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
-
-const ProfileAvatar = ({ nickname, profileImageUrl }) =>
-  profileImageUrl ? (
-    <img
-      src={profileImageUrl}
-      alt={`${nickname ?? "사용자"} 프로필 이미지`}
-      className="h-9 w-9 shrink-0 rounded-full border border-gray-200 object-cover"
-    />
-  ) : (
-    <span
-      aria-hidden="true"
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-light text-sm font-bold text-primary"
-    >
-      {getAvatarInitial(nickname)}
-    </span>
-  );
 
 const FeedCard = ({ post }) => (
   <Card className="overflow-hidden p-0">
