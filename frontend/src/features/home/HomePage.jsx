@@ -233,6 +233,12 @@ const HomePage = () => {
           </div>
         ))}
       </section>
+
+      <footer className="mt-10 border-t border-gray-200 pt-6 pb-4 text-center text-xs text-gray-400">
+        <p className="font-semibold text-gray-500">Proovy</p>
+        <p className="mt-1">습관인증 챌린지 서비스 · 함께 만들어가는 갓생</p>
+        <p className="mt-2">© {new Date().getFullYear()} Proovy. All rights reserved.</p>
+      </footer>
     </div>
   );
 };
