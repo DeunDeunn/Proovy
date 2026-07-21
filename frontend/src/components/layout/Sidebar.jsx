@@ -17,6 +17,7 @@ import {
   User,
   ChevronDown,
   ChevronUp,
+  LogIn,
   LogOut,
 } from "lucide-react";
 
@@ -211,10 +212,10 @@ const Sidebar = () => {
       ) : (
         <Link
           href="/login"
-          className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50"
+          className="mt-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
         >
-          <div className="h-8 w-8 rounded-full bg-gray-200" />
-          <span className="text-sm text-gray-700">로그인 / 회원가입</span>
+          <LogIn size={16} />
+          로그인 / 회원가입
         </Link>
       )}
     </aside>

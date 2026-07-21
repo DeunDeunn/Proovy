@@ -230,12 +230,12 @@ const MyPage = () => {
 
           <span className="text-sm text-gray-500">가입일 {formatJoinDate(me.createdAt)}</span>
           <div className="flex gap-3 text-sm text-gray-700">
-            <span>
+            <Link href={`/users/${me.userId}/followers`} className="hover:underline">
               <strong className="font-semibold">{me.followerCount}</strong> 팔로워
-            </span>
-            <span>
+            </Link>
+            <Link href={`/users/${me.userId}/following`} className="hover:underline">
               <strong className="font-semibold">{me.followingCount}</strong> 팔로잉
-            </span>
+            </Link>
           </div>
         </div>
       </div>
