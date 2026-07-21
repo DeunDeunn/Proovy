@@ -127,5 +127,10 @@ export const useStartDirectChat = () => {
     });
   };
 
-  return { startChat, isPending: mutation.isPending, error: mutation.error };
+  return {
+    startChat,
+    isPending: mutation.isPending,
+    error: mutation.error,
+    targetUserId: mutation.variables,
+  };
 };

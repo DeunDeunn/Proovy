@@ -225,7 +225,12 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
     isLoading,
   } = useComments(postId);
   const { data: me } = useMe();
-  const { startChat, isPending: isStartingChat } = useStartDirectChat();
+  const {
+    startChat,
+    isPending: isStartingChat,
+    error: startChatError,
+    targetUserId: startChatTargetUserId,
+  } = useStartDirectChat();
   const createMutation = useCreateComment(postId);
   const updateCommentMutation = useUpdateComment(postId);
   const deleteCommentMutation = useDeleteComment(postId);
@@ -446,6 +451,11 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         <ErrorMessage error={commentActionError.error} />
                       </div>
                     )}
+                    {startChatError && startChatTargetUserId === comment.authorId && (
+                      <div className="mt-3">
+                        <ErrorMessage error={startChatError} />
+                      </div>
+                    )}
                     {toggleCommentLikeMutation.error &&
                       toggleCommentLikeMutation.variables === comment.commentId && (
                         <div className="mt-3">
@@ -538,6 +548,11 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         {commentActionError?.commentId === reply.commentId && (
                           <div className="mt-3">
                             <ErrorMessage error={commentActionError.error} />
+                          </div>
+                        )}
+                        {startChatError && startChatTargetUserId === reply.authorId && (
+                          <div className="mt-3">
+                            <ErrorMessage error={startChatError} />
                           </div>
                         )}
                         {toggleCommentLikeMutation.error &&

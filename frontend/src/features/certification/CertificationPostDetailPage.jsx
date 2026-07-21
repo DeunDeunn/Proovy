@@ -138,7 +138,11 @@ const CertificationPostDetailPage = ({ postId }) => {
   const postMenuButtonRef = useRef(null);
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
-  const { startChat, isPending: isStartingChat } = useStartDirectChat();
+  const {
+    startChat,
+    isPending: isStartingChat,
+    error: startChatError,
+  } = useStartDirectChat();
   const deletePostMutation = useDeleteCertificationPost();
   const toggleLikeMutation = useToggleCertificationPostLike(postId);
   const closePostMenu = useCallback(() => setIsPostMenuOpen(false), []);
@@ -316,6 +320,12 @@ const CertificationPostDetailPage = ({ postId }) => {
               </div>
             </div>
           </header>
+
+          {startChatError && (
+            <div className="shrink-0 px-5 pt-3">
+              <ErrorMessage error={startChatError} />
+            </div>
+          )}
 
           <div className="max-h-48 shrink-0 overflow-y-auto border-b border-gray-100 px-5 py-3">
             <p className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">

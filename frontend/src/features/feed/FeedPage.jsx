@@ -45,7 +45,14 @@ const formatCreatedAt = (value) => {
   }).format(date);
 };
 
-const FeedCard = ({ post, currentUserId, onStartChat, isStartingChat }) => (
+const FeedCard = ({
+  post,
+  currentUserId,
+  onStartChat,
+  isStartingChat,
+  startChatError,
+  startChatTargetUserId,
+}) => (
   <Card className="self-start overflow-hidden !p-4">
     <Link
       href={`/certification-posts/${post.postId}`}
@@ -104,6 +111,12 @@ const FeedCard = ({ post, currentUserId, onStartChat, isStartingChat }) => (
         )}
       </div>
 
+      {startChatError && startChatTargetUserId === post.authorId && (
+        <div className="mt-2">
+          <ErrorMessage error={startChatError} />
+        </div>
+      )}
+
       <p className="mt-3 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-gray-700">
         {post.contents || "작성한 인증 내용이 없습니다."}
       </p>
@@ -127,7 +140,12 @@ const FeedPage = () => {
   const { data, error, fetchNextPage, hasNextPage, isError, isFetchingNextPage, isLoading } =
     usePublicFeed(filter);
   const { data: me } = useMe();
-  const { startChat, isPending: isStartingChat } = useStartDirectChat();
+  const {
+    startChat,
+    isPending: isStartingChat,
+    error: startChatError,
+    targetUserId: startChatTargetUserId,
+  } = useStartDirectChat();
 
   const posts = data?.pages.flat() ?? [];
 
@@ -194,6 +212,8 @@ const FeedPage = () => {
                 currentUserId={me?.id}
                 onStartChat={startChat}
                 isStartingChat={isStartingChat}
+                startChatError={startChatError}
+                startChatTargetUserId={startChatTargetUserId}
               />
             ))}
           </div>
