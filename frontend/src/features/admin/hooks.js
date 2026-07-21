@@ -3,10 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  completeWithdrawal,
   getReportList,
   getVerificationList,
+  getWithdrawalList,
   processReport,
   rejectReport,
+  rejectWithdrawal,
   reviewVerification,
 } from "./api";
 
@@ -51,6 +54,34 @@ export const useRejectReport = () => {
     mutationFn: (reportId) => rejectReport(reportId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
+    },
+  });
+};
+
+export const useWithdrawalList = (status) =>
+  useQuery({
+    queryKey: ["admin", "withdrawals", { status }],
+    queryFn: () => getWithdrawalList({ status }),
+  });
+
+export const useCompleteWithdrawal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (withdrawalId) => completeWithdrawal(withdrawalId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "withdrawals"] });
+    },
+  });
+};
+
+export const useRejectWithdrawal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ withdrawalId, rejectReason }) => rejectWithdrawal(withdrawalId, rejectReason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "withdrawals"] });
     },
   });
 };

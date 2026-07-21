@@ -48,6 +48,7 @@ const walletMenus = [
 const adminMenus = [
   { name: "우수 사용자 인증", href: "/admin/user-verifications" },
   { name: "신고 관리", href: "/admin/reports" },
+  { name: "출금 관리", href: "/admin/withdrawals" },
 ];
 
 const baseMypageMenus = [
