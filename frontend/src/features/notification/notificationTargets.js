@@ -5,15 +5,17 @@
 // 상세인지 알 수 없다. 조회 API도 challengeId 기준이라 역으로 찾을 방법이 없어,
 // 개별 상세 대신 목록 페이지로 보낸다.
 // CHALLENGE는 아직 백엔드가 이 타입으로 알림을 만들지 않고 상세 페이지도 없어 제외한다.
-const TARGET_ROUTE_BUILDERS = {
-  VERIFICATION_POST: (targetId) => `/certification-posts/${targetId}`,
-  BADGE_APPLICATION: () => "/mypage/verification",
-  SETTLEMENT: () => "/wallet/settlements",
-  HOST_REVENUE: () => "/wallet/settlements",
-};
+// 일반 객체 리터럴은 프로토타입 체인 때문에 targetType이 "constructor"/"toString" 같은
+// 값일 때 의도치 않은 상속 프로퍼티를 빌더로 오인할 수 있어, 이런 문제가 없는 Map을 쓴다.
+const TARGET_ROUTE_BUILDERS = new Map([
+  ["VERIFICATION_POST", (targetId) => `/certification-posts/${targetId}`],
+  ["BADGE_APPLICATION", () => "/mypage/verification"],
+  ["SETTLEMENT", () => "/wallet/settlements"],
+  ["HOST_REVENUE", () => "/wallet/settlements"],
+]);
 
 export const getNotificationTargetHref = (targetType, targetId) => {
-  const buildHref = TARGET_ROUTE_BUILDERS[targetType];
+  const buildHref = TARGET_ROUTE_BUILDERS.get(targetType);
   if (!buildHref || targetId == null) return null;
 
   return buildHref(targetId);
