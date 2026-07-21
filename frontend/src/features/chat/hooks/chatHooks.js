@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+"use client";
 
-import { getChatMessages } from "@/features/chat/api/chatApi";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { createOrGetDirectRoom, getChatMessages, getChatRooms } from "@/features/chat/api/chatApi";
 import {
   connectSocket,
   disconnectSocket,
@@ -90,4 +93,16 @@ export const useChatRoomHistory = (chatRoomId) => {
   }, [chatRoomId, hasMore, isLoadingMore, nextCursor, prependRoomMessages]);
 
   return { loadMore, hasMore, isLoadingInitial, isLoadingMore, error };
+};
+
+export const useChatRooms = (params) =>
+  useQuery({ queryKey: ["chat-rooms", params], queryFn: () => getChatRooms(params) });
+
+export const useCreateDirectChatRoom = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (targetUserId) => createOrGetDirectRoom(targetUserId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-rooms"] }),
+  });
 };
