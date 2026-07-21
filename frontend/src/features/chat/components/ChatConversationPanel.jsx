@@ -85,11 +85,15 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
     });
   };
 
-  const handleAttachmentSelected = (event, messageType) => {
+  const handleAttachmentSelected = (event) => {
     const file = event.target.files?.[0];
     event.target.value = ""; // 같은 파일을 다시 선택해도 onChange가 다시 발생하도록 초기화
 
     if (!file) return;
+
+    // "파일 첨부" 버튼은 accept 제한이 없어 이미지도 고를 수 있으므로,
+    // 버튼 종류가 아니라 실제 파일 MIME 타입으로 메시지 타입을 판별한다.
+    const messageType = file.type.startsWith("image/") ? "IMAGE" : "FILE";
 
     setAttachmentError(null);
     attachmentMutation.mutate(
@@ -205,18 +209,13 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         onSubmit={handleSubmit}
         className="flex shrink-0 items-center gap-2 border-t border-gray-100 px-4 py-3"
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={(event) => handleAttachmentSelected(event, "FILE")}
-        />
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleAttachmentSelected} />
         <input
           ref={imageInputRef}
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(event) => handleAttachmentSelected(event, "IMAGE")}
+          onChange={handleAttachmentSelected}
         />
         <button
           type="button"
