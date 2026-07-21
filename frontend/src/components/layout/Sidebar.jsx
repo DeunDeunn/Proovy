@@ -127,9 +127,9 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname, onItemAction }) =
 const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: unreadCountData } = useUnreadCount();
-  const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   const { data: me, isLoading: isMeLoading } = useMe();
+  const { data: unreadCountData } = useUnreadCount({ enabled: !!me });
+  const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   useChatRoomsSync({ enabled: !!me });
   const unreadChatCount = useUnreadChatCount();
   const logoutMutation = useLogout();

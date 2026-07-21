@@ -5,7 +5,10 @@ import Link from "next/link";
 import { Bell, BellOff, Check, MoreVertical } from "lucide-react";
 
 import Button from "@/components/ui/Button";
+import ErrorMessage from "@/components/ui/ErrorMessage";
+import LoginRequiredModal from "@/components/ui/LoginRequiredModal";
 import Loading from "@/components/ui/Loading";
+import { useMe } from "@/features/auth/hooks";
 import NotificationCard from "@/features/notification/components/NotificationCard";
 import {
   FILTER_GROUPS,
@@ -22,14 +25,21 @@ import {
 } from "@/features/notification/hooks/notificationHooks";
 
 const NotificationPage = () => {
+  const { data: me, isLoading: isMeLoading, isError: isMeError, error: meError } = useMe();
+  // 로그아웃 시 setQueryData(["auth","me"], null)로 me가 null이 되는데, 이건 에러가 아니라
+  // 성공 상태라서 그 케이스도 명시적으로 잡아줘야 페이지를 보고 있는 도중 로그아웃해도 바로 막힌다.
+  const isUnauthorized = (isMeError && meError?.status === 401) || (!isMeLoading && me === null);
+
   const [activeGroup, setActiveGroup] = useState("전체");
   const [menuOpen, setMenuOpen] = useState(false);
   const sentinelRef = useRef(null);
 
   const category = FILTER_GROUP_TO_CATEGORY[activeGroup];
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useNotifications(category);
-  const { data: unreadCountData } = useUnreadCount();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useNotifications(
+    category,
+    { enabled: !!me }
+  );
+  const { data: unreadCountData } = useUnreadCount({ enabled: !!me });
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
   const deleteMutation = useDeleteNotification();
@@ -66,6 +76,16 @@ const NotificationPage = () => {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [isLoading, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  if (isMeLoading) return null;
+  if (isUnauthorized) return <LoginRequiredModal description="알림은 로그인 후 이용할 수 있어요." />;
+  if (isMeError) {
+    return (
+      <div className="mx-auto flex max-w-3xl items-center justify-center px-4 py-16">
+        <ErrorMessage error={meError} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
