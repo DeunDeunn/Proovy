@@ -26,7 +26,7 @@ const TicketPage = () => {
             <h1 className="text-xl font-bold text-gray-900">AI 티켓 관리</h1>
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            현재 이용권과 AI 검수 사용 내역을 확인하세요.
+            현재 이용권을 확인하세요.
           </p>
         </div>
         <Link
