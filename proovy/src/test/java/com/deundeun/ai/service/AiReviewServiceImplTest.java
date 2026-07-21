@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 import com.deundeun.ai.client.AiReviewClient;
 import com.deundeun.ai.dto.AiReviewAiResult;
@@ -15,8 +16,11 @@ import com.deundeun.ai.dto.AiReviewResponse;
 import com.deundeun.ai.enums.AiReviewDecision;
 import com.deundeun.ai.mapper.AiReviewMapper;
 import com.deundeun.ai.mapper.AiReviewRuleMapper;
+import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiReviewResultVo;
 import com.deundeun.ai.vo.AiReviewRuleVo;
+import com.deundeun.ai.vo.AiTicketHistoryVo;
+import com.deundeun.ai.vo.AiTicketSubscriptionVo;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -49,6 +53,9 @@ class AiReviewServiceImplTest {
     private AiReviewRuleMapper aiReviewRuleMapper;
 
     @Mock
+    private AiTicketMapper aiTicketMapper;
+
+    @Mock
     private AiReviewPromptService aiReviewPromptService;
 
     @Mock
@@ -66,6 +73,11 @@ class AiReviewServiceImplTest {
             TransactionCallback<?> callback = invocation.getArgument(0);
             return callback.doInTransaction(null);
         }).when(transactionOperations).execute(any());
+        lenient().when(aiReviewMapper.isAiReviewEnabledByChallengeId(any())).thenReturn(true);
+        lenient().when(aiReviewMapper.existsActiveTicketSubscriptionByHostId(any())).thenReturn(true);
+        lenient().when(aiReviewMapper.updateCertificationPostStatus(any(), any())).thenReturn(1);
+        lenient().when(aiTicketMapper.findActiveSubscriptionByHostId(any()))
+                .thenReturn(AiTicketSubscriptionVo.builder().id(900L).hostId(1L).status("ACTIVE").build());
     }
 
     @Test
@@ -103,8 +115,15 @@ class AiReviewServiceImplTest {
         assertThat(captured.getVerificationPostId()).isEqualTo(postId);
         assertThat(captured.getDecision()).isEqualTo("APPROVED");
         assertThat(captured.getStatus()).isEqualTo("COMPLETED");
+        assertThat(captured.getNewPostStatus()).isEqualTo("APPROVED");
         assertThat(response.getId()).isEqualTo(100L);
         assertThat(response.getDecision()).isEqualTo("APPROVED");
+        verify(aiReviewMapper).updateCertificationPostStatus(postId, "APPROVED");
+        ArgumentCaptor<AiTicketHistoryVo> historyCaptor = ArgumentCaptor.forClass(AiTicketHistoryVo.class);
+        verify(aiTicketMapper).insertTicketHistory(historyCaptor.capture());
+        assertThat(historyCaptor.getValue().getHostId()).isEqualTo(hostId);
+        assertThat(historyCaptor.getValue().getSubscriptionId()).isEqualTo(900L);
+        assertThat(historyCaptor.getValue().getType()).isEqualTo("USE");
     }
 
     @ParameterizedTest
@@ -179,11 +198,65 @@ class AiReviewServiceImplTest {
                 .contains("APPROVED")
                 .contains("AI confidence below threshold");
         assertThat(response.getDecision()).isEqualTo("NEEDS_REVIEW");
+        verify(aiReviewMapper, never()).updateCertificationPostStatus(any(), any());
     }
 
     @Test
-    @DisplayName("AI call failure does not complete reserved result")
-    void review_aiClientFails_doesNotSaveResult() {
+    @DisplayName("Manual review mode keeps certification post pending")
+    void review_manualMode_keepsPostPending() {
+        Long hostId = 1L;
+        Long postId = 10L;
+        Long challengeId = 20L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+        AiReviewRuleVo rule = AiReviewRuleVo.builder()
+                .id(1L)
+                .hostId(hostId)
+                .challengeId(challengeId)
+                .ruleText("manual review rule")
+                .reviewMode("MANUAL")
+                .active(true)
+                .build();
+        AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "manual assistance", 0.95);
+        AiReviewResultVo savedResult = AiReviewResultVo.builder()
+                .id(301L)
+                .challengeId(challengeId)
+                .hostId(hostId)
+                .verificationPostId(postId)
+                .reviewMode("MANUAL")
+                .decision("APPROVED")
+                .confidence(BigDecimal.valueOf(0.95))
+                .reason("manual assistance")
+                .rawResponse(aiResult.getRawResponse())
+                .status("COMPLETED")
+                .previousPostStatus("PENDING")
+                .newPostStatus("PENDING")
+                .build();
+        List<String> imageUrls = List.of("https://example.com/thumb.png");
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(rule);
+        when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
+        when(aiReviewPromptService.createPrompt(context, rule, imageUrls)).thenReturn("manual prompt");
+        when(aiReviewClient.review("manual prompt", imageUrls)).thenReturn(aiResult);
+        doAnswer(invocation -> {
+            AiReviewResultVo result = invocation.getArgument(0);
+            ReflectionTestUtils.setField(result, "id", 301L);
+            return 1;
+        }).when(aiReviewMapper).insertProcessingAiReviewResult(any());
+        when(aiReviewMapper.updateAiReviewResultCompleted(any())).thenReturn(1);
+        when(aiReviewMapper.findReviewResultById(301L)).thenReturn(savedResult);
+
+        aiReviewService.review(hostId, postId);
+
+        ArgumentCaptor<AiReviewResultVo> captor = ArgumentCaptor.forClass(AiReviewResultVo.class);
+        verify(aiReviewMapper).updateAiReviewResultCompleted(captor.capture());
+        assertThat(captor.getValue().getNewPostStatus()).isEqualTo("PENDING");
+        verify(aiReviewMapper, never()).updateCertificationPostStatus(any(), any());
+    }
+
+    @Test
+    @DisplayName("AI call failure marks reserved result as failed")
+    void review_aiClientFails_marksResultFailed() {
         Long hostId = 1L;
         Long postId = 10L;
         Long challengeId = 20L;
@@ -207,8 +280,78 @@ class AiReviewServiceImplTest {
                 .hasMessage("AI request failed");
 
         verify(aiReviewMapper).insertProcessingAiReviewResult(any());
+        verify(aiReviewMapper).updateAiReviewResultFailed(400L);
+        verify(aiTicketMapper, never()).insertTicketHistory(any());
         verify(aiReviewMapper, never()).updateAiReviewResultCompleted(any());
         verify(aiReviewMapper, never()).findReviewResultById(any());
+    }
+
+    @Test
+    @DisplayName("Failed AI review is reset and retried")
+    void review_failedResult_retriesUsingExistingReservation() {
+        Long hostId = 1L;
+        Long postId = 10L;
+        Long challengeId = 20L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+        AiReviewRuleVo rule = rule(hostId, challengeId);
+        AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "retry succeeds", 0.9);
+        AiReviewResultVo failedResult = AiReviewResultVo.builder()
+                .id(401L)
+                .verificationPostId(postId)
+                .status("FAILED")
+                .build();
+        AiReviewResultVo savedResult = savedResult(401L, context, rule, aiResult);
+        List<String> imageUrls = List.of("https://example.com/thumb.png");
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(rule);
+        when(aiReviewMapper.findReviewResultByPostId(postId)).thenReturn(failedResult);
+        when(aiReviewMapper.resetFailedAiReviewResultToProcessing(401L)).thenReturn(1);
+        when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
+        when(aiReviewPromptService.createPrompt(context, rule, imageUrls)).thenReturn("retry prompt");
+        when(aiReviewClient.review("retry prompt", imageUrls)).thenReturn(aiResult);
+        when(aiReviewMapper.updateAiReviewResultCompleted(any())).thenReturn(1);
+        when(aiReviewMapper.findReviewResultById(401L)).thenReturn(savedResult);
+
+        AiReviewResponse response = aiReviewService.review(hostId, postId);
+
+        assertThat(response.getId()).isEqualTo(401L);
+        verify(aiReviewMapper).resetFailedAiReviewResultToProcessing(401L);
+        verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
+        verify(aiReviewMapper).updateAiReviewResultCompleted(any());
+    }
+
+    @Test
+    @DisplayName("Expired ticket before completion prevents use history and completion")
+    void review_ticketExpiresBeforeCompletion_failsWithoutUseHistory() {
+        Long hostId = 1L;
+        Long postId = 10L;
+        Long challengeId = 20L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+        AiReviewRuleVo rule = rule(hostId, challengeId);
+        AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "valid result", 0.9);
+        List<String> imageUrls = List.of("https://example.com/thumb.png");
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(rule);
+        when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
+        when(aiReviewPromptService.createPrompt(context, rule, imageUrls)).thenReturn("prompt");
+        when(aiReviewClient.review("prompt", imageUrls)).thenReturn(aiResult);
+        doAnswer(invocation -> {
+            AiReviewResultVo result = invocation.getArgument(0);
+            ReflectionTestUtils.setField(result, "id", 402L);
+            return 1;
+        }).when(aiReviewMapper).insertProcessingAiReviewResult(any());
+        when(aiTicketMapper.findActiveSubscriptionByHostId(hostId)).thenReturn(null);
+
+        assertThatThrownBy(() -> aiReviewService.review(hostId, postId))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
+
+        verify(aiTicketMapper, never()).insertTicketHistory(any());
+        verify(aiReviewMapper, never()).updateAiReviewResultCompleted(any());
+        verify(aiReviewMapper).updateAiReviewResultFailed(402L);
     }
 
     @Test
@@ -243,6 +386,46 @@ class AiReviewServiceImplTest {
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).getErrorCode())
                 .isEqualTo(ErrorCode.NOT_PENDING_POST);
+
+        verify(aiReviewClient, never()).review(any(), any());
+        verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
+    }
+
+    @Test
+    @DisplayName("AI review disabled challenge fails before AI call")
+    void review_aiReviewDisabled_failsBeforeAiCall() {
+        Long hostId = 1L;
+        Long postId = 10L;
+        Long challengeId = 20L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewMapper.isAiReviewEnabledByChallengeId(challengeId)).thenReturn(false);
+
+        assertThatThrownBy(() -> aiReviewService.review(hostId, postId))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AI_REVIEW_INVALID_REQUEST);
+
+        verify(aiReviewClient, never()).review(any(), any());
+        verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
+    }
+
+    @Test
+    @DisplayName("Host without active AI ticket fails before AI call")
+    void review_noActiveTicket_failsBeforeAiCall() {
+        Long hostId = 1L;
+        Long postId = 10L;
+        Long challengeId = 20L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewMapper.existsActiveTicketSubscriptionByHostId(hostId)).thenReturn(false);
+
+        assertThatThrownBy(() -> aiReviewService.review(hostId, postId))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
 
         verify(aiReviewClient, never()).review(any(), any());
         verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
@@ -388,7 +571,7 @@ class AiReviewServiceImplTest {
     private double confidence(AiReviewDecision decision) {
         return switch (decision) {
             case APPROVED -> 0.91;
-            case REJECTED -> 0.82;
+            case REJECTED -> 0.92;
             case NEEDS_REVIEW -> 0.43;
         };
     }

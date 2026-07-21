@@ -21,6 +21,8 @@ public interface AiTicketMapper {
 
     int insertTicketHistory(AiTicketHistoryVo history);
 
+    int expireActiveSubscriptions();
+
     List<AiTicketHistoryVo> findTicketHistoriesByHostId(
             @Param("hostId") Long hostId,
             @Param("type") String type,

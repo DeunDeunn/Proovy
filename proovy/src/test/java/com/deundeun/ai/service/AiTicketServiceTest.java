@@ -47,6 +47,17 @@ class AiTicketServiceTest {
     private AiTicketService aiTicketService;
 
     @Test
+    @DisplayName("Expired active subscriptions are updated with expire histories")
+    void expireActiveSubscriptions_returnsProcessedCount() {
+        when(aiTicketMapper.expireActiveSubscriptions()).thenReturn(3);
+
+        int processedCount = aiTicketService.expireActiveSubscriptions();
+
+        assertThat(processedCount).isEqualTo(3);
+        verify(aiTicketMapper).expireActiveSubscriptions();
+    }
+
+    @Test
     @DisplayName("active plans are converted to response DTOs")
     void findActivePlans_returnsResponses() {
         AiTicketPlanVo oneDayPlan = activePlan();
