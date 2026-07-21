@@ -9,6 +9,7 @@ import {
   Heart,
   ImageOff,
   MessageCircle,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -19,6 +20,7 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 import { useChallenge } from "@/features/challenge/hooks";
+import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 
 import {
   useApproveCertificationPost,
@@ -65,7 +67,14 @@ const ProfileAvatar = ({ nickname, profileImageUrl }) =>
     </span>
   );
 
-const ChallengeFeedCard = ({ post }) => (
+const ChallengeFeedCard = ({
+  post,
+  currentUserId,
+  onStartChat,
+  isStartingChat,
+  startChatError,
+  startChatTargetUserId,
+}) => (
   <Card className="self-start overflow-hidden !p-4">
     <Link
       href={`/certification-posts/${post.postId}`}
@@ -87,26 +96,46 @@ const ChallengeFeedCard = ({ post }) => (
     </Link>
 
     <div className="pt-3">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <ProfileAvatar
-          nickname={post.authorNickname}
-          profileImageUrl={post.authorProfileImageUrl}
-        />
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-sm font-semibold text-gray-900">
-              {post.authorNickname ?? "알 수 없는 사용자"}
-            </p>
-            {post.authorBadgeApproved && (
-              <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
-                <BadgeCheck size={16} aria-hidden="true" />
-                <span className="sr-only">인증 회원</span>
-              </span>
-            )}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProfileAvatar
+            nickname={post.authorNickname}
+            profileImageUrl={post.authorProfileImageUrl}
+          />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-sm font-semibold text-gray-900">
+                {post.authorNickname ?? "알 수 없는 사용자"}
+              </p>
+              {post.authorBadgeApproved && (
+                <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
+                  <BadgeCheck size={16} aria-hidden="true" />
+                  <span className="sr-only">인증 회원</span>
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-gray-400">{formatCreatedAt(post.createdAt)}</p>
           </div>
-          <p className="mt-0.5 text-xs text-gray-400">{formatCreatedAt(post.createdAt)}</p>
         </div>
+        {currentUserId != null && currentUserId !== post.authorId && (
+          <button
+            type="button"
+            onClick={() => onStartChat(post.authorId)}
+            disabled={isStartingChat && startChatTargetUserId === post.authorId}
+            aria-label="채팅하기"
+            title="채팅하기"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <MessageSquare size={17} aria-hidden="true" />
+          </button>
+        )}
       </div>
+
+      {startChatError && startChatTargetUserId === post.authorId && (
+        <div className="mt-2">
+          <ErrorMessage error={startChatError} />
+        </div>
+      )}
 
       <p className="mt-3 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-gray-700">
         {post.contents || "작성한 인증 내용이 없습니다."}
@@ -241,6 +270,12 @@ const ChallengeFeedPage = ({ challengeId }) => {
   const [rejectReason, setRejectReason] = useState("");
   const [reviewActionError, setReviewActionError] = useState(null);
   const { data: me } = useMe();
+  const {
+    startChat,
+    isPending: isStartingChat,
+    error: startChatError,
+    targetUserId: startChatTargetUserId,
+  } = useStartDirectChat();
   const {
     data: challenge,
     error: challengeError,
@@ -461,7 +496,15 @@ const ChallengeFeedPage = ({ challengeId }) => {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <ChallengeFeedCard key={post.postId} post={post} />
+              <ChallengeFeedCard
+                key={post.postId}
+                post={post}
+                currentUserId={me?.id}
+                onStartChat={startChat}
+                isStartingChat={isStartingChat}
+                startChatError={startChatError}
+                startChatTargetUserId={startChatTargetUserId}
+              />
             ))}
           </div>
 

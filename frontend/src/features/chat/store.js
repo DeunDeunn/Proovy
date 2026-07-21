@@ -1,7 +1,6 @@
 import { create } from "zustand";
 
 import { publishMessage } from "@/features/chat/api/chatSocket";
-import { createMockChatRooms } from "@/features/chat/mockData";
 
 const mergeMessages = (base, extra) => {
   const byId = new Map(base.map((message) => [message.messageId, message]));
@@ -12,8 +11,27 @@ const mergeMessages = (base, extra) => {
 };
 
 export const useChatStore = create((set) => ({
-  rooms: createMockChatRooms(),
+  rooms: [],
   messagesByRoomId: {},
+
+  setRooms: (rooms) =>
+    set((state) => {
+      const freshIds = new Set(rooms.map((room) => room.chatRoomId));
+      // 서버가 준 페이지 밖에 있던 방(예: roomId 딥링크로 열어 upsertRoom된 방)이
+      // 목록 갱신 시 사라져서 열려있던 대화창이 닫히지 않도록, 교체 대신 병합한다.
+      const localOnly = state.rooms.filter((room) => !freshIds.has(room.chatRoomId));
+      return { rooms: [...rooms, ...localOnly] };
+    }),
+
+  upsertRoom: (room) =>
+    set((state) => {
+      const exists = state.rooms.some((r) => r.chatRoomId === room.chatRoomId);
+      return {
+        rooms: exists
+          ? state.rooms.map((r) => (r.chatRoomId === room.chatRoomId ? { ...r, ...room } : r))
+          : [room, ...state.rooms],
+      };
+    }),
 
   markRoomRead: (chatRoomId) =>
     set((state) => ({
