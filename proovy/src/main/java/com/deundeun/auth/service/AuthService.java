@@ -25,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -105,8 +106,13 @@ public class AuthService {
         return new ProfileImageUpdateResponse(newUrl);
     }
 
+    // 프론트(JS String.trim())는 전각 공백(U+3000)·NBSP(U+00A0)까지 제거하지만
+    // Java String.trim()은 ASCII 공백만 제거해 API를 직접 호출하면 공백이 남을 수 있다.
+    // 프론트와 동일한 기준으로 앞뒤 공백류를 제거한다.
+    private static final Pattern EDGE_WHITESPACE = Pattern.compile("^[\\s\\u00A0\\u3000]+|[\\s\\u00A0\\u3000]+$");
+
     private String normalizeNickname(String nickname) {
-        String trimmed = nickname == null ? null : nickname.trim();
+        String trimmed = nickname == null ? null : EDGE_WHITESPACE.matcher(nickname).replaceAll("");
         if (trimmed == null || trimmed.length() < 2 || trimmed.length() > 10) {
             throw new ApiException(ErrorCode.NICKNAME_INVALID);
         }
