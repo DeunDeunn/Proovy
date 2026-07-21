@@ -48,14 +48,18 @@ const WithdrawalRow = ({ item, onComplete, onReject, isPending }) => {
 
   const handleRejectConfirm = () => {
     if (!reason.trim()) return;
-    onReject(item.id, reason.trim());
-    setIsRejecting(false);
-    setReason("");
+    onReject(item.id, reason.trim(), {
+      onSuccess: () => {
+        setIsRejecting(false);
+        setReason("");
+      },
+    });
   };
 
   const handleCompleteConfirm = () => {
-    onComplete(item.id);
-    setIsConfirmingComplete(false);
+    onComplete(item.id, {
+      onSuccess: () => setIsConfirmingComplete(false),
+    });
   };
 
   return (
@@ -148,12 +152,12 @@ const WithdrawalAdminPage = () => {
   const items = data?.content ?? [];
   const isMutating = completeMutation.isPending || rejectMutation.isPending;
 
-  const handleComplete = (withdrawalId) => {
-    completeMutation.mutate(withdrawalId);
+  const handleComplete = (withdrawalId, options) => {
+    completeMutation.mutate(withdrawalId, options);
   };
 
-  const handleReject = (withdrawalId, rejectReason) => {
-    rejectMutation.mutate({ withdrawalId, rejectReason });
+  const handleReject = (withdrawalId, rejectReason, options) => {
+    rejectMutation.mutate({ withdrawalId, rejectReason }, options);
   };
 
   return (
