@@ -161,7 +161,7 @@ const ChallengeManagePage = ({ challengeId }) => {
                 {(participants ?? []).map((p) => {
                   const progressPercent = Math.min(
                     100,
-                    Math.round((p.approvedDays / totalDays) * 100)
+                    Math.round(((p.approvedDays ?? 0) / totalDays) * 100)
                   );
                   const isParticipantHost = p.userId === challenge.hostId;
                   return (
@@ -182,7 +182,7 @@ const ChallengeManagePage = ({ challengeId }) => {
                             />
                           </div>
                           <span className="text-xs text-gray-500">
-                            {p.approvedDays}/{totalDays}
+                            {p.approvedDays ?? 0}/{totalDays}
                           </span>
                         </div>
                       </td>
