@@ -2,7 +2,7 @@ import { CalendarClock, CheckCircle2, Sparkles } from "lucide-react";
 
 import Card from "@/components/ui/Card";
 
-import { formatAiDateTime, getRemainingText } from "../format";
+import { formatAiDateTime, formatAiTicketPlanName, getRemainingText } from "../format";
 
 const ActiveTicketCard = ({ ticket }) => {
   if (!ticket?.hasActiveTicket) {
@@ -32,7 +32,9 @@ const ActiveTicketCard = ({ ticket }) => {
           </span>
           <div>
             <p className="text-xs font-semibold text-primary">현재 이용권</p>
-            <h2 className="mt-1 text-lg font-bold text-gray-900">{ticket.planName}</h2>
+            <h2 className="mt-1 text-lg font-bold text-gray-900">
+              {formatAiTicketPlanName(ticket.planName)}
+            </h2>
             <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-600">
               <CalendarClock size={15} />
               {formatAiDateTime(ticket.startedAt)} ~ {formatAiDateTime(ticket.expiredAt)}
