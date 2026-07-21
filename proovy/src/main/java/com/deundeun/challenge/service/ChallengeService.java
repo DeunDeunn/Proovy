@@ -88,6 +88,7 @@ public class ChallengeService {
                 condition.status(),
                 condition.keyword(),
                 condition.sort(),
+                condition.direction(),
                 condition.offset(),
                 condition.size());
 

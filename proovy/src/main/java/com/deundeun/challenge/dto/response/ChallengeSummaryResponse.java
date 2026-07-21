@@ -14,6 +14,7 @@ public class ChallengeSummaryResponse {
 
     private Long id;
     private String title;
+    private Long categoryId;
     private String categoryName;
     private Long entryFee;
     private Integer currentParticipants;

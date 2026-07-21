@@ -190,48 +190,53 @@ const Sidebar = () => {
         />
       </nav>
 
-      <Link
-        href="/challenges/new"
-        className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
-      >
-        <Plus size={16} />
-        챌린지 개설하기
-      </Link>
-
-      {/* 하단 프로필 자리 */}
-      {isMeLoading ? (
-        <div className="mt-auto h-11 animate-pulse rounded-lg bg-gray-100" />
-      ) : me ? (
-        <div className="mt-auto flex items-center gap-1 rounded-lg px-3 py-2">
-          <Link
-            href="/mypage"
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50"
-          >
-            <img
-              src={me.profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
-              alt={`${me.nickname} 프로필 이미지`}
-              className="h-8 w-8 rounded-full border border-gray-200 object-cover"
-            />
-            <span className="truncate text-sm font-medium text-gray-700">{me.nickname}</span>
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            title="로그아웃"
-            className="cursor-pointer rounded-lg p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-      ) : (
+      {/* 로그인 안 한 사용자는 어차피 개설할 수 없으니 로그인했을 때만 노출 */}
+      {me && (
         <Link
-          href="/login"
-          className="mt-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+          href="/challenges/new"
+          className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
         >
-          <LogIn size={16} />
-          로그인 / 회원가입
+          <Plus size={16} />
+          챌린지 개설하기
         </Link>
       )}
+
+      {/* 하단 프로필 자리: 위 메뉴/버튼과 충분한 여백만으로 구분 */}
+      <div className="mt-6">
+        {isMeLoading ? (
+          <div className="h-11 animate-pulse rounded-lg bg-gray-100" />
+        ) : me ? (
+          <div className="flex items-center gap-1 rounded-lg px-3 py-2">
+            <Link
+              href="/mypage"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50"
+            >
+              <img
+                src={me.profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
+                alt={`${me.nickname} 프로필 이미지`}
+                className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+              />
+              <span className="truncate text-sm font-medium text-gray-700">{me.nickname}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="로그아웃"
+              className="cursor-pointer rounded-lg p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+          >
+            <LogIn size={16} />
+            로그인 / 회원가입
+          </Link>
+        )}
+      </div>
     </aside>
   );
 };

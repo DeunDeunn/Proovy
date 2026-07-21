@@ -17,6 +17,32 @@ const statusOptions = [
   { label: "종료", value: "COMPLETED" },
 ];
 
+const sortOptions = [
+  { value: undefined, defaultLabel: "최신순", reversedLabel: "오래된순", defaultDirection: "DESC" },
+  {
+    value: "ENTRY_FEE",
+    defaultLabel: "참가비 낮은순",
+    reversedLabel: "참가비 높은순",
+    defaultDirection: "ASC",
+  },
+  {
+    value: "PARTICIPANTS",
+    defaultLabel: "참가자 많은순",
+    reversedLabel: "참가자 적은순",
+    defaultDirection: "DESC",
+  },
+];
+
+const getSortChipState = (option, sort, direction) => {
+  const isSelected = sort === option.value;
+  const currentDirection = isSelected
+    ? (direction ?? option.defaultDirection)
+    : option.defaultDirection;
+  const label =
+    currentDirection === option.defaultDirection ? option.defaultLabel : option.reversedLabel;
+  return { isSelected, currentDirection, label };
+};
+
 const FilterChip = ({ label, selected, onClick }) => (
   <button
     type="button"
@@ -24,8 +50,8 @@ const FilterChip = ({ label, selected, onClick }) => (
     onClick={onClick}
     className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
       selected
-        ? "border-primary bg-primary text-white"
-        : "border-gray-300 text-gray-600 hover:bg-gray-50"
+        ? "border-primary bg-primary-light font-semibold text-primary"
+        : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
     }`}
   >
     {label}
@@ -42,6 +68,8 @@ const ChallengePageContent = () => {
     return raw ? Number(raw) : undefined;
   });
   const [status, setStatus] = useState(() => searchParams.get("status") ?? undefined);
+  const [sort, setSort] = useState(() => searchParams.get("sort") ?? undefined);
+  const [direction, setDirection] = useState(() => searchParams.get("direction") ?? undefined);
   const [keywordInput, setKeywordInput] = useState(() => searchParams.get("keyword") ?? "");
   const [keyword, setKeyword] = useState(() => searchParams.get("keyword") ?? undefined);
 
@@ -57,15 +85,17 @@ const ChallengePageContent = () => {
     const params = new URLSearchParams();
     if (categoryId !== undefined) params.set("category", categoryId);
     if (status !== undefined) params.set("status", status);
+    if (sort !== undefined) params.set("sort", sort);
+    if (direction !== undefined) params.set("direction", direction);
     if (keyword) params.set("keyword", keyword);
 
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [categoryId, status, keyword, pathname, router]);
+  }, [categoryId, status, sort, direction, keyword, pathname, router]);
 
   const { data: categories, isError: isCategoriesError, error: categoriesError } = useCategories();
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteChallenges({ categoryId, status, keyword, size: 12 });
+    useInfiniteChallenges({ categoryId, status, sort, direction, keyword, size: 12 });
 
   const challenges = data?.pages.flatMap((page) => page.content) ?? [];
 
@@ -111,14 +141,36 @@ const ChallengePageContent = () => {
           />
         </div>
 
-        <span className="rounded-lg border border-primary bg-primary-light px-3 py-2 text-sm font-semibold text-primary">
-          최신순
-        </span>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="정렬 기준">
+          {sortOptions.map((option) => {
+            const { isSelected, currentDirection, label } = getSortChipState(
+              option,
+              sort,
+              direction
+            );
+
+            return (
+              <FilterChip
+                key={option.defaultLabel}
+                label={label}
+                selected={isSelected}
+                onClick={() => {
+                  if (isSelected) {
+                    setDirection(currentDirection === "ASC" ? "DESC" : "ASC");
+                  } else {
+                    setSort(option.value);
+                    setDirection(undefined);
+                  }
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 rounded-xl bg-gray-50 p-4">
         <div>
-          <p className="mb-2 text-xs font-semibold text-gray-500">카테고리</p>
+          <p className="mb-2 text-sm font-bold text-gray-700">카테고리</p>
           {isCategoriesError ? (
             <ErrorMessage error={categoriesError} />
           ) : (
@@ -140,8 +192,8 @@ const ChallengePageContent = () => {
           )}
         </div>
 
-        <div>
-          <p className="mb-2 text-xs font-semibold text-gray-500">상태</p>
+        <div className="border-t border-gray-200 pt-3">
+          <p className="mb-2 text-sm font-bold text-gray-700">상태</p>
           <div className="flex flex-wrap gap-2">
             {statusOptions.map((option) => (
               <FilterChip
@@ -163,7 +215,7 @@ const ChallengePageContent = () => {
         <p className="py-12 text-center text-sm text-gray-400">조건에 맞는 챌린지가 없습니다.</p>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {challenges.map((challenge) => (
               <ChallengeCard key={challenge.id} challenge={challenge} />
             ))}
