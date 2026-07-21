@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 
 import ErrorMessage from "@/components/ui/ErrorMessage";
+import Loading from "@/components/ui/Loading";
 import LoginRequiredModal from "@/components/ui/LoginRequiredModal";
 import { useMe } from "@/features/auth/hooks";
 import ChatConversationPanel from "@/features/chat/components/ChatConversationPanel";
 import ChatRoomList from "@/features/chat/components/ChatRoomList";
+import { useChatRooms } from "@/features/chat/hooks/chatHooks";
 import { useChatStore } from "@/features/chat/store";
 
 const LIST_WIDTH_OPEN_REM = 20;
@@ -16,10 +18,22 @@ const PANEL_TRANSITION_MS = 300;
 const ChatPage = () => {
   const { isLoading: isMeLoading, isError: isMeError, error: meError } = useMe();
   const isUnauthorized = isMeError && meError?.status === 401;
+
+  const {
+    data: roomsData,
+    isLoading: isRoomsLoading,
+    isError: isRoomsError,
+    error: roomsError,
+  } = useChatRooms(undefined, { enabled: !isMeLoading && !isMeError });
   const rooms = useChatStore((state) => state.rooms);
+  const setRooms = useChatStore((state) => state.setRooms);
   const messagesByRoomId = useChatStore((state) => state.messagesByRoomId);
   const markRoomRead = useChatStore((state) => state.markRoomRead);
   const sendMessage = useChatStore((state) => state.sendMessage);
+
+  useEffect(() => {
+    if (roomsData) setRooms(roomsData.content);
+  }, [roomsData, setRooms]);
 
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [panelRoomId, setPanelRoomId] = useState(null);
@@ -78,6 +92,20 @@ const ChatPage = () => {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center px-4">
         <ErrorMessage error={meError} />
+      </div>
+    );
+  }
+  if (isRoomsLoading) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center px-4">
+        <Loading label="채팅방을 불러오는 중..." />
+      </div>
+    );
+  }
+  if (isRoomsError) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center px-4">
+        <ErrorMessage error={roomsError} />
       </div>
     );
   }

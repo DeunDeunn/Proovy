@@ -15,6 +15,9 @@ import { useChatStore } from "@/features/chat/store";
 const parseMessages = (content) =>
   content.map((message) => ({ ...message, createdAt: new Date(message.createdAt) })).reverse();
 
+const parseRooms = (content) =>
+  content.map((room) => ({ ...room, createdAt: new Date(room.createdAt) }));
+
 export const useChatRoomSubscription = (chatRoomId, onMessage, options = {}) => {
   const { onError, onDisconnect, onConnected } = options;
 
@@ -95,8 +98,13 @@ export const useChatRoomHistory = (chatRoomId) => {
   return { loadMore, hasMore, isLoadingInitial, isLoadingMore, error };
 };
 
-export const useChatRooms = (params) =>
-  useQuery({ queryKey: ["chat-rooms", params], queryFn: () => getChatRooms(params) });
+export const useChatRooms = (params, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: ["chat-rooms", params],
+    queryFn: () => getChatRooms(params),
+    select: (response) => ({ ...response, content: parseRooms(response.content) }),
+    enabled,
+  });
 
 export const useCreateDirectChatRoom = () => {
   const queryClient = useQueryClient();

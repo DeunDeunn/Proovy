@@ -1,7 +1,6 @@
 import { create } from "zustand";
 
 import { publishMessage } from "@/features/chat/api/chatSocket";
-import { createMockChatRooms } from "@/features/chat/mockData";
 
 const mergeMessages = (base, extra) => {
   const byId = new Map(base.map((message) => [message.messageId, message]));
@@ -12,8 +11,10 @@ const mergeMessages = (base, extra) => {
 };
 
 export const useChatStore = create((set) => ({
-  rooms: createMockChatRooms(),
+  rooms: [],
   messagesByRoomId: {},
+
+  setRooms: (rooms) => set({ rooms }),
 
   markRoomRead: (chatRoomId) =>
     set((state) => ({
