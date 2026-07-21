@@ -37,3 +37,9 @@ export const formatChatTime = (date) => {
   if (isSameDay(date, yesterday)) return "어제";
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 };
+
+export const formatFileSize = (bytes) => {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};

@@ -10,6 +10,7 @@ import {
   getChatMessages,
   getChatRooms,
   markChatRoomRead,
+  sendChatAttachment,
 } from "@/features/chat/api/chatApi";
 import {
   connectSocket,
@@ -159,6 +160,14 @@ export const useMarkRoomRead = () => {
 export const useDeleteChatMessage = () =>
   useMutation({
     mutationFn: (messageId) => deleteChatMessage(messageId),
+  });
+
+// 첨부파일 전송도 삭제와 마찬가지로, 결과는 REST 응답이 아니라 방 소켓 구독으로
+// 돌아오는 MESSAGE_CREATED 브로드캐스트를 통해 store에 반영된다.
+export const useSendChatAttachment = (chatRoomId) =>
+  useMutation({
+    mutationFn: ({ messageType, content, file }) =>
+      sendChatAttachment(chatRoomId, { messageType, content, file }),
   });
 
 export const useCreateDirectChatRoom = () => {

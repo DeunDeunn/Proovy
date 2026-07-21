@@ -1,6 +1,6 @@
-import { BadgeCheck, Image as ImageIcon, Trash2 } from "lucide-react";
+import { BadgeCheck, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
-import { formatChatTime, getAvatarColor } from "@/features/chat/mockData";
+import { formatChatTime, formatFileSize, getAvatarColor } from "@/features/chat/mockData";
 
 const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, isDeletePending }) => {
   const avatarColor = getAvatarColor(message.senderId);
@@ -23,10 +23,46 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
     }
 
     if (message.messageType === "IMAGE") {
+      const attachment = message.attachments?.[0];
+      if (!attachment) {
+        return (
+          <div className="flex h-36 w-56 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 text-blue-400">
+            <ImageIcon size={28} />
+          </div>
+        );
+      }
+
       return (
-        <div className="flex h-36 w-56 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 text-blue-400">
-          <ImageIcon size={28} />
-        </div>
+        <a href={attachment.fileUrl} target="_blank" rel="noopener noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 채팅 첨부 이미지는 S3 URL이라 next/image 설정 대상이 아니다 */}
+          <img
+            src={attachment.fileUrl}
+            alt={attachment.originalFileName}
+            className="h-36 w-56 rounded-2xl object-cover"
+          />
+        </a>
+      );
+    }
+
+    if (message.messageType === "FILE") {
+      const attachment = message.attachments?.[0];
+      if (!attachment) return null;
+
+      return (
+        <a
+          href={attachment.fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex w-64 items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm hover:bg-gray-50 ${
+            isOwn ? "border-primary/30" : "border-gray-200"
+          }`}
+        >
+          <FileText size={20} className="shrink-0 text-gray-400" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-gray-800">{attachment.originalFileName}</p>
+            <p className="text-xs text-gray-400">{formatFileSize(attachment.fileSize)}</p>
+          </div>
+        </a>
       );
     }
 

@@ -10,6 +10,7 @@ import {
   useChatRoomHistory,
   useChatRoomSubscription,
   useDeleteChatMessage,
+  useSendChatAttachment,
 } from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
 import { useChatStore } from "@/features/chat/store";
@@ -33,9 +34,13 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
 
   const [draft, setDraft] = useState("");
   const [deleteError, setDeleteError] = useState(null);
+  const [attachmentError, setAttachmentError] = useState(null);
   const listEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
   const deleteMessageMutation = useDeleteChatMessage();
+  const attachmentMutation = useSendChatAttachment(room.chatRoomId);
 
   const isChallenge = room.chatRoomType === "CHALLENGE";
   const displayName = getRoomDisplayName(room);
@@ -78,6 +83,19 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
     deleteMessageMutation.mutate(messageId, {
       onError: () => setDeleteError("메시지를 삭제하지 못했습니다."),
     });
+  };
+
+  const handleAttachmentSelected = (event, messageType) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // 같은 파일을 다시 선택해도 onChange가 다시 발생하도록 초기화
+
+    if (!file) return;
+
+    setAttachmentError(null);
+    attachmentMutation.mutate(
+      { messageType, file },
+      { onError: (error) => setAttachmentError(error?.message ?? "파일을 보내지 못했습니다.") }
+    );
   };
 
   return (
@@ -140,6 +158,10 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">{deleteError}</p>
       )}
 
+      {attachmentError && (
+        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">{attachmentError}</p>
+      )}
+
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
@@ -183,10 +205,25 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         onSubmit={handleSubmit}
         className="flex shrink-0 items-center gap-2 border-t border-gray-100 px-4 py-3"
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={(event) => handleAttachmentSelected(event, "FILE")}
+        />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => handleAttachmentSelected(event, "IMAGE")}
+        />
         <button
           type="button"
           aria-label="파일 첨부"
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+          disabled={!isConnected || attachmentMutation.isPending}
+          onClick={() => fileInputRef.current?.click()}
+          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={20} />
         </button>
@@ -207,7 +244,9 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         <button
           type="button"
           aria-label="이미지 첨부"
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+          disabled={!isConnected || attachmentMutation.isPending}
+          onClick={() => imageInputRef.current?.click()}
+          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ImagePlus size={18} />
         </button>
