@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Wallet, Gift, Lock, ChevronRight, Info } from "lucide-react";
 
 import Card from "@/components/ui/Card";
@@ -116,10 +117,10 @@ const WalletPage = () => {
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">최근 캐시 이동 내역</h2>
-          <button className="flex items-center text-xs font-medium text-primary">
+          <Link href="/wallet/transactions" className="flex items-center text-xs font-medium text-primary">
             전체 내역 보기
             <ChevronRight size={14} />
-          </button>
+          </Link>
         </div>
 
         {transactionsLoading ? (

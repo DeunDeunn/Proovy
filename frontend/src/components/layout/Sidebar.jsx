@@ -151,7 +151,7 @@ const Sidebar = () => {
           alt="Proovy"
           width={827}
           height={281}
-          className="h-6 w-auto"
+          className="h-9 w-auto"
           priority
         />
       </Link>
