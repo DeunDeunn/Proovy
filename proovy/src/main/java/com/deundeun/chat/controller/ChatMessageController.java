@@ -1,6 +1,9 @@
 package com.deundeun.chat.controller;
 
 import com.deundeun.chat.domain.ChatMessageType;
+import com.deundeun.chat.domain.ChatReferenceType;
+import com.deundeun.chat.dto.request.CertificationShareRequest;
+import com.deundeun.chat.dto.request.ChatMessageSendRequest;
 import com.deundeun.chat.dto.response.ChatMessageDeleteResponse;
 import com.deundeun.chat.dto.response.ChatMessageListResponse;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
@@ -8,6 +11,7 @@ import com.deundeun.chat.service.ChatMessageService;
 import com.deundeun.chat.service.support.ChatMessageBroadcaster;
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.global.common.CurrentUser;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +50,21 @@ public class ChatMessageController {
     ) {
         Long senderId = CurrentUser.getUserId();
         ChatMessageResponse response = chatMessageService.sendAttachment(chatRoomId, senderId, messageType, content, file);
+        chatMessageBroadcaster.broadcast(chatRoomId, response);
+
+        return ApiResponse.success(response);
+    }
+
+    // WS 연결 없이도(예: 인증글 상세 페이지) 공유할 수 있도록 REST로 제공한다.
+    @PostMapping("/rooms/{chatRoomId}/certification-shares")
+    public ApiResponse<ChatMessageResponse> shareCertification(
+        @PathVariable Long chatRoomId,
+        @RequestBody @Valid CertificationShareRequest request
+    ) {
+        Long senderId = CurrentUser.getUserId();
+        ChatMessageSendRequest sendRequest = new ChatMessageSendRequest(
+            ChatMessageType.CERTIFICATION_SHARE, null, ChatReferenceType.CHALLENGE_CERTIFICATION, request.certificationId());
+        ChatMessageResponse response = chatMessageService.send(chatRoomId, senderId, sendRequest, null);
         chatMessageBroadcaster.broadcast(chatRoomId, response);
 
         return ApiResponse.success(response);

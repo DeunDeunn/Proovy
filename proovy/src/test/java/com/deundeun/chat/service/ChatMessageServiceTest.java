@@ -565,6 +565,67 @@ class ChatMessageServiceTest {
     }
 
     @Test
+    @DisplayName("나를 제외한 다른 참여자가 메시지까지 읽었으면 read를 true로 응답한다")
+    void getMessages_otherMemberCaughtUp_marksReadTrue() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        Long otherUserId = 30L;
+        ChatMessage message = ChatMessage.create(chatRoomId, senderId, "hi", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(message, "id", 100L);
+        ChatRoomMember otherMember = ChatRoomMember.join(chatRoomId, otherUserId);
+        otherMember.markRead(100L);
+
+        when(chatMessageMapper.findLatestByChatRoomId(chatRoomId, 31)).thenReturn(List.of(message));
+        when(userMapper.findByIds(any())).thenReturn(List.of());
+        when(chatAttachmentMapper.findByMessageIds(any())).thenReturn(List.of());
+        when(chatRoomMemberMapper.findActiveByChatRoomId(chatRoomId)).thenReturn(List.of(otherMember));
+
+        ChatMessageListResponse response = chatMessageService.getMessages(chatRoomId, senderId, null, 30);
+
+        assertThat(response.content().get(0).read()).isTrue();
+    }
+
+    @Test
+    @DisplayName("나를 제외한 다른 참여자가 메시지를 아직 안 읽었으면 read를 false로 응답한다")
+    void getMessages_otherMemberNotCaughtUp_marksReadFalse() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        Long otherUserId = 30L;
+        ChatMessage message = ChatMessage.create(chatRoomId, senderId, "hi", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(message, "id", 100L);
+        ChatRoomMember otherMember = ChatRoomMember.join(chatRoomId, otherUserId);
+        otherMember.markRead(50L);
+
+        when(chatMessageMapper.findLatestByChatRoomId(chatRoomId, 31)).thenReturn(List.of(message));
+        when(userMapper.findByIds(any())).thenReturn(List.of());
+        when(chatAttachmentMapper.findByMessageIds(any())).thenReturn(List.of());
+        when(chatRoomMemberMapper.findActiveByChatRoomId(chatRoomId)).thenReturn(List.of(otherMember));
+
+        ChatMessageListResponse response = chatMessageService.getMessages(chatRoomId, senderId, null, 30);
+
+        assertThat(response.content().get(0).read()).isFalse();
+    }
+
+    @Test
+    @DisplayName("나 말고 다른 활성 참여자가 없으면 read를 false로 응답한다")
+    void getMessages_noOtherActiveMember_marksReadFalse() {
+        Long chatRoomId = 1L;
+        Long senderId = 20L;
+        ChatMessage message = ChatMessage.create(chatRoomId, senderId, "hi", ChatMessageType.TEXT, null, null);
+        ReflectionTestUtils.setField(message, "id", 100L);
+        ChatRoomMember selfMember = ChatRoomMember.join(chatRoomId, senderId);
+
+        when(chatMessageMapper.findLatestByChatRoomId(chatRoomId, 31)).thenReturn(List.of(message));
+        when(userMapper.findByIds(any())).thenReturn(List.of());
+        when(chatAttachmentMapper.findByMessageIds(any())).thenReturn(List.of());
+        when(chatRoomMemberMapper.findActiveByChatRoomId(chatRoomId)).thenReturn(List.of(selfMember));
+
+        ChatMessageListResponse response = chatMessageService.getMessages(chatRoomId, senderId, null, 30);
+
+        assertThat(response.content().get(0).read()).isFalse();
+    }
+
+    @Test
     @DisplayName("메시지를 삭제하고 삭제 응답을 반환한다")
     void delete_success_deletesAndReturnsResponse() {
         Long chatRoomId = 1L;
