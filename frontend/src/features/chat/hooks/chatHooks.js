@@ -19,6 +19,20 @@ const parseMessages = (content) =>
 const parseRooms = (content) =>
   content.map((room) => ({ ...room, createdAt: new Date(room.createdAt) }));
 
+// DirectChatRoomResponse(생성/조회 API 응답)를 방 목록 아이템(ChatRoomSummaryResponse)과 같은 모양으로 맞춘다.
+const normalizeDirectRoom = (room) => ({
+  chatRoomId: room.chatRoomId,
+  chatRoomType: room.chatRoomType,
+  challengeId: null,
+  challengeTitle: null,
+  directChatPartner: room.partner,
+  lastMessage: room.lastMessage,
+  unreadCount: room.unreadCount,
+  lastReadMessageId: room.lastReadMessageId,
+  lastReadAt: room.lastReadAt,
+  createdAt: new Date(room.createdAt),
+});
+
 export const useChatRoomSubscription = (chatRoomId, onMessage, options = {}) => {
   const { onError, onDisconnect, onConnected } = options;
 
@@ -112,7 +126,11 @@ export const useCreateDirectChatRoom = () => {
 
   return useMutation({
     mutationFn: (targetUserId) => createOrGetDirectRoom(targetUserId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-rooms"] }),
+    onSuccess: (room) => {
+      // 목록 페이지 밖에 있던 기존 방일 수 있어, 재조회 결과를 기다리지 않고 바로 store에 반영한다.
+      useChatStore.getState().upsertRoom(normalizeDirectRoom(room));
+      queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
+    },
   });
 };
 
