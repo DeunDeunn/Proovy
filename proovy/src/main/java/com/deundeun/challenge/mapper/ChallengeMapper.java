@@ -3,6 +3,7 @@ package com.deundeun.challenge.mapper;
 import java.util.List;
 
 import com.deundeun.challenge.domain.Challenge;
+import com.deundeun.challenge.domain.ChallengeSort;
 import com.deundeun.challenge.domain.ChallengeStatus;
 import com.deundeun.challenge.dto.response.ChallengeDetailResponse;
 import com.deundeun.challenge.dto.response.ChallengeProgressResponse;
@@ -20,6 +21,7 @@ public interface ChallengeMapper {
             @Param("categoryId") Long categoryId,
             @Param("status") ChallengeStatus status,
             @Param("keyword") String keyword,
+            @Param("sort") ChallengeSort sort,
             @Param("offset") long offset,
             @Param("size") int size);
 

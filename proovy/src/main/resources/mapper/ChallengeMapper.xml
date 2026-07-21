@@ -61,7 +61,17 @@
         FROM challenges c
         JOIN categories cat ON cat.id = c.category_id
         <include refid="searchCondition"/>
-        ORDER BY c.created_at DESC, c.id DESC
+        <choose>
+            <when test="sort != null and sort.name() == 'ENTRY_FEE'">
+                ORDER BY c.entry_fee ASC, c.id DESC
+            </when>
+            <when test="sort != null and sort.name() == 'PARTICIPANTS'">
+                ORDER BY current_participants DESC, c.id DESC
+            </when>
+            <otherwise>
+                ORDER BY c.created_at DESC, c.id DESC
+            </otherwise>
+        </choose>
         LIMIT #{size} OFFSET #{offset}
     </select>
 
