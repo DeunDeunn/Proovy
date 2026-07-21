@@ -9,6 +9,12 @@ export const getChallenge = (challengeId) => api.get(`/challenges/${challengeId}
 export const getChallengeParticipants = (challengeId) =>
   api.get(`/challenges/${challengeId}/participants`);
 
+export const getChallengeParticipantsManage = (challengeId) =>
+  api.get(`/challenges/${challengeId}/participants/manage`);
+
+export const kickParticipant = (challengeId, userId) =>
+  api.delete(`/challenges/${challengeId}/participants/${userId}`);
+
 export const joinChallenge = (challengeId) => api.post(`/challenges/${challengeId}/participants`);
 
 export const leaveChallenge = (challengeId) =>

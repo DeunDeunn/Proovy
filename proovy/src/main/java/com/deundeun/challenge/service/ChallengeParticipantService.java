@@ -5,6 +5,7 @@ import com.deundeun.challenge.domain.ChallengeParticipant;
 import com.deundeun.challenge.domain.ChallengeStatus;
 import com.deundeun.challenge.domain.ParticipantStatus;
 import com.deundeun.challenge.dto.response.ChallengeParticipantListItemResponse;
+import com.deundeun.challenge.dto.response.ChallengeParticipantManageResponse;
 import com.deundeun.challenge.dto.response.ChallengeParticipantResponse;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.challenge.mapper.ChallengeParticipantMapper;
@@ -129,5 +130,17 @@ public class ChallengeParticipantService {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
         }
         return challengeParticipantMapper.findAllByChallengeId(challengeId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChallengeParticipantManageResponse> getParticipantsForManage(Long challengeId, Long hostId) {
+        Challenge challenge = challengeMapper.findById(challengeId);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        if (!challenge.getHostId().equals(hostId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+        return challengeParticipantMapper.findParticipantsForManage(challengeId);
     }
 }
