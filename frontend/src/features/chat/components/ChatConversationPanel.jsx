@@ -6,7 +6,11 @@ import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lu
 import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
 import MessageBubble from "@/features/chat/components/MessageBubble";
-import { useChatRoomHistory, useChatRoomSubscription } from "@/features/chat/hooks/chatHooks";
+import {
+  useChatRoomHistory,
+  useChatRoomSubscription,
+  useDeleteChatMessage,
+} from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
 import { useChatStore } from "@/features/chat/store";
 
@@ -28,8 +32,10 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   });
 
   const [draft, setDraft] = useState("");
+  const [deleteError, setDeleteError] = useState(null);
   const listEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const deleteMessageMutation = useDeleteChatMessage();
 
   const isChallenge = room.chatRoomType === "CHALLENGE";
   const displayName = getRoomDisplayName(room);
@@ -65,6 +71,13 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
 
     onSendMessage(trimmed);
     setDraft("");
+  };
+
+  const handleDeleteMessage = (messageId) => {
+    setDeleteError(null);
+    deleteMessageMutation.mutate(messageId, {
+      onError: () => setDeleteError("메시지를 삭제하지 못했습니다."),
+    });
   };
 
   return (
@@ -123,6 +136,10 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         </p>
       )}
 
+      {deleteError && (
+        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">{deleteError}</p>
+      )}
+
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
@@ -152,6 +169,10 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               isOwn={isOwn}
               showSenderInfo={showSenderInfo}
               isChallenge={isChallenge}
+              onDelete={handleDeleteMessage}
+              isDeletePending={
+                deleteMessageMutation.isPending && deleteMessageMutation.variables === message.messageId
+              }
             />
           );
         })}

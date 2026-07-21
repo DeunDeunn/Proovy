@@ -1,11 +1,17 @@
-import { BadgeCheck, Image as ImageIcon } from "lucide-react";
+import { BadgeCheck, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import { formatChatTime, getAvatarColor } from "@/features/chat/mockData";
 
-const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
+const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, isDeletePending }) => {
   const avatarColor = getAvatarColor(message.senderId);
   const time = formatChatTime(message.createdAt);
   const readLabel = isOwn && !isChallenge && message.read ? "읽음" : null;
+  const canDelete = isOwn && !message.deletedAt && !!onDelete;
+
+  const handleDelete = () => {
+    if (!window.confirm("메시지를 삭제할까요?")) return;
+    onDelete(message.messageId);
+  };
 
   const renderContent = () => {
     if (message.deletedAt) {
@@ -61,7 +67,7 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
   };
 
   return (
-    <div className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
+    <div className={`group flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
       {!isOwn && (
         <div className="w-8 shrink-0">
           {showSenderInfo && (
@@ -89,6 +95,17 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge }) => {
         )}
 
         <div className={`flex items-end gap-1.5 ${isOwn ? "flex-row-reverse" : ""}`}>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeletePending}
+              aria-label="메시지 삭제"
+              className="mb-1 shrink-0 rounded-lg p-1 text-gray-300 opacity-0 transition-opacity hover:bg-gray-100 hover:text-danger group-hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
           {renderContent()}
           {readLabel && (
             <div className="flex shrink-0 flex-col items-end text-[11px] text-gray-400">

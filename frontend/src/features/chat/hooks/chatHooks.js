@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createOrGetDirectRoom,
+  deleteChatMessage,
   getChatMessages,
   getChatRooms,
   markChatRoomRead,
@@ -152,6 +153,13 @@ export const useMarkRoomRead = () => {
     onSuccess: (response) => markRoomRead(response),
   });
 };
+
+// 삭제 결과는 REST 응답이 아니라, 방 소켓 구독으로 돌아오는 MESSAGE_DELETED
+// 브로드캐스트를 통해 store에 반영된다 (메시지 전송과 동일한 패턴).
+export const useDeleteChatMessage = () =>
+  useMutation({
+    mutationFn: (messageId) => deleteChatMessage(messageId),
+  });
 
 export const useCreateDirectChatRoom = () => {
   const queryClient = useQueryClient();

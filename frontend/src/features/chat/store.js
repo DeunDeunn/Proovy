@@ -84,6 +84,21 @@ export const useChatStore = create((set) => ({
         };
       }
 
+      if (event.eventType === "MESSAGE_DELETED") {
+        const { chatRoomId, messageId, deletedAt } = event;
+        const roomMessages = state.messagesByRoomId[chatRoomId];
+        if (!roomMessages) return state;
+
+        return {
+          messagesByRoomId: {
+            ...state.messagesByRoomId,
+            [chatRoomId]: roomMessages.map((message) =>
+              message.messageId === messageId ? { ...message, deletedAt: new Date(deletedAt) } : message
+            ),
+          },
+        };
+      }
+
       if (event.eventType !== "MESSAGE_CREATED") return state;
 
       const message = { ...event, createdAt: new Date(event.createdAt) };
