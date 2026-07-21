@@ -81,14 +81,14 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("諛⑹옣? PENDING ?몄쬆湲??AI 寃?섎? ?붿껌?섍퀬 寃곌낵瑜???ν븷 ???덈떎")
+    @DisplayName("방장은 PENDING 인증글의 AI 검수를 요청하고 결과를 저장할 수 있다")
     void review_hostPendingPost_savesResult() {
         Long hostId = 1L;
         Long postId = 10L;
         Long challengeId = 20L;
         AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
         AiReviewRuleVo rule = rule(hostId, challengeId);
-        AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "湲곗???異⑹”?덉뒿?덈떎.", 0.9);
+        AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "검수 기준을 충족했습니다.", 0.9);
         AiReviewResultVo savedResult = savedResult(100L, context, rule, aiResult);
 
         when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
@@ -128,14 +128,14 @@ class AiReviewServiceImplTest {
 
     @ParameterizedTest
     @EnumSource(AiReviewDecision.class)
-    @DisplayName("AI媛 諛섑솚??紐⑤뱺 decision enum 媛믪쓣 ??ν븯怨??묐떟?????덈떎")
+    @DisplayName("AI가 반환한 모든 decision enum 값을 저장하고 응답할 수 있다")
     void review_allAiDecisions_savesResult(AiReviewDecision decision) {
         Long hostId = 1L;
         Long postId = 10L;
         Long challengeId = 20L;
         AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
         AiReviewRuleVo rule = rule(hostId, challengeId);
-        AiReviewAiResult aiResult = aiResult(decision, "AI ?먮떒 寃곌낵?낅땲??", confidence(decision));
+        AiReviewAiResult aiResult = aiResult(decision, "AI 판단 결과입니다.", confidence(decision));
         String expectedDecision = expectedDecision(decision, confidence(decision));
         AiReviewResultVo savedResult = savedResult(200L, context, rule, aiResult, expectedDecision);
         List<String> imageUrls = List.of("https://example.com/thumb.png");
@@ -293,7 +293,14 @@ class AiReviewServiceImplTest {
         Long postId = 10L;
         Long challengeId = 20L;
         AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
-        AiReviewRuleVo rule = rule(hostId, challengeId);
+        AiReviewRuleVo rule = AiReviewRuleVo.builder()
+                .id(1L)
+                .hostId(hostId)
+                .challengeId(challengeId)
+                .ruleText("updated retry rule")
+                .reviewMode("MANUAL")
+                .active(true)
+                .build();
         AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "retry succeeds", 0.9);
         AiReviewResultVo failedResult = AiReviewResultVo.builder()
                 .id(401L)
@@ -306,7 +313,7 @@ class AiReviewServiceImplTest {
         when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
         when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(rule);
         when(aiReviewMapper.findReviewResultByPostId(postId)).thenReturn(failedResult);
-        when(aiReviewMapper.resetFailedAiReviewResultToProcessing(401L)).thenReturn(1);
+        when(aiReviewMapper.resetFailedAiReviewResultToProcessing(any())).thenReturn(1);
         when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
         when(aiReviewPromptService.createPrompt(context, rule, imageUrls)).thenReturn("retry prompt");
         when(aiReviewClient.review("retry prompt", imageUrls)).thenReturn(aiResult);
@@ -316,7 +323,12 @@ class AiReviewServiceImplTest {
         AiReviewResponse response = aiReviewService.review(hostId, postId);
 
         assertThat(response.getId()).isEqualTo(401L);
-        verify(aiReviewMapper).resetFailedAiReviewResultToProcessing(401L);
+        ArgumentCaptor<AiReviewResultVo> retryCaptor = ArgumentCaptor.forClass(AiReviewResultVo.class);
+        verify(aiReviewMapper).resetFailedAiReviewResultToProcessing(retryCaptor.capture());
+        assertThat(retryCaptor.getValue().getId()).isEqualTo(401L);
+        assertThat(retryCaptor.getValue().getReviewMode()).isEqualTo("MANUAL");
+        assertThat(retryCaptor.getValue().getPreviousPostStatus()).isEqualTo("PENDING");
+        assertThat(retryCaptor.getValue().getNewPostStatus()).isEqualTo("PENDING");
         verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
         verify(aiReviewMapper).updateAiReviewResultCompleted(any());
     }
@@ -355,7 +367,7 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("鍮꾨갑?μ? AI 寃?섎? ?붿껌?????녿떎")
+    @DisplayName("비방장은 AI 검수를 요청할 수 없다")
     void review_nonHost_failsBeforeAiCall() {
         Long requesterId = 2L;
         Long hostId = 1L;
@@ -374,7 +386,7 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("PENDING ?곹깭媛 ?꾨땶 ?몄쬆湲? AI 寃?섑븷 ???녿떎")
+    @DisplayName("PENDING 상태가 아닌 인증글은 AI 검수할 수 없다")
     void review_nonPendingPost_failsBeforeAiCall() {
         Long hostId = 1L;
         Long postId = 10L;
@@ -432,7 +444,7 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("?대? AI 寃??寃곌낵媛 ?덉쑝硫?以묐났 ?붿껌??嫄곕??쒕떎")
+    @DisplayName("이미 AI 검수 결과가 있으면 중복 요청을 거부한다")
     void review_existingResult_failsBeforeAiCall() {
         Long hostId = 1L;
         Long postId = 10L;
@@ -479,7 +491,7 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("寃??湲곗????놁쑝硫?AI 寃?섎? ?붿껌?????녿떎")
+    @DisplayName("검수 기준이 없으면 AI 검수를 요청할 수 없다")
     void review_missingRule_failsBeforeAiCall() {
         Long hostId = 1L;
         Long postId = 10L;
@@ -539,10 +551,10 @@ class AiReviewServiceImplTest {
         ReflectionTestUtils.setField(context, "verificationPostId", postId);
         ReflectionTestUtils.setField(context, "challengeId", challengeId);
         ReflectionTestUtils.setField(context, "hostId", hostId);
-        ReflectionTestUtils.setField(context, "challengeTitle", "?꾩묠 ?대룞");
-        ReflectionTestUtils.setField(context, "verificationMethod", "?대룞 ?ъ쭊");
+        ReflectionTestUtils.setField(context, "challengeTitle", "아침 운동");
+        ReflectionTestUtils.setField(context, "verificationMethod", "운동 사진");
         ReflectionTestUtils.setField(context, "previousPostStatus", status);
-        ReflectionTestUtils.setField(context, "postContent", "?ㅻ뒛 ?대룞 ?꾨즺");
+        ReflectionTestUtils.setField(context, "postContent", "오늘 운동 완료");
         ReflectionTestUtils.setField(context, "thumbnailUrl", "https://example.com/thumb.png");
         return context;
     }
@@ -552,7 +564,7 @@ class AiReviewServiceImplTest {
                 .id(1L)
                 .hostId(hostId)
                 .challengeId(challengeId)
-                .ruleText("?대룞 ?몄쬆 ?ъ쭊?몄? ?뺤씤")
+                .ruleText("운동 인증 사진인지 확인")
                 .reviewMode("AUTO")
                 .active(true)
                 .build();

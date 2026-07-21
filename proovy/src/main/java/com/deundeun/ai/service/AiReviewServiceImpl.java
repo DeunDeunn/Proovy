@@ -109,8 +109,9 @@ public class AiReviewServiceImpl implements AiReviewService {
         AiReviewResultVo reservation = toProcessingResult(context, rule);
         AiReviewResultVo existingResult = aiReviewMapper.findReviewResultByPostId(postId);
         if (existingResult != null) {
+            AiReviewResultVo retryReservation = toProcessingResult(existingResult.getId(), context, rule);
             if (!"FAILED".equals(existingResult.getStatus())
-                    || aiReviewMapper.resetFailedAiReviewResultToProcessing(existingResult.getId()) == 0) {
+                    || aiReviewMapper.resetFailedAiReviewResultToProcessing(retryReservation) == 0) {
                 throw new ApiException(ErrorCode.AI_REVIEW_RESULT_ALREADY_EXISTS);
             }
             return new ReservedReview(existingResult.getId(), context, rule);
@@ -245,7 +246,12 @@ public class AiReviewServiceImpl implements AiReviewService {
     }
 
     private AiReviewResultVo toProcessingResult(AiReviewContext context, AiReviewRuleVo rule) {
+        return toProcessingResult(null, context, rule);
+    }
+
+    private AiReviewResultVo toProcessingResult(Long resultId, AiReviewContext context, AiReviewRuleVo rule) {
         return AiReviewResultVo.builder()
+                .id(resultId)
                 .challengeId(context.getChallengeId())
                 .hostId(context.getHostId())
                 .verificationPostId(context.getVerificationPostId())

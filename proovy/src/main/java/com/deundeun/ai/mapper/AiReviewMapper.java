@@ -22,7 +22,7 @@ public interface AiReviewMapper {
 
     AiReviewResultVo findReviewResultByPostId(@Param("postId") Long postId);
 
-    int resetFailedAiReviewResultToProcessing(@Param("id") Long id);
+    int resetFailedAiReviewResultToProcessing(AiReviewResultVo result);
 
     int updateAiReviewResultFailed(@Param("id") Long id);
 
