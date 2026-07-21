@@ -166,7 +166,7 @@ public class AiReviewServiceImpl implements AiReviewService {
     }
 
     private void recordTicketUse(Long hostId) {
-        AiTicketSubscriptionVo subscription = aiTicketMapper.findActiveSubscriptionByHostId(hostId);
+        AiTicketSubscriptionVo subscription = aiTicketMapper.findActiveSubscriptionByHostIdForUpdate(hostId);
         if (subscription == null) {
             throw new ApiException(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
         }

@@ -76,7 +76,7 @@ class AiReviewServiceImplTest {
         lenient().when(aiReviewMapper.isAiReviewEnabledByChallengeId(any())).thenReturn(true);
         lenient().when(aiReviewMapper.existsActiveTicketSubscriptionByHostId(any())).thenReturn(true);
         lenient().when(aiReviewMapper.updateCertificationPostStatus(any(), any())).thenReturn(1);
-        lenient().when(aiTicketMapper.findActiveSubscriptionByHostId(any()))
+        lenient().when(aiTicketMapper.findActiveSubscriptionByHostIdForUpdate(any()))
                 .thenReturn(AiTicketSubscriptionVo.builder().id(900L).hostId(1L).status("ACTIVE").build());
     }
 
@@ -342,7 +342,7 @@ class AiReviewServiceImplTest {
             ReflectionTestUtils.setField(result, "id", 402L);
             return 1;
         }).when(aiReviewMapper).insertProcessingAiReviewResult(any());
-        when(aiTicketMapper.findActiveSubscriptionByHostId(hostId)).thenReturn(null);
+        when(aiTicketMapper.findActiveSubscriptionByHostIdForUpdate(hostId)).thenReturn(null);
 
         assertThatThrownBy(() -> aiReviewService.review(hostId, postId))
                 .isInstanceOf(ApiException.class)

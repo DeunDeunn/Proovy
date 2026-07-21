@@ -57,6 +57,28 @@
         LIMIT 1
     </select>
 
+    <select id="findActiveSubscriptionByHostIdForUpdate" resultType="com.deundeun.ai.vo.AiTicketSubscriptionVo">
+        SELECT s.id,
+               s.host_id,
+               s.plan_id,
+               p.name AS plan_name,
+               s.paid_price,
+               s.started_at,
+               s.expired_at,
+               s.status,
+               s.created_at,
+               s.updated_at
+        FROM ai_ticket_subscriptions s
+        JOIN ai_ticket_plans p ON p.id = s.plan_id
+        WHERE s.host_id = #{hostId}
+          AND s.status = 'ACTIVE'
+          AND s.started_at &lt;= now()
+          AND s.expired_at &gt; now()
+        ORDER BY s.expired_at DESC, s.id DESC
+        LIMIT 1
+        FOR UPDATE OF s
+    </select>
+
     <insert id="insertSubscription" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO ai_ticket_subscriptions (
             host_id,
