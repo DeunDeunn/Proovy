@@ -1,12 +1,24 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 
 import Badge from "@/components/ui/Badge";
 import { getNotificationTypeMeta, formatRelativeTime } from "@/features/notification/notificationMeta";
+import { getNotificationTargetHref } from "@/features/notification/notificationTargets";
 
 const NotificationCard = ({ notification, onRead, onDelete }) => {
+  const router = useRouter();
   const meta = getNotificationTypeMeta(notification.type);
   const Icon = meta.icon;
   const unread = notification.readAt == null;
+
+  const handleClick = () => {
+    onRead(notification);
+
+    const href = getNotificationTargetHref(notification.targetType, notification.targetId);
+    if (href) router.push(href);
+  };
 
   return (
     <div
@@ -18,7 +30,7 @@ const NotificationCard = ({ notification, onRead, onDelete }) => {
     >
       <button
         type="button"
-        onClick={() => onRead(notification)}
+        onClick={handleClick}
         className="flex min-w-0 flex-1 items-start gap-4 text-left"
       >
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.iconClass}`}>
