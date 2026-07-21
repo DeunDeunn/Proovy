@@ -48,7 +48,14 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
 
     if (message.messageType === "FILE") {
       const attachment = message.attachments?.[0];
-      if (!attachment) return null;
+      if (!attachment) {
+        return (
+          <div className="flex w-64 items-center gap-3 rounded-2xl border border-gray-200 px-3 py-2.5 text-sm text-gray-400">
+            <FileText size={20} className="shrink-0" />
+            <p>파일 정보를 불러올 수 없습니다.</p>
+          </div>
+        );
+      }
 
       return (
         <a
