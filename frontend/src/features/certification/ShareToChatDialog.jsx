@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 
@@ -8,14 +9,51 @@ import Loading from "@/components/ui/Loading";
 import { useChatRooms, useShareCertificationToChatRoom } from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
 
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 const ShareToChatDialog = ({ certificationId, onClose }) => {
   const router = useRouter();
   const { data: roomsData, isLoading, isError, error } = useChatRooms();
   const shareMutation = useShareCertificationToChatRoom();
   const rooms = roomsData?.content ?? [];
+  const dialogRef = useRef(null);
+  const triggerElementRef = useRef(null);
+
+  // 열릴 때 포커스를 다이얼로그 안으로 옮기고(안 그러면 트리거 버튼에 남아있어 Escape/Tab이
+  // 배경으로 전달됨), 닫힐 때는 원래 포커스였던 요소(공유 버튼 등)로 되돌린다.
+  useEffect(() => {
+    triggerElementRef.current = document.activeElement;
+    dialogRef.current?.querySelector(FOCUSABLE_SELECTOR)?.focus();
+
+    return () => {
+      if (triggerElementRef.current instanceof HTMLElement) triggerElementRef.current.focus();
+    };
+  }, []);
 
   const handleKeyDown = (event) => {
-    if (event.key === "Escape" && !shareMutation.isPending) onClose();
+    if (event.key === "Escape") {
+      if (shareMutation.isPending) return;
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (event.key !== "Tab") return;
+
+    const focusable = dialogRef.current?.querySelectorAll(FOCUSABLE_SELECTOR);
+    if (!focusable || focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
   const handleShare = (chatRoomId) => {
@@ -33,6 +71,7 @@ const ShareToChatDialog = ({ certificationId, onClose }) => {
   return (
     <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="share-to-chat-dialog-title"
