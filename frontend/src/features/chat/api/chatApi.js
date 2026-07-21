@@ -8,3 +8,5 @@ export const createOrGetDirectRoom = (targetUserId) =>
 
 export const getChatRooms = ({ page = 0, size = 20 } = {}) =>
   api.get("/chats/rooms", { params: { page, size } });
+
+export const markChatRoomRead = (chatRoomId) => api.patch(`/chats/rooms/${chatRoomId}/read`);

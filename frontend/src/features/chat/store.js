@@ -33,10 +33,17 @@ export const useChatStore = create((set) => ({
       };
     }),
 
-  markRoomRead: (chatRoomId) =>
+  markRoomRead: ({ chatRoomId, lastReadMessageId, lastReadAt }) =>
     set((state) => ({
       rooms: state.rooms.map((room) =>
-        room.chatRoomId === chatRoomId ? { ...room, unreadCount: 0 } : room
+        room.chatRoomId === chatRoomId
+          ? {
+              ...room,
+              unreadCount: 0,
+              lastReadMessageId,
+              lastReadAt: lastReadAt ? new Date(lastReadAt) : room.lastReadAt,
+            }
+          : room
       ),
     })),
 

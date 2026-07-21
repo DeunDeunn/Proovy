@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createOrGetDirectRoom, getChatMessages, getChatRooms } from "@/features/chat/api/chatApi";
+import {
+  createOrGetDirectRoom,
+  getChatMessages,
+  getChatRooms,
+  markChatRoomRead,
+} from "@/features/chat/api/chatApi";
 import {
   connectSocket,
   disconnectSocket,
@@ -124,6 +129,16 @@ export const useChatRooms = (params, { enabled = true } = {}) =>
     select: selectChatRooms,
     enabled,
   });
+
+// 방 입장 시 서버에 읽음 처리하고, 응답으로 받은 커서를 store의 방 목록에 반영한다.
+export const useMarkRoomRead = () => {
+  const markRoomRead = useChatStore((state) => state.markRoomRead);
+
+  return useMutation({
+    mutationFn: (chatRoomId) => markChatRoomRead(chatRoomId),
+    onSuccess: (response) => markRoomRead(response),
+  });
+};
 
 export const useCreateDirectChatRoom = () => {
   const queryClient = useQueryClient();
