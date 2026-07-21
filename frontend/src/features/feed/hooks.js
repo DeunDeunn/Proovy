@@ -7,13 +7,24 @@ import { feedKeys } from "./queryKeys";
 
 const PAGE_SIZE = 20;
 
-export const usePublicFeed = (filter) =>
+export const usePublicFeed = (filter, sort) =>
   useInfiniteQuery({
-    queryKey: feedKeys.public({ filter, sort: "latest" }),
-    queryFn: ({ pageParam }) => getPublicFeed({ cursor: pageParam, filter, size: PAGE_SIZE }),
-    initialPageParam: null,
+    queryKey: feedKeys.public({ filter, sort }),
+    queryFn: ({ pageParam }) =>
+      getPublicFeed({
+        cursor: pageParam?.cursor,
+        cursorLike: pageParam?.cursorLike,
+        filter,
+        sort,
+        size: PAGE_SIZE,
+      }),
+    initialPageParam: { cursor: null, cursorLike: null },
     getNextPageParam: (lastPage) => {
       if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
-      return lastPage[lastPage.length - 1]?.postId;
+      const lastPost = lastPage[lastPage.length - 1];
+      return {
+        cursor: lastPost?.postId,
+        cursorLike: sort === "popular" ? lastPost?.likeCount : null,
+      };
     },
   });
