@@ -14,6 +14,7 @@ import {
   Bell,
   Flag,
   Wallet,
+  ShoppingBag,
   User,
   ChevronDown,
   ChevronUp,
@@ -177,6 +178,20 @@ const Sidebar = () => {
         <div className="my-3 border-t border-gray-200" />
 
         <SidebarDropdown icon={Wallet} label="지갑" items={walletMenus} pathname={pathname} />
+
+        <div className="my-3 border-t border-gray-200" />
+
+        <Link
+          href="/mypage/tickets/store"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+            pathname === "/mypage/tickets/store"
+              ? "bg-primary-light font-semibold text-primary"
+              : "text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          <ShoppingBag size={18} />
+          스토어
+        </Link>
 
         <div className="my-3 border-t border-gray-200" />
 
