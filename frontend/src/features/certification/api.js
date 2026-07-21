@@ -33,15 +33,25 @@ export const createCertificationPost = (challengeId, { contents, thumbnail, imag
   return api.post(`/v1/challenge/${challengeId}/certification-post`, formData);
 };
 
-export const updateCertificationPost = (postId, { contents, thumbnail, images }) => {
+export const updateCertificationPost = (
+  postId,
+  { contents, thumbnail, keptImageUrls, newImages }
+) => {
   const formData = new FormData();
 
+  // 대표이미지를 유지하면 thumbnail 파일 없이 keepThumbnail=true만 보낸다.
+  const keepThumbnail = !thumbnail;
   formData.append(
     "request",
-    new Blob([JSON.stringify({ contents })], { type: "application/json" })
+    new Blob([JSON.stringify({ contents, keepThumbnail, keptImageUrls })], {
+      type: "application/json",
+    })
   );
-  formData.append("thumbnail", thumbnail);
-  images.forEach((image) => formData.append("images", image));
+  if (thumbnail) {
+    formData.append("thumbnail", thumbnail);
+  }
+  // 새로 추가한 파일만 업로드한다(유지 이미지는 URL로만 전달).
+  newImages.forEach((image) => formData.append("images", image));
 
   return api.put(`/v1/certification-post/${postId}`, formData);
 };
