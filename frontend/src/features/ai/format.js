@@ -22,7 +22,10 @@ export const formatAiDateTime = (value) => {
 
 export const getRemainingText = (expiredAt) => {
   if (!expiredAt) return "";
-  const remainingMs = new Date(expiredAt).getTime() - Date.now();
+  const expiredAtTime = new Date(expiredAt).getTime();
+  if (Number.isNaN(expiredAtTime)) return "";
+
+  const remainingMs = expiredAtTime - Date.now();
   if (remainingMs <= 0) return "만료됨";
 
   const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));

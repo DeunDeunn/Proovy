@@ -1,7 +1,7 @@
 "use client";
 
 import { ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -18,12 +18,74 @@ import {
 
 const TicketStorePage = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const dialogRef = useRef(null);
+  const purchaseTriggerRef = useRef(null);
+  const isPurchasePendingRef = useRef(false);
   const { data: plans, isLoading: plansLoading, error: plansError } = useAiTicketPlans();
   const { data: activeTicket, isLoading: activeLoading, error: activeError } =
     useActiveAiTicket();
   const purchaseMutation = usePurchaseAiTicket();
 
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
+
+  useEffect(() => {
+    isPurchasePendingRef.current = purchaseMutation.isPending;
+  }, [purchaseMutation.isPending]);
+
+  useEffect(() => {
+    if (!selectedPlan) return undefined;
+
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const dialog = dialogRef.current;
+    const getFocusableElements = () =>
+      Array.from(dialog?.querySelectorAll(focusableSelector) ?? []).filter(
+        (element) => element.offsetParent !== null,
+      );
+
+    const focusableElements = getFocusableElements();
+    (focusableElements[0] ?? dialog)?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        if (!isPurchasePendingRef.current) setSelectedPlan(null);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const elements = getFocusableElements();
+      if (!elements.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+
+      const firstElement = elements[0];
+      const lastElement = elements[elements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      purchaseTriggerRef.current?.focus();
+      purchaseTriggerRef.current = null;
+    };
+  }, [selectedPlan]);
+
+  const openPurchaseDialog = (plan) => {
+    purchaseTriggerRef.current = document.activeElement;
+    setSelectedPlan(plan);
+  };
 
   const purchase = () => {
     if (!selectedPlan) return;
@@ -75,7 +137,7 @@ const TicketStorePage = () => {
                 plan={plan}
                 disabled={hasActiveTicket}
                 isPurchasing={purchaseMutation.isPending}
-                onPurchase={setSelectedPlan}
+                onPurchase={openPurchaseDialog}
               />
             ))}
           </div>
@@ -91,9 +153,11 @@ const TicketStorePage = () => {
       {selectedPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="purchase-dialog-title"
+            tabIndex={-1}
             className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
           >
             <h2 id="purchase-dialog-title" className="text-lg font-bold text-gray-900">
