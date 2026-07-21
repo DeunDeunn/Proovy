@@ -7,6 +7,7 @@ import com.deundeun.challenge.dto.response.ChallengeCreateResponse;
 import com.deundeun.challenge.dto.response.ChallengeDetailResponse;
 import com.deundeun.challenge.dto.response.ChallengeProgressResponse;
 import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
+import com.deundeun.challenge.dto.response.ChallengeThumbnailUpdateResponse;
 import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.service.ChallengeService;
 import com.deundeun.global.common.ApiResponse;
@@ -14,6 +15,7 @@ import com.deundeun.global.common.CurrentUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -71,5 +73,12 @@ public class ChallengeController {
         return ApiResponse.success(null);
     }
 
+    @PatchMapping("/{challengeId}/thumbnail")
+    public ApiResponse<ChallengeThumbnailUpdateResponse> updateThumbnail(
+            @PathVariable Long challengeId,
+            @RequestParam("image") MultipartFile image) {
+        Long userId = CurrentUser.getUserId();
+        return ApiResponse.success(challengeService.updateThumbnail(challengeId, userId, image));
+    }
 
 }

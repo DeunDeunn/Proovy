@@ -14,7 +14,8 @@ import {
 } from "./api";
 import { settlementKeys, walletKeys, withdrawalKeys } from "./queryKeys";
 
-export const useWallet = () => useQuery({ queryKey: walletKeys.me(), queryFn: getMyWallet });
+export const useWallet = ({ enabled = true } = {}) =>
+  useQuery({ queryKey: walletKeys.me(), queryFn: getMyWallet, enabled });
 
 export const useWithdrawableAmount = () =>
   useQuery({ queryKey: walletKeys.withdrawableAmount(), queryFn: getWithdrawableAmount });

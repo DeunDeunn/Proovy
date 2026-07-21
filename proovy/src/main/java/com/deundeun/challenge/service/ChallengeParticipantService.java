@@ -41,8 +41,12 @@ public class ChallengeParticipantService {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
         }
         // 탈퇴 이력이 있어도(challenge_id, user_id) 유니크 제약 때문에 재참가는 불가능하다
-        if (challengeParticipantMapper.findByChallengeIdAndUserId(challengeId, userId) != null) {
-            throw new ApiException(ErrorCode.ALREADY_JOINED_CHALLENGE);
+        ChallengeParticipant existing = challengeParticipantMapper.findByChallengeIdAndUserId(challengeId, userId);
+        if (existing != null) {
+            if (existing.getStatus() == ParticipantStatus.ACTIVE) {
+                throw new ApiException(ErrorCode.ALREADY_JOINED_CHALLENGE);
+            }
+            throw new ApiException(ErrorCode.CANNOT_REJOIN_CHALLENGE);
         }
         if (challengeParticipantMapper.countActiveParticipants(challengeId) >= challenge.getMaxParticipants()) {
             throw new ApiException(ErrorCode.CHALLENGE_FULL);
