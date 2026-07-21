@@ -114,13 +114,12 @@ const VerificationAdminPage = () => {
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <h1 className="text-xl font-bold text-gray-900">우수 사용자 인증 관리</h1>
 
-      <div className="flex gap-2" role="tablist" aria-label="상태 필터">
+      <div className="flex gap-2" role="group" aria-label="상태 필터">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.label}
             type="button"
-            role="tab"
-            aria-selected={status === tab.value}
+            aria-pressed={status === tab.value}
             onClick={() => setStatus(tab.value)}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors ${
               status === tab.value

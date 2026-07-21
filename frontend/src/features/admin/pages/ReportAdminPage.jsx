@@ -39,46 +39,71 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
-const ReportRow = ({ item, onProcess, onReject, isPending }) => (
-  <Card className="flex flex-col gap-3">
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-            {TARGET_LABEL[item.targetType] ?? item.targetType}
-          </span>
-          <span className="text-xs text-gray-400">대상 ID {item.targetId}</span>
-          {item.targetType === "POST" && (
-            <Link
-              href={`/certification-posts/${item.targetId}`}
-              className="text-xs text-primary hover:underline"
-            >
-              게시글 보기
-            </Link>
-          )}
-        </div>
-        <p className="text-sm font-semibold text-gray-900">
-          {REASON_LABEL[item.reason] ?? item.reason}
-        </p>
-        {item.detail && <p className="text-sm text-gray-600">{item.detail}</p>}
-        <p className="text-xs text-gray-400">
-          신고자 {item.reporterNickname} · {formatDateTime(item.createdAt)}
-        </p>
-      </div>
-    </div>
+const ReportRow = ({ item, onProcess, onReject, isPending }) => {
+  const [isConfirming, setIsConfirming] = useState(false);
 
-    <div className="flex gap-2 border-t border-gray-100 pt-3">
-      <Button variant="danger" onClick={() => onProcess(item.id)} disabled={isPending}>
-        <Check size={14} className="mr-1 inline" aria-hidden="true" />
-        신고 인정 (대상 삭제)
-      </Button>
-      <Button variant="outline" onClick={() => onReject(item.id)} disabled={isPending}>
-        <X size={14} className="mr-1 inline" aria-hidden="true" />
-        기각
-      </Button>
-    </div>
-  </Card>
-);
+  const handleProcessConfirm = () => {
+    onProcess(item.id);
+    setIsConfirming(false);
+  };
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+              {TARGET_LABEL[item.targetType] ?? item.targetType}
+            </span>
+            <span className="text-xs text-gray-400">대상 ID {item.targetId}</span>
+            {item.targetType === "POST" && (
+              <Link
+                href={`/certification-posts/${item.targetId}`}
+                className="text-xs text-primary hover:underline"
+              >
+                게시글 보기
+              </Link>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-gray-900">
+            {REASON_LABEL[item.reason] ?? item.reason}
+          </p>
+          {item.detail && <p className="text-sm text-gray-600">{item.detail}</p>}
+          <p className="text-xs text-gray-400">
+            신고자 {item.reporterNickname} · {formatDateTime(item.createdAt)}
+          </p>
+        </div>
+      </div>
+
+      {!isConfirming ? (
+        <div className="flex gap-2 border-t border-gray-100 pt-3">
+          <Button variant="danger" onClick={() => setIsConfirming(true)} disabled={isPending}>
+            <Check size={14} className="mr-1 inline" aria-hidden="true" />
+            신고 인정 (대상 삭제)
+          </Button>
+          <Button variant="outline" onClick={() => onReject(item.id)} disabled={isPending}>
+            <X size={14} className="mr-1 inline" aria-hidden="true" />
+            기각
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
+          <p className="text-sm text-gray-600">
+            대상 콘텐츠가 삭제돼요. 정말 신고를 인정할까요?
+          </p>
+          <div className="flex gap-2">
+            <Button variant="danger" onClick={handleProcessConfirm} disabled={isPending}>
+              삭제 확정
+            </Button>
+            <Button variant="outline" onClick={() => setIsConfirming(false)}>
+              취소
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+};
 
 const ReportAdminPage = () => {
   const [targetType, setTargetType] = useState(undefined);
@@ -104,13 +129,12 @@ const ReportAdminPage = () => {
         <p className="mt-1 text-sm text-gray-500">처리 대기 중인 신고만 표시돼요.</p>
       </div>
 
-      <div className="flex gap-2" role="tablist" aria-label="대상 필터">
+      <div className="flex gap-2" role="group" aria-label="대상 필터">
         {TARGET_TABS.map((tab) => (
           <button
             key={tab.label}
             type="button"
-            role="tab"
-            aria-selected={targetType === tab.value}
+            aria-pressed={targetType === tab.value}
             onClick={() => setTargetType(tab.value)}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors ${
               targetType === tab.value
