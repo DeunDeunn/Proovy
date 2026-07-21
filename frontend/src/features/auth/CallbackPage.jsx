@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { POST_LOGIN_REDIRECT_KEY } from "./AuthPage";
+
 const CallbackPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -15,7 +17,9 @@ const CallbackPage = () => {
       // accessToken/refreshToken은 백엔드가 이미 httpOnly 쿠키로 심어준 상태.
       // /auth/me를 다시 불러와서 로그인 상태를 화면에 반영한다.
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      router.replace("/");
+      const redirect = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+      sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+      router.replace(redirect || "/");
     }
   }, [success, queryClient, router]);
 

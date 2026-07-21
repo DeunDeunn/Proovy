@@ -33,5 +33,6 @@ public class Challenge {
     private LocalTime certStartTime;
     private LocalTime certEndTime;
     private FeedVisibility feedVisibility;
+    private String thumbnailUrl;
 
 }
