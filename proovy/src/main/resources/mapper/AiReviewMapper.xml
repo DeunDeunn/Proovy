@@ -105,12 +105,14 @@
 
     <update id="resetFailedAiReviewResultToProcessing">
         UPDATE ai_review_results
-        SET decision = NULL,
+        SET review_mode = #{reviewMode},
+            decision = NULL,
             confidence = NULL,
             reason = NULL,
             raw_response = NULL,
             status = 'PROCESSING',
-            new_post_status = previous_post_status
+            previous_post_status = #{previousPostStatus},
+            new_post_status = #{newPostStatus}
         WHERE id = #{id}
           AND status = 'FAILED'
     </update>
