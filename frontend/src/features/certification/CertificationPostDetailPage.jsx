@@ -25,7 +25,7 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
-import { useFollow, useUserProfile } from "@/features/users/hooks";
+import { useFollow, useUnfollow, useUserProfile } from "@/features/users/hooks";
 
 import CertificationPostComments from "./CertificationPostComments";
 import DeleteCertificationPostDialog from "./DeleteCertificationPostDialog";
@@ -167,8 +167,15 @@ const CertificationPostDetailPage = ({ postId }) => {
   const deletePostMutation = useDeleteCertificationPost();
   const toggleLikeMutation = useToggleCertificationPostLike(postId);
   const followMutation = useFollow(post?.authorId);
+  const unfollowMutation = useUnfollow(post?.authorId);
   const closePostMenu = useCallback(() => setIsPostMenuOpen(false), []);
   const closeAuthorActions = useCallback(() => setIsAuthorActionsOpen(false), []);
+  const isFollowActionPending = followMutation.isPending || unfollowMutation.isPending;
+
+  const toggleFollow = () => {
+    const mutation = authorProfile?.following ? unfollowMutation : followMutation;
+    mutation.mutate();
+  };
 
   useDismissable(isPostMenuOpen, postMenuRef, closePostMenu);
   useDismissable(isAuthorActionsOpen, authorActionsRef, closeAuthorActions);
@@ -285,13 +292,13 @@ const CertificationPostDetailPage = ({ postId }) => {
                       <button
                         type="button"
                         role="menuitem"
-                        onClick={() => followMutation.mutate(undefined, { onSuccess: closeAuthorActions })}
-                        disabled={!authorProfile || authorProfile.following || followMutation.isPending}
-                        className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-gray-300"
+                        onClick={toggleFollow}
+                        disabled={!authorProfile || isFollowActionPending}
+                        className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-gray-300 ${authorProfile?.following ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-primary text-white hover:bg-primary-dark"}`}
                       >
                         {authorProfile?.following
                           ? "팔로우 중"
-                          : followMutation.isPending
+                          : isFollowActionPending
                             ? "팔로우 중..."
                             : "팔로우"}
                       </button>
@@ -303,7 +310,9 @@ const CertificationPostDetailPage = ({ postId }) => {
                       >
                         상대 피드로 이동
                       </button>
-                      {followMutation.isError && <ErrorMessage error={followMutation.error} />}
+                      {(followMutation.isError || unfollowMutation.isError) && (
+                        <ErrorMessage error={followMutation.error ?? unfollowMutation.error} />
+                      )}
                     </div>
                   )}
                 </div>

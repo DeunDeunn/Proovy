@@ -13,6 +13,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 
 import Button from "@/components/ui/Button";
@@ -21,6 +22,7 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
+import { useFollow, useUnfollow, useUserProfile } from "@/features/users/hooks";
 
 import {
   useComments,
@@ -77,19 +79,85 @@ const ProfileAvatar = ({ nickname, profileImageUrl, compact = false }) => {
   );
 };
 
-const AuthorName = ({ nickname, badgeApproved }) => (
-  <div className="flex min-w-0 items-center gap-1">
-    <p className="truncate text-[13px] font-semibold text-gray-800">
-      {nickname ?? "알 수 없는 사용자"}
-    </p>
-    {badgeApproved && (
-      <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
-        <BadgeCheck size={15} aria-hidden="true" />
-        <span className="sr-only">인증 회원</span>
-      </span>
-    )}
-  </div>
-);
+const AuthorName = ({ authorId, nickname, badgeApproved, currentUserId }) => {
+  const router = useRouter();
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
+  const actionsRef = useRef(null);
+  const canOpenActions = currentUserId != null && currentUserId !== authorId;
+  const { data: authorProfile } = useUserProfile(canOpenActions ? authorId : null);
+  const followMutation = useFollow(canOpenActions ? authorId : null);
+  const unfollowMutation = useUnfollow(canOpenActions ? authorId : null);
+  const closeActions = useCallback(() => setIsActionsOpen(false), []);
+  const isFollowActionPending = followMutation.isPending || unfollowMutation.isPending;
+
+  const toggleFollow = () => {
+    const mutation = authorProfile?.following ? unfollowMutation : followMutation;
+    mutation.mutate();
+  };
+
+  useDismissable(isActionsOpen, actionsRef, closeActions);
+
+  return (
+    <div ref={actionsRef} className="relative flex min-w-0 items-center gap-1">
+      {canOpenActions ? (
+        <button
+          type="button"
+          onClick={() => setIsActionsOpen((open) => !open)}
+          aria-expanded={isActionsOpen}
+          aria-haspopup="menu"
+          className="truncate text-[13px] font-semibold text-gray-800 hover:underline"
+        >
+          {nickname ?? "알 수 없는 사용자"}
+        </button>
+      ) : (
+        <p className="truncate text-[13px] font-semibold text-gray-800">
+          {nickname ?? "알 수 없는 사용자"}
+        </p>
+      )}
+      {badgeApproved && (
+        <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
+          <BadgeCheck size={15} aria-hidden="true" />
+          <span className="sr-only">인증 회원</span>
+        </span>
+      )}
+
+      {canOpenActions && isActionsOpen && (
+        <div
+          role="menu"
+          className="absolute left-0 top-6 z-20 flex w-40 flex-col gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={toggleFollow}
+            disabled={!authorProfile || isFollowActionPending}
+            className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-gray-300 ${authorProfile?.following ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-primary text-white hover:bg-primary-dark"}`}
+          >
+            {authorProfile?.following
+              ? "팔로우 중"
+              : isFollowActionPending
+                ? "팔로우 중..."
+                : "팔로우"}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              closeActions();
+              router.push(`/users/${authorId}`);
+            }}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            상대 피드로 이동
+          </button>
+          {(followMutation.isError || unfollowMutation.isError) && (
+            <ErrorMessage error={followMutation.error ?? unfollowMutation.error} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const CommentLikeButton = ({ comment, canLike, isPending, onToggle }) => (
   <button
@@ -375,8 +443,10 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <AuthorName
+                          authorId={comment.authorId}
                           nickname={comment.authorNickname}
                           badgeApproved={comment.authorBadgeApproved}
+                          currentUserId={me?.id}
                         />
                         <CommentMeta comment={comment} />
                       </div>
@@ -486,8 +556,10 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                             <AuthorName
+                              authorId={reply.authorId}
                               nickname={reply.authorNickname}
                               badgeApproved={reply.authorBadgeApproved}
+                              currentUserId={me?.id}
                             />
                             <CommentMeta comment={reply} />
                           </div>

@@ -134,18 +134,36 @@ const ChallengeDetailPage = ({ challengeId }) => {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleShare}
-              className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                linkCopied
-                  ? "border-primary bg-primary-light text-primary"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <Share2 size={14} />
-              {linkCopied ? "링크가 복사됐어요" : "공유하기"}
-            </button>
+            <div className="relative flex shrink-0">
+              <button
+                type="button"
+                onClick={handleShare}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  linkCopied
+                    ? "border-primary bg-primary-light text-primary"
+                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <Share2 size={14} />
+                {linkCopied ? "링크가 복사됐어요" : "공유하기"}
+              </button>
+              {isParticipant && (
+                <div className="absolute top-full right-0 z-10 mt-2 flex w-full flex-col gap-2">
+                  <Link
+                    href={`/challenges/${challengeId}/feed`}
+                    className="flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+                  >
+                    챌린지 피드
+                  </Link>
+                  <Link
+                    href={`/challenges/${challengeId}/certification-posts/new`}
+                    className="flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+                  >
+                    인증하기 +
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
 
           <h1 className="mt-2 text-2xl font-bold text-gray-900">{challenge.title}</h1>
