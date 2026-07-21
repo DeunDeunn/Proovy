@@ -403,7 +403,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                           comment={comment}
                           currentUserId={me?.id}
                           isActionPending={isCommentActionPending}
-                          isStartingChat={isStartingChat}
+                          isStartingChat={isStartingChat && startChatTargetUserId === comment.authorId}
                           onEdit={startEditingComment}
                           onDelete={deleteComment}
                           onReport={setReportTargetId}
@@ -502,7 +502,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                               comment={reply}
                               currentUserId={me?.id}
                               isActionPending={isCommentActionPending}
-                              isStartingChat={isStartingChat}
+                              isStartingChat={isStartingChat && startChatTargetUserId === reply.authorId}
                               onEdit={startEditingComment}
                               onDelete={deleteComment}
                               onReport={setReportTargetId}

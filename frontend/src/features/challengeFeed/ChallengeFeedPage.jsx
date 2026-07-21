@@ -121,7 +121,7 @@ const ChallengeFeedCard = ({
           <button
             type="button"
             onClick={() => onStartChat(post.authorId)}
-            disabled={isStartingChat}
+            disabled={isStartingChat && startChatTargetUserId === post.authorId}
             aria-label="채팅하기"
             title="채팅하기"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
