@@ -73,6 +73,15 @@ const FilterChip = ({ label, selected, onClick }) => (
 
 const KeywordSearchInput = ({ initialKeyword, onSearch }) => {
   const [keywordInput, setKeywordInput] = useState(initialKeyword);
+  const [prevInitialKeyword, setPrevInitialKeyword] = useState(initialKeyword);
+
+  // URL이 외부에서 바뀌면(뒤로가기 등) 로컬 상태를 맞춰줘야 하는데, 이걸 useEffect에서 하면
+  // "렌더 → 이펙트 → 리렌더"가 한 번 더 생겨서 타이핑 중 깜빡임이 생길 수 있다.
+  // 렌더 중에 바로 맞춰주면 리렌더 없이 한 번에 반영된다 (React가 권장하는 "prop 변경 시 상태 리셋" 패턴).
+  if (initialKeyword !== prevInitialKeyword) {
+    setPrevInitialKeyword(initialKeyword);
+    setKeywordInput(initialKeyword);
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => onSearch(keywordInput.trim() || undefined), 300);
@@ -105,20 +114,23 @@ const ChallengePageContent = () => {
   const { categoryId, status, sort, direction, keyword } = getFiltersFromSearchParams(searchParams);
 
   // URL을 필터의 단일 기준으로 둬서 브라우저 뒤로가기/앞으로가기와 공유 링크도 같은 상태를 보여준다.
-  const updateFilters = useCallback((updates) => {
-    const nextFilters = { categoryId, status, sort, direction, keyword, ...updates };
-    const params = new URLSearchParams();
-    if (nextFilters.categoryId !== undefined) params.set("category", nextFilters.categoryId);
-    if (nextFilters.status !== undefined) params.set("status", nextFilters.status);
-    if (nextFilters.sort !== undefined) params.set("sort", nextFilters.sort);
-    if (nextFilters.direction !== undefined) params.set("direction", nextFilters.direction);
-    if (nextFilters.keyword) params.set("keyword", nextFilters.keyword);
+  const updateFilters = useCallback(
+    (updates) => {
+      const nextFilters = { categoryId, status, sort, direction, keyword, ...updates };
+      const params = new URLSearchParams();
+      if (nextFilters.categoryId !== undefined) params.set("category", nextFilters.categoryId);
+      if (nextFilters.status !== undefined) params.set("status", nextFilters.status);
+      if (nextFilters.sort !== undefined) params.set("sort", nextFilters.sort);
+      if (nextFilters.direction !== undefined) params.set("direction", nextFilters.direction);
+      if (nextFilters.keyword) params.set("keyword", nextFilters.keyword);
 
-    const query = params.toString();
-    if (query !== searchParams.toString()) {
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    }
-  }, [categoryId, status, sort, direction, keyword, pathname, router, searchParams]);
+      const query = params.toString();
+      if (query !== searchParams.toString()) {
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      }
+    },
+    [categoryId, status, sort, direction, keyword, pathname, router, searchParams]
+  );
 
   const { data: categories, isError: isCategoriesError, error: categoriesError } = useCategories();
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -154,7 +166,6 @@ const ChallengePageContent = () => {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <KeywordSearchInput
-          key={keyword ?? ""}
           initialKeyword={keyword ?? ""}
           onSearch={(nextKeyword) => updateFilters({ keyword: nextKeyword })}
         />
