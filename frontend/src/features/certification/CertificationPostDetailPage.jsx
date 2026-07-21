@@ -34,6 +34,7 @@ import {
   useToggleCertificationPostLike,
 } from "./hooks";
 import ReportDialog from "./ReportDialog";
+import ShareToChatDialog from "./ShareToChatDialog";
 import { useDismissable } from "./useDismissable";
 
 const formatCreatedAt = (value) => {
@@ -78,6 +79,8 @@ const PostReactionBar = ({
   isLikePending,
   likeError,
   onToggleLike,
+  canShare,
+  onShare,
 }) => (
   <div className="border-t border-gray-100 px-5 py-4">
     <div className="flex items-center justify-between">
@@ -109,10 +112,23 @@ const PostReactionBar = ({
           </span>
           <span className="sr-only">댓글</span>
         </span>
-        <span className="inline-flex" title="공유">
-          <Send size={24} strokeWidth={1.8} aria-hidden="true" />
-          <span className="sr-only">공유</span>
-        </span>
+        {canShare ? (
+          <button
+            type="button"
+            onClick={onShare}
+            title="공유"
+            aria-label="채팅으로 공유"
+            className="inline-flex text-gray-900 transition-transform hover:scale-110"
+          >
+            <Send size={24} strokeWidth={1.8} aria-hidden="true" />
+            <span className="sr-only">공유</span>
+          </button>
+        ) : (
+          <span className="inline-flex" title="공유">
+            <Send size={24} strokeWidth={1.8} aria-hidden="true" />
+            <span className="sr-only">공유</span>
+          </span>
+        )}
       </div>
       <span className="inline-flex" title="저장">
         <Bookmark size={24} strokeWidth={1.8} aria-hidden="true" />
@@ -134,6 +150,7 @@ const CertificationPostDetailPage = ({ postId }) => {
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const postMenuRef = useRef(null);
   const postMenuButtonRef = useRef(null);
   const { data: post, error, isLoading } = useCertificationPost(postId);
@@ -348,6 +365,8 @@ const CertificationPostDetailPage = ({ postId }) => {
                 isLikePending={toggleLikeMutation.isPending}
                 likeError={toggleLikeMutation.error}
                 onToggleLike={() => toggleLikeMutation.mutate()}
+                canShare={me?.id != null}
+                onShare={() => setIsShareDialogOpen(true)}
               />
             }
           />
@@ -368,6 +387,9 @@ const CertificationPostDetailPage = ({ postId }) => {
           onClose={closeDeleteDialog}
           onDelete={deletePost}
         />
+      )}
+      {isShareDialogOpen && (
+        <ShareToChatDialog certificationId={post.postId} onClose={() => setIsShareDialogOpen(false)} />
       )}
     </div>
   );

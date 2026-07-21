@@ -21,3 +21,6 @@ export const sendChatAttachment = (chatRoomId, { messageType, content, file }) =
 
   return api.post(`/chats/rooms/${chatRoomId}/attachments/messages`, formData);
 };
+
+export const shareCertificationToChatRoom = (chatRoomId, certificationId) =>
+  api.post(`/chats/rooms/${chatRoomId}/certification-shares`, { certificationId });

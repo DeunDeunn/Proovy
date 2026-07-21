@@ -1,8 +1,10 @@
+import { useRouter } from "next/navigation";
 import { BadgeCheck, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import { formatChatTime, formatFileSize, getAvatarColor } from "@/features/chat/mockData";
 
 const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, isDeletePending }) => {
+  const router = useRouter();
   const avatarColor = getAvatarColor(message.senderId);
   const time = formatChatTime(message.createdAt);
   const readLabel = isOwn && !isChallenge && message.read ? "읽음" : null;
@@ -84,7 +86,11 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
             <img src={cert.thumbnailUrl} alt="" className="mt-2 h-36 w-full rounded-xl object-cover" />
           )}
           <p className="mt-2 text-xs text-gray-400">인증일: {cert.certifiedAt}</p>
-          <button type="button" className="mt-2 text-xs font-semibold text-primary hover:underline">
+          <button
+            type="button"
+            onClick={() => router.push(`/certification-posts/${cert.certificationId}`)}
+            className="mt-2 text-xs font-semibold text-primary hover:underline"
+          >
             인증글 보기 &gt;
           </button>
         </div>

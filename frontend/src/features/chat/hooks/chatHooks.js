@@ -11,6 +11,7 @@ import {
   getChatRooms,
   markChatRoomRead,
   sendChatAttachment,
+  shareCertificationToChatRoom,
 } from "@/features/chat/api/chatApi";
 import {
   connectSocket,
@@ -168,6 +169,13 @@ export const useSendChatAttachment = (chatRoomId) =>
   useMutation({
     mutationFn: ({ messageType, content, file }) =>
       sendChatAttachment(chatRoomId, { messageType, content, file }),
+  });
+
+// 인증글 상세 페이지처럼 채팅 소켓 연결이 없는 화면에서도 공유할 수 있도록 REST로 보낸다.
+export const useShareCertificationToChatRoom = () =>
+  useMutation({
+    mutationFn: ({ chatRoomId, certificationId }) =>
+      shareCertificationToChatRoom(chatRoomId, certificationId),
   });
 
 export const useCreateDirectChatRoom = () => {
