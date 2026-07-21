@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 
@@ -16,7 +16,7 @@ import { useChatStore } from "@/features/chat/store";
 const LIST_WIDTH_OPEN_REM = 20;
 const PANEL_TRANSITION_MS = 300;
 
-const ChatPage = () => {
+const ChatPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const roomIdParam = searchParams.get("roomId");
@@ -94,7 +94,8 @@ const ChatPage = () => {
     const targetRoomId = Number(roomIdParam);
     if (!rooms.some((room) => room.chatRoomId === targetRoomId)) return;
 
-    handleSelectRoom(targetRoomId);
+    // URL(roomId)이라는 외부 상태와 동기화하는 효과라 setState가 필요함
+    handleSelectRoom(targetRoomId); // eslint-disable-line react-hooks/set-state-in-effect
     router.replace("/chat");
   }, [roomIdParam, rooms]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -170,5 +171,11 @@ const ChatPage = () => {
     </div>
   );
 };
+
+const ChatPage = () => (
+  <Suspense fallback={null}>
+    <ChatPageContent />
+  </Suspense>
+);
 
 export default ChatPage;
