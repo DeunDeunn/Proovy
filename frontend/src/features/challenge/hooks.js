@@ -93,13 +93,13 @@ export const useUpdateChallenge = (challengeId) => {
   });
 };
 
-export const useUpdateChallengeThumbnail = (challengeId) => {
+export const useUpdateChallengeThumbnail = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file) => updateChallengeThumbnail(challengeId, file),
-    onSuccess: () => {
+    mutationFn: ({ challengeId, file }) => updateChallengeThumbnail(challengeId, file),
+    onSuccess: (_, payload) => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(payload.challengeId) });
     },
   });
 };

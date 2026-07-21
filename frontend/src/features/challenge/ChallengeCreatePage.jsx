@@ -9,8 +9,7 @@ import { Camera } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
-import { updateChallengeThumbnail } from "./api";
-import { useCategories, useCreateChallenge } from "./hooks";
+import { useCategories, useCreateChallenge, useUpdateChallengeThumbnail } from "./hooks";
 
 const DESCRIPTION_MAX_LENGTH = 500;
 const CERT_TIME_MIN = "02:00";
@@ -84,6 +83,7 @@ const ChallengeCreatePage = () => {
   const router = useRouter();
   const { data: categories, isError: isCategoriesError, error: categoriesError } = useCategories();
   const createMutation = useCreateChallenge();
+  const thumbnailMutation = useUpdateChallengeThumbnail();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(initialForm);
   const [justChangedStep, setJustChangedStep] = useState(false);
@@ -103,7 +103,7 @@ const ChallengeCreatePage = () => {
   };
 
   const isStep1Valid =
-    form.title.trim() !== "" && form.categoryId !== "" && Number(form.entryFee) > 0;
+    form.title.trim() !== "" && form.categoryId !== "" && Number(form.entryFee) >= 1000;
   const isStep2Valid =
     form.startDate !== "" &&
     form.endDate !== "" &&
@@ -158,7 +158,7 @@ const ChallengeCreatePage = () => {
         onSuccess: async (created) => {
           if (thumbnailFile) {
             try {
-              await updateChallengeThumbnail(created.id, thumbnailFile);
+              await thumbnailMutation.mutateAsync({ challengeId: created.id, file: thumbnailFile });
             } catch {
               // 사진 업로드가 실패해도 챌린지 자체는 이미 만들어졌으니 상세 페이지로 이동시키고,
               // 사진은 상세 페이지의 "사진 변경"으로 나중에 다시 시도할 수 있다

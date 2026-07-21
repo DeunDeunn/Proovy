@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { POST_LOGIN_REDIRECT_KEY } from "./AuthPage";
+import { isSafeRedirectPath, POST_LOGIN_REDIRECT_KEY } from "./AuthPage";
 
 const CallbackPage = () => {
   const router = useRouter();
@@ -19,7 +19,7 @@ const CallbackPage = () => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       const redirect = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
       sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
-      router.replace(redirect || "/");
+      router.replace(isSafeRedirectPath(redirect) ? redirect : "/");
     }
   }, [success, queryClient, router]);
 

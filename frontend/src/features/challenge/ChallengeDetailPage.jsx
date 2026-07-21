@@ -38,13 +38,13 @@ const ChallengeDetailPage = ({ challengeId }) => {
 
   const { data: me } = useMe();
   const { data: challenge, isLoading, isError, error } = useChallenge(challengeId);
-  const { data: hostProfile } = useUserProfile(me ? challenge?.hostId : undefined);
+  const { data: hostProfile } = useUserProfile(challenge?.hostId);
   const { data: wallet } = useWallet({ enabled: !!me });
   const { data: participants } = useChallengeParticipants(challengeId);
 
   const joinMutation = useJoinChallenge(challengeId);
   const leaveMutation = useLeaveChallenge(challengeId);
-  const thumbnailMutation = useUpdateChallengeThumbnail(challengeId);
+  const thumbnailMutation = useUpdateChallengeThumbnail();
   const thumbnailInputRef = useRef(null);
 
   if (isLoading) return <Loading label="챌린지 불러오는 중..." />;
@@ -101,7 +101,7 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) thumbnailMutation.mutate(file);
+                  if (file) thumbnailMutation.mutate({ challengeId, file });
                   e.target.value = "";
                 }}
               />
@@ -270,7 +270,7 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 <button
                   type="button"
                   onClick={() => joinMutation.mutate()}
-                  disabled={joinMutation.isPending}
+                  disabled={joinMutation.isPending || !hasEnoughCash}
                   className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
                 >
                   {joinMutation.isPending ? "참가하는 중..." : "참가하기"}

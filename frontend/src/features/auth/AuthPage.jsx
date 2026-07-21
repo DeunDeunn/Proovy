@@ -52,8 +52,15 @@ const OAUTH_PROVIDERS = [
 // URL 쿼리로 목적지를 들고 다닐 수 없어서, 같은 탭에 남는 sessionStorage에 잠깐 저장해둔다.
 export const POST_LOGIN_REDIRECT_KEY = "postLoginRedirect";
 
+export const isSafeRedirectPath = (redirect) =>
+  typeof redirect === "string" &&
+  redirect.startsWith("/") &&
+  !redirect.startsWith("//") &&
+  !redirect.startsWith("/\\");
+
 const handleOAuthLogin = (provider, redirect) => {
-  if (redirect) {
+  sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+  if (isSafeRedirectPath(redirect)) {
     sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirect);
   }
   window.location.href = `/api/oauth2/authorization/${provider}`;
