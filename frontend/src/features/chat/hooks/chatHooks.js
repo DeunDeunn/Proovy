@@ -50,11 +50,27 @@ export const useChatRoomSubscription = (chatRoomId, onMessage, options = {}) => 
     connectSocket({ onError, onDisconnect, onConnected });
     subscribeRoom(chatRoomId, onMessage);
 
+    // 소켓 연결 자체는 useChatRealtimeSync(앱 전역)가 계속 유지하므로,
+    // 방을 닫을 때는 그 방 구독만 해제하고 연결은 끊지 않는다.
     return () => {
       unsubscribeRoom();
-      disconnectSocket();
     };
   }, [chatRoomId, onMessage, onError, onDisconnect, onConnected]);
+};
+
+// 앱이 열려있는 동안 소켓 연결을 계속 유지하면서, 서버가 개인 큐로 보내는 "방 업데이트"
+// 신호를 받으면 방 목록 캐시를 무효화한다. 채팅방을 열어보지 않아도(예: 사이드바만 봐도)
+// 안 읽은 개수가 최신으로 반영되도록 하기 위함이다 (알림의 SSE 실시간 동기화와 동일한 목적).
+export const useChatRealtimeSync = () => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    connectSocket({
+      onRoomUpdated: () => queryClient.invalidateQueries({ queryKey: ["chat-rooms"] }),
+    });
+
+    return () => disconnectSocket();
+  }, [queryClient]);
 };
 
 export const useChatRoomHistory = (chatRoomId) => {
