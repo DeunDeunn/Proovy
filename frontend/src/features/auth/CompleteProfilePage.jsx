@@ -18,7 +18,8 @@ const CompleteProfilePage = () => {
   const checkDuplicate = useCheckNicknameDuplicate();
   const updateNickname = useUpdateNickname();
 
-  const isChecked = checkedNickname === nickname && checkDuplicate.data?.available === true;
+  const normalizedNickname = nickname.trim();
+  const isChecked = checkedNickname === normalizedNickname && checkDuplicate.data?.available === true;
 
   const handleNicknameChange = (e) => {
     setNickname(e.target.value);
@@ -26,16 +27,16 @@ const CompleteProfilePage = () => {
   };
 
   const handleCheckDuplicate = () => {
-    if (!isValidNicknameFormat(nickname)) return;
-    checkDuplicate.mutate(nickname, {
-      onSuccess: () => setCheckedNickname(nickname),
+    if (!isValidNicknameFormat(normalizedNickname)) return;
+    checkDuplicate.mutate(normalizedNickname, {
+      onSuccess: () => setCheckedNickname(normalizedNickname),
     });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!isChecked) return;
-    updateNickname.mutate(nickname, {
+    updateNickname.mutate(checkedNickname, {
       onSuccess: () => router.replace("/"),
     });
   };
@@ -55,13 +56,14 @@ const CompleteProfilePage = () => {
             onChange={handleNicknameChange}
             placeholder="닉네임 입력"
             maxLength={10}
+            aria-label="닉네임"
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary"
           />
           <Button
             type="button"
             variant="outline"
             onClick={handleCheckDuplicate}
-            disabled={!isValidNicknameFormat(nickname) || checkDuplicate.isPending}
+            disabled={!isValidNicknameFormat(normalizedNickname) || checkDuplicate.isPending}
           >
             중복확인
           </Button>

@@ -101,7 +101,8 @@ public class ChatMessageService {
         log.debug("[Chat] 메시지 전송 완료: chatRoomId={}, senderId={}, messageId={}, messageType={}",
             chatRoomId, senderId, message.getId(), messageType);
 
-        return ChatMessageResponse.of(message, sender, attachments, sharedCertification, senderBadgeApproved);
+        // 방금 보낸 메시지는 상대방이 아직 읽었을 수 없다
+        return ChatMessageResponse.of(message, sender, attachments, sharedCertification, senderBadgeApproved, false);
     }
 
     @Transactional(readOnly = true)
@@ -117,7 +118,7 @@ public class ChatMessageService {
         Long nextCursor = hasNext ? messages.get(messages.size() - 1).getId() : null;
         log.debug("[Chat] 이전 메시지 조회 완료: chatRoomId={}, userId={}, beforeMessageId={}, size={}, hasNext={}", chatRoomId, userId, beforeMessageId, size, hasNext);
 
-        return ChatMessageListResponse.of(assembleResponses(messages), size, hasNext, nextCursor);
+        return ChatMessageListResponse.of(assembleResponses(chatRoomId, messages), size, hasNext, nextCursor);
     }
 
     @Transactional
@@ -134,7 +135,7 @@ public class ChatMessageService {
         return ChatMessageDeleteResponse.of(message);
     }
 
-    private List<ChatMessageResponse> assembleResponses(List<ChatMessage> messages) {
+    private List<ChatMessageResponse> assembleResponses(Long chatRoomId, List<ChatMessage> messages) {
         if (messages.isEmpty()) {
             return List.of();
         }
@@ -143,6 +144,7 @@ public class ChatMessageService {
         Set<Long> approvedSenderIds = findApprovedSenderIds(messages);
         Map<Long, List<ChatAttachment>> attachmentsByMessageId = findAttachments(messages);
         Map<Long, SharedCertificationResponse> sharedCertificationsByPostId = findSharedCertifications(messages);
+        Map<Long, Long> lastReadMessageIdByUserId = findLastReadMessageIds(chatRoomId);
 
         return messages.stream()
             .map(message -> ChatMessageResponse.of(
@@ -150,9 +152,31 @@ public class ChatMessageService {
                 sendersById.get(message.getSenderId()),
                 attachmentsByMessageId.getOrDefault(message.getId(), List.of()),
                 sharedCertificationsByPostId.get(message.getReferenceId()),
-                approvedSenderIds.contains(message.getSenderId())
+                approvedSenderIds.contains(message.getSenderId()),
+                isReadByOthers(message, lastReadMessageIdByUserId)
             ))
             .toList();
+    }
+
+    private Map<Long, Long> findLastReadMessageIds(Long chatRoomId) {
+        return chatRoomMemberMapper.findActiveByChatRoomId(chatRoomId).stream()
+            .collect(Collectors.toMap(
+                ChatRoomMember::getUserId,
+                member -> member.getLastReadMessageId() == null ? 0L : member.getLastReadMessageId()
+            ));
+    }
+
+    // 나를 제외한 활성 참여자 전원이 이 메시지까지 읽었으면 읽음으로 본다 (1:1은 상대방 1명 기준)
+    private boolean isReadByOthers(ChatMessage message, Map<Long, Long> lastReadMessageIdByUserId) {
+        List<Long> otherReaderIds = lastReadMessageIdByUserId.keySet().stream()
+            .filter(userId -> !userId.equals(message.getSenderId()))
+            .toList();
+
+        if (otherReaderIds.isEmpty()) {
+            return false;
+        }
+
+        return otherReaderIds.stream().allMatch(userId -> lastReadMessageIdByUserId.get(userId) >= message.getId());
     }
 
     private ChatMessage findMessage(Long messageId) {

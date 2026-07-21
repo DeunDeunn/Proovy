@@ -13,7 +13,7 @@ const ChatRoomItem = ({ room, selected, onSelect }) => {
   const avatarColor = getAvatarColor(room.chatRoomId);
   const unread = room.unreadCount > 0;
 
-  const previewText = room.lastMessage?.content;
+  const previewText = room.lastMessage?.deletedAt ? "삭제된 메시지입니다" : room.lastMessage?.content;
 
   return (
     <button

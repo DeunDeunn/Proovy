@@ -7,6 +7,7 @@ import com.deundeun.chat.dto.response.ChatRoomReadResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
 import com.deundeun.chat.service.ChatRoomMemberService;
 import com.deundeun.chat.service.ChatRoomService;
+import com.deundeun.chat.service.support.ChatMessageBroadcaster;
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.global.common.CurrentUser;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ public class ChatRoomController {
 
     private final ChatRoomService chatRoomService;
     private final ChatRoomMemberService chatRoomMemberService;
+    private final ChatMessageBroadcaster chatMessageBroadcaster;
 
     @PostMapping("/direct-rooms")
     public ApiResponse<DirectChatRoomResponse> createOrGetDirectRoom(
@@ -59,6 +61,7 @@ public class ChatRoomController {
     public ApiResponse<ChatRoomReadResponse> markAsRead(@PathVariable Long chatRoomId) {
         Long userId = CurrentUser.getUserId();
         ChatRoomReadResponse response = chatRoomMemberService.markAsRead(chatRoomId, userId);
+        chatMessageBroadcaster.broadcastRead(response);
 
         return ApiResponse.success(response);
     }

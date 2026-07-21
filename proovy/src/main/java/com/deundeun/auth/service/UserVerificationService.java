@@ -32,6 +32,10 @@ public class UserVerificationService {
         if (userVerificationMapper.existsPending(userId)) {
             throw new ApiException(ErrorCode.VERIFICATION_ALREADY_PENDING);
         }
+        UserVerification latest = userVerificationMapper.findLatestByUserId(userId);
+        if (latest != null && latest.getStatus() == UserVerificationStatus.APPROVED) {
+            throw new ApiException(ErrorCode.VERIFICATION_ALREADY_APPROVED);
+        }
         long successCount = userVerificationMapper.countSuccessfulChallenges(userId, user.getDemotedAt());
         if (successCount < MIN_SUCCESSFUL_CHALLENGES) {
             throw new ApiException(ErrorCode.VERIFICATION_INELIGIBLE);

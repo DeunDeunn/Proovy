@@ -4,7 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createOrGetDirectRoom, getChatMessages, getChatRooms } from "@/features/chat/api/chatApi";
+import { useMe } from "@/features/auth/hooks";
+import {
+  createOrGetDirectRoom,
+  deleteChatMessage,
+  getChatMessages,
+  getChatRooms,
+  markChatRoomRead,
+  sendChatAttachment,
+  shareCertificationToChatRoom,
+} from "@/features/chat/api/chatApi";
 import {
   connectSocket,
   disconnectSocket,
@@ -42,11 +51,40 @@ export const useChatRoomSubscription = (chatRoomId, onMessage, options = {}) => 
     connectSocket({ onError, onDisconnect, onConnected });
     subscribeRoom(chatRoomId, onMessage);
 
+    // 소켓 연결 자체는 useChatRealtimeSync(앱 전역)가 계속 유지하므로,
+    // 방을 닫을 때는 그 방 구독만 해제하고 연결은 끊지 않는다.
     return () => {
       unsubscribeRoom();
-      disconnectSocket();
     };
   }, [chatRoomId, onMessage, onError, onDisconnect, onConnected]);
+};
+
+// 앱이 열려있는 동안 소켓 연결을 계속 유지하면서, 서버가 개인 큐로 보내는 "방 업데이트"
+// 신호를 받으면 방 목록 캐시를 무효화한다. 채팅방을 열어보지 않아도(예: 사이드바만 봐도)
+// 안 읽은 개수가 최신으로 반영되도록 하기 위함이다 (알림의 SSE 실시간 동기화와 동일한 목적).
+export const useChatRealtimeSync = () => {
+  const queryClient = useQueryClient();
+  const { data: me } = useMe();
+  const resetChat = useChatStore((state) => state.resetChat);
+  const previousUserIdRef = useRef(undefined);
+
+  // setRooms/messagesByRoomId는 기존 값을 병합해서 유지하므로, 로그아웃이나 다른 계정으로의
+  // 전환(me.id 변경) 없이는 이전 사용자의 채팅 상태가 그대로 남아 다음 사용자에게 노출될 수 있다.
+  useEffect(() => {
+    const currentUserId = me?.id ?? null;
+    if (previousUserIdRef.current !== undefined && previousUserIdRef.current !== currentUserId) {
+      resetChat();
+    }
+    previousUserIdRef.current = currentUserId;
+  }, [me?.id, resetChat]);
+
+  useEffect(() => {
+    connectSocket({
+      onRoomUpdated: () => queryClient.invalidateQueries({ queryKey: ["chat-rooms"] }),
+    });
+
+    return () => disconnectSocket();
+  }, [queryClient]);
 };
 
 export const useChatRoomHistory = (chatRoomId) => {
@@ -123,6 +161,51 @@ export const useChatRooms = (params, { enabled = true } = {}) =>
     queryFn: () => getChatRooms(params),
     select: selectChatRooms,
     enabled,
+  });
+
+// 채팅방 목록을 조회해 store에 동기화한다. 사이드바(안 읽은 개수 배지)와 채팅 페이지가
+// 함께 사용해서, 로그인 후 어느 화면에 있든 목록이 채워지도록 한다.
+export const useChatRoomsSync = ({ enabled = true } = {}) => {
+  const setRooms = useChatStore((state) => state.setRooms);
+  const query = useChatRooms(undefined, { enabled });
+
+  useEffect(() => {
+    if (query.data) setRooms(query.data.content);
+  }, [query.data, setRooms]);
+
+  return query;
+};
+
+// 방 입장 시 서버에 읽음 처리하고, 응답으로 받은 커서를 store의 방 목록에 반영한다.
+export const useMarkRoomRead = () => {
+  const markRoomRead = useChatStore((state) => state.markRoomRead);
+
+  return useMutation({
+    mutationFn: (chatRoomId) => markChatRoomRead(chatRoomId),
+    onSuccess: (response) => markRoomRead(response),
+  });
+};
+
+// 삭제 결과는 REST 응답이 아니라, 방 소켓 구독으로 돌아오는 MESSAGE_DELETED
+// 브로드캐스트를 통해 store에 반영된다 (메시지 전송과 동일한 패턴).
+export const useDeleteChatMessage = () =>
+  useMutation({
+    mutationFn: (messageId) => deleteChatMessage(messageId),
+  });
+
+// 첨부파일 전송도 삭제와 마찬가지로, 결과는 REST 응답이 아니라 방 소켓 구독으로
+// 돌아오는 MESSAGE_CREATED 브로드캐스트를 통해 store에 반영된다.
+export const useSendChatAttachment = (chatRoomId) =>
+  useMutation({
+    mutationFn: ({ messageType, content, file }) =>
+      sendChatAttachment(chatRoomId, { messageType, content, file }),
+  });
+
+// 인증글 상세 페이지처럼 채팅 소켓 연결이 없는 화면에서도 공유할 수 있도록 REST로 보낸다.
+export const useShareCertificationToChatRoom = () =>
+  useMutation({
+    mutationFn: ({ chatRoomId, certificationId }) =>
+      shareCertificationToChatRoom(chatRoomId, certificationId),
   });
 
 export const useCreateDirectChatRoom = () => {
