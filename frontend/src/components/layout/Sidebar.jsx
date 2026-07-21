@@ -154,7 +154,7 @@ const Sidebar = () => {
       </Link>
 
       {/* 메인 메뉴: 드롭다운이 펼쳐져도 아래 버튼/프로필 위치가 안 밀리게 이 영역만 따로 스크롤 */}
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {menus.map((menu) => {
           const active = pathname === menu.href;
           return (
@@ -199,7 +199,12 @@ const Sidebar = () => {
         {me?.role === "ADMIN" && (
           <>
             <div className="my-3 border-t border-gray-200" />
-            <SidebarDropdown icon={ShieldCheck} label="관리자" items={adminMenus} pathname={pathname} />
+            <SidebarDropdown
+              icon={ShieldCheck}
+              label="관리자"
+              items={adminMenus}
+              pathname={pathname}
+            />
           </>
         )}
       </nav>

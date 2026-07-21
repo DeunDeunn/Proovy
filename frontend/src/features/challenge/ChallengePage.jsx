@@ -65,7 +65,8 @@ const ChallengePageContent = () => {
 
   const [categoryId, setCategoryId] = useState(() => {
     const raw = searchParams.get("category");
-    return raw ? Number(raw) : undefined;
+    const parsed = raw ? Number(raw) : undefined;
+    return Number.isNaN(parsed) ? undefined : parsed;
   });
   const [status, setStatus] = useState(() => searchParams.get("status") ?? undefined);
   const [sort, setSort] = useState(() => searchParams.get("sort") ?? undefined);
