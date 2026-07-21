@@ -16,7 +16,6 @@ import { useCertificationPost, useUpdateCertificationPost } from "./hooks";
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_ADDITIONAL_IMAGES = 3;
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const IMAGE_DOWNLOAD_TIMEOUT_MS = 15_000;
 
 const getFileError = (file) => {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -30,46 +29,6 @@ const getFileError = (file) => {
   return null;
 };
 
-const getFileNameFromUrl = (url, fallbackName) => {
-  try {
-    const fileName = new URL(url).pathname.split("/").pop();
-    return fileName || fallbackName;
-  } catch {
-    return fallbackName;
-  }
-};
-
-const downloadExistingImageAsFile = async (url, fallbackName) => {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), IMAGE_DOWNLOAD_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error("기존 이미지를 다시 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-    }
-
-    const blob = await response.blob();
-    if (blob.size === 0) {
-      throw new Error("기존 이미지 파일이 비어 있습니다. 새 이미지를 선택해주세요.");
-    }
-
-    return new File([blob], getFileNameFromUrl(url, fallbackName), {
-      type: blob.type || "application/octet-stream",
-    });
-  } catch (error) {
-    if (error?.name === "AbortError") {
-      throw new Error(
-        "기존 이미지를 불러오는 시간이 초과되었습니다. 네트워크를 확인한 후 다시 시도해주세요."
-      );
-    }
-
-    throw error;
-  } finally {
-    window.clearTimeout(timeoutId);
-  }
-};
-
 const CertificationPostEditForm = ({ post, postId }) => {
   const router = useRouter();
   const updateMutation = useUpdateCertificationPost(postId);
@@ -80,6 +39,7 @@ const CertificationPostEditForm = ({ post, postId }) => {
   );
   const [validationError, setValidationError] = useState(null);
   const [isPreparingFiles, setIsPreparingFiles] = useState(false);
+  const [isApprovalResetDialogOpen, setIsApprovalResetDialogOpen] = useState(false);
   const thumbnailPreviewRef = useRef(null);
   const additionalPreviewsRef = useRef(new Set());
   const isSubmitting = isPreparingFiles || updateMutation.isPending;
@@ -164,41 +124,45 @@ const CertificationPostEditForm = ({ post, postId }) => {
     });
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const updatePost = async () => {
     setValidationError(null);
     setIsPreparingFiles(true);
 
     try {
-      // 현재 수정 API는 파일 전체 교체 방식이므로, 남겨둔 기존 URL도 File로 다시 만들어 보낸다.
-      const thumbnailFile =
-        thumbnail.type === "new"
-          ? thumbnail.file
-          : await downloadExistingImageAsFile(thumbnail.url, "existing-thumbnail.jpg");
-      const imageFiles = await Promise.all(
-        additionalImages.map((image, index) =>
-          image.type === "new"
-            ? image.file
-            : downloadExistingImageAsFile(image.url, `existing-image-${index + 1}.jpg`)
-        )
-      );
+      // 기존 이미지는 URL로 유지하고, 새로 선택한 파일만 업로드한다(재다운로드 없음).
+      const thumbnailFile = thumbnail.type === "new" ? thumbnail.file : null;
+      const keptImageUrls = additionalImages
+        .filter((image) => image.type === "existing")
+        .map((image) => image.url);
+      const newImages = additionalImages
+        .filter((image) => image.type === "new")
+        .map((image) => image.file);
 
       await updateMutation.mutateAsync({
         contents: contents.trim(),
         thumbnail: thumbnailFile,
-        images: imageFiles,
+        keptImageUrls,
+        newImages,
       });
       router.replace(`/certification-posts/${postId}`);
     } catch (error) {
-      const isImageDownloadFailure = error instanceof TypeError;
       setValidationError(
-        isImageDownloadFailure
-          ? "기존 이미지를 다시 불러오지 못했습니다. S3 CORS 설정 또는 네트워크 연결을 확인해주세요."
-          : (error?.message ?? "인증글을 수정하지 못했습니다. 잠시 후 다시 시도해주세요.")
+        error?.message ?? "인증글을 수정하지 못했습니다. 잠시 후 다시 시도해주세요."
       );
     } finally {
       setIsPreparingFiles(false);
     }
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (post.status === "APPROVED") {
+      setIsApprovalResetDialogOpen(true);
+      return;
+    }
+
+    updatePost();
   };
 
   const thumbnailUrl = thumbnail.type === "new" ? thumbnail.preview : thumbnail.url;
@@ -345,6 +309,50 @@ const CertificationPostEditForm = ({ post, postId }) => {
           </Button>
         </div>
       </form>
+
+      {isApprovalResetDialogOpen && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="approval-reset-dialog-title"
+            aria-describedby="approval-reset-dialog-description"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+          >
+            <h2 id="approval-reset-dialog-title" className="text-lg font-bold text-gray-900">
+              인증글을 수정할까요?
+            </h2>
+            <p
+              id="approval-reset-dialog-description"
+              className="mt-2 text-sm leading-6 text-gray-600"
+            >
+              수정 내용을 등록하면 인증글이 다시 승인 대기 상태로 변경됩니다.
+            </p>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsApprovalResetDialogOpen(false)}
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsApprovalResetDialogOpen(false);
+                  updatePost();
+                }}
+              >
+                수정
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

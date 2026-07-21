@@ -313,14 +313,24 @@ public class CertificationService {
     }
 
     // 인증글 수정 (수정하면 PENDING 회귀)
+    // 기존 이미지는 재업로드 없이 URL로 유지하고(keepThumbnail / keptImageUrls), 새 이미지만 파일로 받는다.
     @Transactional
     public void updateCertificationPost(Long postId, Long userId, UpdateCertificationPostRequest request,
                                         MultipartFile thumbnail, List<MultipartFile> images) {
-        // 대표 이미지 필수 + 최대 3장 (업로드 전에 먼저 걸러냄)
-        if (thumbnail == null || thumbnail.isEmpty()) {
+        boolean hasNewThumbnail = thumbnail != null && !thumbnail.isEmpty();
+        int newImageCount = (images == null) ? 0 : images.size();
+
+        // 대표 이미지: 새 파일도 없고 기존 유지도 아니면 필수 위반
+        if (!hasNewThumbnail && !request.isKeepThumbnail()) {
             throw new ApiException(ErrorCode.THUMBNAIL_REQUIRED);
         }
-        if (images != null && images.size() > 3) {
+
+        // 유지할 기존 추가이미지 URL (null이면 빈 목록으로 취급)
+        List<String> keptImageUrls = (request.getKeptImageUrls() == null)
+                ? List.of()
+                : request.getKeptImageUrls();
+        // 최종 추가이미지 = 유지 + 새 파일, 최대 3장
+        if (keptImageUrls.size() + newImageCount > 3) {
             throw new ApiException(ErrorCode.TOO_MANY_IMAGES);
         }
 
@@ -333,6 +343,14 @@ public class CertificationService {
             throw new ApiException(ErrorCode.FORBIDDEN);   // 작성자 본인만 수정 가능
         }
 
+        // 유지 URL은 반드시 이 글의 현재 추가이미지여야 함 (임의 URL 주입 방지)
+        if (!keptImageUrls.isEmpty()) {
+            List<String> currentImageUrls = certificationMapper.findPostImageUrls(postId);
+            if (!currentImageUrls.containsAll(keptImageUrls)) {
+                throw new ApiException(ErrorCode.INVALID_KEPT_IMAGE);
+            }
+        }
+
         // 수정도 인증 등록 가능 시간대 안에서만 가능
         //코드래빗 피드백
         // challenge_participant_id에 FK가 없어 연관이 깨진 글이 들어올 수 있음.
@@ -343,22 +361,31 @@ public class CertificationService {
         }
         validateCertTimeRange(challenge);
 
-        // 새 대표이미지 업로드: 커밋되면 옛 썸네일 삭제, 롤백되면 방금 올린 새 파일 삭제
-        String thumbnailUrl = transactionalFileUploader.uploadReplacing(
-                thumbnail, FileCategory.CERTIFICATION, detail.getThumbnailUrl());
-        // 새 추가이미지 업로드(롤백 시 자동삭제).
-        // ※ 옛 추가이미지 S3 파일은 지금은 정리하지 않음(MVP) — 고아 파일은 추후 정합성 배치로 정리.
-        List<String> imageUrls = (images == null || images.isEmpty())
+        // 대표이미지: 새 파일이 있으면 교체(커밋 시 옛 썸네일 삭제/롤백 시 새 파일 삭제),
+        //            없으면(=유지) 기존 URL 그대로 사용(S3 파일 건드리지 않음).
+        String thumbnailUrl = hasNewThumbnail
+                ? transactionalFileUploader.uploadReplacing(
+                        thumbnail, FileCategory.CERTIFICATION, detail.getThumbnailUrl())
+                : detail.getThumbnailUrl();
+
+        // 새 추가이미지만 업로드(롤백 시 자동삭제). 유지 이미지는 이미 S3에 있으므로 재업로드하지 않음.
+        // ※ 제거된 옛 추가이미지의 S3 파일은 지금은 정리하지 않음(MVP) — 고아 파일은 추후 정합성 배치로 정리.
+        List<String> newImageUrls = (newImageCount == 0)
                 ? List.of()
                 : transactionalFileUploader.uploadAll(images, FileCategory.CERTIFICATION);
+
+        // 최종 추가이미지 목록 = 유지 URL(순서) + 새 업로드 URL
+        List<String> finalImageUrls = new ArrayList<>(keptImageUrls.size() + newImageUrls.size());
+        finalImageUrls.addAll(keptImageUrls);
+        finalImageUrls.addAll(newImageUrls);
 
         // 본문·대표이미지 수정 + PENDING 회귀
         certificationMapper.updatePost(postId, request.getContents(), thumbnailUrl);
 
-        // 추가 이미지 기존 삭제 → 새 목록 재삽입 (DB만; 옛 S3 파일은 위 주석대로 미정리)
+        // 추가 이미지 기존 삭제 → 최종 목록 재삽입 (DB만; 유지 이미지도 sort_order 재부여 위해 재삽입)
         certificationMapper.deletePostImages(postId);
-        if (!imageUrls.isEmpty()) {
-            certificationMapper.insertPostImages(postId, imageUrls);
+        if (!finalImageUrls.isEmpty()) {
+            certificationMapper.insertPostImages(postId, finalImageUrls);
         }
 
     }
