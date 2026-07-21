@@ -32,24 +32,10 @@
         </foreach>
     </select>
 
-    <sql id="searchCondition">
-        <where>
-            <if test="categoryId != null">
-                AND c.category_id = #{categoryId}
-            </if>
-            <if test="status != null">
-                AND c.status = #{status}
-            </if>
-            <if test="keyword != null and keyword != ''">
-                AND c.title LIKE '%' || #{keyword} || '%'
-            </if>
-        </where>
-    </sql>
-
-    <select id="search" resultType="ChallengeSummaryResponse">
-        SELECT
+    <sql id="challengeSummaryColumns">
         c.id,
         c.title,
+        cat.id AS category_id,
         cat.name AS category_name,
         c.entry_fee,
         (SELECT COUNT(*) FROM challenge_participants p
@@ -58,31 +44,56 @@
         c.start_date,
         c.end_date,
         c.status
+    </sql>
+
+    <sql id="searchCondition">
+        <where>
+            <if test="categoryId != null">
+                AND c.category_id = #{categoryId}
+            </if>
+            <choose>
+                <when test="status != null">
+                    AND c.status = #{status}
+                </when>
+                <otherwise>
+                    AND c.status NOT IN ('COMPLETED', 'CANCELLED')
+                </otherwise>
+            </choose>
+            <if test="keyword != null and keyword != ''">
+                AND c.title LIKE '%' || #{keyword} || '%'
+            </if>
+        </where>
+    </sql>
+
+    <select id="search" resultType="ChallengeSummaryResponse">
+        SELECT
+        <include refid="challengeSummaryColumns"/>
         FROM challenges c
         JOIN categories cat ON cat.id = c.category_id
         <include refid="searchCondition"/>
-        ORDER BY c.created_at DESC, c.id DESC
+        <choose>
+            <when test="sort != null and sort.name() == 'ENTRY_FEE'">
+                ORDER BY c.entry_fee ${direction.name()}, c.id DESC
+            </when>
+            <when test="sort != null and sort.name() == 'PARTICIPANTS'">
+                ORDER BY current_participants ${direction.name()}, c.id DESC
+            </when>
+            <otherwise>
+                ORDER BY c.created_at ${direction.name()}, c.id DESC
+            </otherwise>
+        </choose>
         LIMIT #{size} OFFSET #{offset}
     </select>
 
     <!-- 내가 참가(방장 포함) 중인 챌린지 목록: 참가 이력이 아닌 현재 활동중인 참가만 -->
     <select id="findMyChallenges" resultType="ChallengeSummaryResponse">
         SELECT
-        c.id,
-        c.title,
-        cat.name AS category_name,
-        c.entry_fee,
-        (SELECT COUNT(*) FROM challenge_participants p2
-        WHERE p2.challenge_id = c.id AND p2.status = 'ACTIVE') AS current_participants,
-        c.max_participants,
-        c.start_date,
-        c.end_date,
-        c.status
+        <include refid="challengeSummaryColumns"/>
         FROM challenges c
         JOIN categories cat ON cat.id = c.category_id
-        JOIN challenge_participants p ON p.challenge_id = c.id
-        WHERE p.user_id = #{userId}
-        AND p.status = 'ACTIVE'
+        JOIN challenge_participants cp ON cp.challenge_id = c.id
+        WHERE cp.user_id = #{userId}
+        AND cp.status = 'ACTIVE'
         ORDER BY c.created_at DESC, c.id DESC
     </select>
 
