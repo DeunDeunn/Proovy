@@ -177,7 +177,6 @@ const CertificationPostDetailPage = ({ postId }) => {
               {images.length > 1 && (
                 <>
                   <button
-                    ref={postMenuButtonRef}
                     type="button"
                     onClick={() => setCurrentImageIndex((index) => Math.max(0, index - 1))}
                     disabled={displayedImageIndex === 0}
@@ -239,6 +238,7 @@ const CertificationPostDetailPage = ({ postId }) => {
               {me?.id != null && (
                 <div ref={postMenuRef} className="relative shrink-0">
                   <button
+                    ref={postMenuButtonRef}
                     type="button"
                     onClick={() => setIsPostMenuOpen((open) => !open)}
                     aria-label="게시글 메뉴"
