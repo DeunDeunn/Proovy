@@ -72,23 +72,23 @@ public class AuthService {
     }
 
     public void checkNicknameDuplicate(String nickname) {
-        validateNicknameFormat(nickname);
-        if (userMapper.existsByNickname(nickname, null)) {
+        String normalized = normalizeNickname(nickname);
+        if (userMapper.existsByNickname(normalized, null)) {
             throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
         }
     }
 
     public NicknameUpdateResponse updateNickname(Long userId, String nickname) {
-        validateNicknameFormat(nickname);
-        if (userMapper.existsByNickname(nickname, userId)) {
+        String normalized = normalizeNickname(nickname);
+        if (userMapper.existsByNickname(normalized, userId)) {
             throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
         }
         try {
-            userMapper.updateNickname(userId, nickname);
+            userMapper.updateNickname(userId, normalized);
         } catch (DataIntegrityViolationException e) {
             throw new ApiException(ErrorCode.NICKNAME_DUPLICATE);
         }
-        return new NicknameUpdateResponse(nickname);
+        return new NicknameUpdateResponse(normalized);
     }
 
     @Transactional
@@ -105,10 +105,12 @@ public class AuthService {
         return new ProfileImageUpdateResponse(newUrl);
     }
 
-    private void validateNicknameFormat(String nickname) {
-        if (nickname == null || nickname.length() < 2 || nickname.length() > 10) {
+    private String normalizeNickname(String nickname) {
+        String trimmed = nickname == null ? null : nickname.trim();
+        if (trimmed == null || trimmed.length() < 2 || trimmed.length() > 10) {
             throw new ApiException(ErrorCode.NICKNAME_INVALID);
         }
+        return trimmed;
     }
 
     public ConnectStatusResponse getConnectStatus(Long userId, String provider) {
