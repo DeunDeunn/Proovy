@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   cancelChallenge,
   createChallenge,
@@ -16,6 +16,15 @@ export const useCategories = () =>
 
 export const useChallenges = (params) =>
   useQuery({ queryKey: challengeKeys.list(params), queryFn: () => getChallenges(params) });
+
+export const useInfiniteChallenges = (params) =>
+  useInfiniteQuery({
+    queryKey: [...challengeKeys.list(params), "infinite"],
+    queryFn: ({ pageParam }) => getChallenges({ ...params, page: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
+  });
 
 export const useChallenge = (challengeId) =>
   useQuery({

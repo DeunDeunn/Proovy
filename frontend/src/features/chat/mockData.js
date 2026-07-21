@@ -37,34 +37,3 @@ export const formatChatTime = (date) => {
   if (isSameDay(date, yesterday)) return "어제";
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 };
-
-const ROOM_TEMPLATES = [
-  {
-    chatRoomType: "CHALLENGE",
-    challengeTitle: "매일 30분 러닝",
-    participantCount: 24,
-    lastMessage: { senderNickname: "민지", content: "오늘도 수고하셨어요! 내일도 화이팅🔥" },
-    unreadCount: 8,
-    createdAt: new Date("2026-07-21T01:00:00"),
-  },
-  {
-    chatRoomType: "DIRECT",
-    directChatPartner: { userId: 101, nickname: "이지훈" },
-    lastMessage: { senderNickname: "이지훈", content: "네! 감사합니다 🙏" },
-    unreadCount: 1,
-    createdAt: new Date("2026-07-20T21:30:00"),
-  },
-  {
-    chatRoomType: "DIRECT",
-    directChatPartner: { userId: 102, nickname: "박민지" },
-    lastMessage: { senderNickname: "박민지", content: "인증 사진 확인 부탁드려요~" },
-    unreadCount: 1,
-    createdAt: new Date("2026-07-20T20:00:00"),
-  },
-];
-
-export const createMockChatRooms = () =>
-  ROOM_TEMPLATES.map((template, index) => ({
-    chatRoomId: index + 1,
-    ...template,
-  }));

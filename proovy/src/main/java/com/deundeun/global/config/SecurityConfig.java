@@ -1,5 +1,6 @@
 package com.deundeun.global.config;
 
+import com.deundeun.global.security.handler.CustomAccessDeniedHandler;
 import com.deundeun.global.security.handler.CustomAuthenticationEntryPoint;
 import com.deundeun.global.security.jwt.JwtAuthenticationFilter;
 import com.deundeun.global.security.jwt.JwtProvider;
@@ -30,6 +31,7 @@ public class SecurityConfig {
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final RedisOAuth2AuthorizationRequestRepository authorizationRequestRepository;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final ClientRegistrationRepository clientRegistrationRepository;
 
     private static final String AUTHORIZATION_BASE_URI = "/api/oauth2/authorization";
@@ -43,6 +45,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/refresh").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/**").authenticated()
                         .anyRequest().permitAll()
                 )
@@ -60,7 +63,9 @@ public class SecurityConfig {
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
                 )
-                .exceptionHandling(e -> e.authenticationEntryPoint(customAuthenticationEntryPoint))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint(customAuthenticationEntryPoint)
+                        .accessDeniedHandler(customAccessDeniedHandler))
                 .addFilterBefore(new JwtAuthenticationFilter(jwtProvider), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

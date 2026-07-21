@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+"use client";
 
-import { getChatMessages } from "@/features/chat/api/chatApi";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { createOrGetDirectRoom, getChatMessages, getChatRooms } from "@/features/chat/api/chatApi";
 import {
   connectSocket,
   disconnectSocket,
@@ -11,6 +15,23 @@ import { useChatStore } from "@/features/chat/store";
 
 const parseMessages = (content) =>
   content.map((message) => ({ ...message, createdAt: new Date(message.createdAt) })).reverse();
+
+const parseRooms = (content) =>
+  content.map((room) => ({ ...room, createdAt: new Date(room.createdAt) }));
+
+// DirectChatRoomResponse(생성/조회 API 응답)를 방 목록 아이템(ChatRoomSummaryResponse)과 같은 모양으로 맞춘다.
+const normalizeDirectRoom = (room) => ({
+  chatRoomId: room.chatRoomId,
+  chatRoomType: room.chatRoomType,
+  challengeId: null,
+  challengeTitle: null,
+  directChatPartner: room.partner,
+  lastMessage: room.lastMessage,
+  unreadCount: room.unreadCount,
+  lastReadMessageId: room.lastReadMessageId,
+  lastReadAt: room.lastReadAt,
+  createdAt: new Date(room.createdAt),
+});
 
 export const useChatRoomSubscription = (chatRoomId, onMessage, options = {}) => {
   const { onError, onDisconnect, onConnected } = options;
@@ -90,4 +111,48 @@ export const useChatRoomHistory = (chatRoomId) => {
   }, [chatRoomId, hasMore, isLoadingMore, nextCursor, prependRoomMessages]);
 
   return { loadMore, hasMore, isLoadingInitial, isLoadingMore, error };
+};
+
+// 훅 렌더마다 새로 만들어지면 react-query가 select 결과를 재사용하지 못해
+// roomsData 참조가 매번 바뀌므로, 모듈 스코프에 고정해 재사용한다.
+const selectChatRooms = (response) => ({ ...response, content: parseRooms(response.content) });
+
+export const useChatRooms = (params, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: ["chat-rooms", params],
+    queryFn: () => getChatRooms(params),
+    select: selectChatRooms,
+    enabled,
+  });
+
+export const useCreateDirectChatRoom = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (targetUserId) => createOrGetDirectRoom(targetUserId),
+    onSuccess: (room) => {
+      // 목록 페이지 밖에 있던 기존 방일 수 있어, 재조회 결과를 기다리지 않고 바로 store에 반영한다.
+      useChatStore.getState().upsertRoom(normalizeDirectRoom(room));
+      queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
+    },
+  });
+};
+
+// 프로필/목록에서 "채팅하기" 클릭 시 1:1 방을 생성/조회하고 해당 방으로 이동시키는 공용 진입점
+export const useStartDirectChat = () => {
+  const router = useRouter();
+  const mutation = useCreateDirectChatRoom();
+
+  const startChat = (targetUserId) => {
+    mutation.mutate(targetUserId, {
+      onSuccess: (room) => router.push(`/chat?roomId=${room.chatRoomId}`),
+    });
+  };
+
+  return {
+    startChat,
+    isPending: mutation.isPending,
+    error: mutation.error,
+    targetUserId: mutation.variables,
+  };
 };

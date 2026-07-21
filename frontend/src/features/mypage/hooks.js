@@ -1,8 +1,10 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { applyVerification, getMyPage, getVerificationStatus } from "./api";
+import { applyVerification, getMyFeed, getMyPage, getVerificationStatus } from "./api";
+
+const FEED_PAGE_SIZE = 20;
 
 export const useMyPage = () =>
   useQuery({
@@ -26,3 +28,14 @@ export const useApplyVerification = () => {
     },
   });
 };
+
+export const useMyFeed = () =>
+  useInfiniteQuery({
+    queryKey: ["mypage", "feed"],
+    queryFn: ({ pageParam }) => getMyFeed({ cursor: pageParam, size: FEED_PAGE_SIZE }),
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || lastPage.length < FEED_PAGE_SIZE) return undefined;
+      return lastPage[lastPage.length - 1]?.postId;
+    },
+  });

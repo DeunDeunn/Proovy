@@ -11,6 +11,7 @@ import {
   Heart,
   ImageOff,
   MessageCircle,
+  MessageSquare,
   MoreVertical,
   Pencil,
   Send,
@@ -23,6 +24,7 @@ import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
+import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 
 import CertificationPostComments from "./CertificationPostComments";
 import DeleteCertificationPostDialog from "./DeleteCertificationPostDialog";
@@ -136,6 +138,11 @@ const CertificationPostDetailPage = ({ postId }) => {
   const postMenuButtonRef = useRef(null);
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
+  const {
+    startChat,
+    isPending: isStartingChat,
+    error: startChatError,
+  } = useStartDirectChat();
   const deletePostMutation = useDeleteCertificationPost();
   const toggleLikeMutation = useToggleCertificationPostLike(postId);
   const closePostMenu = useCallback(() => setIsPostMenuOpen(false), []);
@@ -235,70 +242,90 @@ const CertificationPostDetailPage = ({ postId }) => {
                   </div>
                 </div>
               </div>
-              {me?.id != null && (
-                <div ref={postMenuRef} className="relative shrink-0">
+              <div className="flex shrink-0 items-center gap-1">
+                {me?.id != null && !isAuthor && (
                   <button
-                    ref={postMenuButtonRef}
                     type="button"
-                    onClick={() => setIsPostMenuOpen((open) => !open)}
-                    aria-label="게시글 메뉴"
-                    aria-expanded={isPostMenuOpen}
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                    onClick={() => startChat(post.authorId)}
+                    disabled={isStartingChat}
+                    aria-label="채팅하기"
+                    title="채팅하기"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <MoreVertical size={20} aria-hidden="true" />
+                    <MessageSquare size={19} aria-hidden="true" />
                   </button>
-
-                  {isPostMenuOpen && (
-                    <div
-                      role="menu"
-                      className="absolute right-0 top-10 z-20 w-32 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                )}
+                {me?.id != null && (
+                  <div ref={postMenuRef} className="relative shrink-0">
+                    <button
+                      ref={postMenuButtonRef}
+                      type="button"
+                      onClick={() => setIsPostMenuOpen((open) => !open)}
+                      aria-label="게시글 메뉴"
+                      aria-expanded={isPostMenuOpen}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
                     >
-                      {isAuthor ? (
-                        <>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => router.push(`/certification-posts/${postId}/edit`)}
-                            disabled={deletePostMutation.isPending}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
-                          >
-                            <Pencil size={15} aria-hidden="true" />
-                            수정
-                          </button>
+                      <MoreVertical size={20} aria-hidden="true" />
+                    </button>
+
+                    {isPostMenuOpen && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 top-10 z-20 w-32 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                      >
+                        {isAuthor ? (
+                          <>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => router.push(`/certification-posts/${postId}/edit`)}
+                              disabled={deletePostMutation.isPending}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                            >
+                              <Pencil size={15} aria-hidden="true" />
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setIsPostMenuOpen(false);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                              disabled={deletePostMutation.isPending}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                            >
+                              <Trash2 size={15} aria-hidden="true" />
+                              {deletePostMutation.isPending ? "삭제 중..." : "삭제"}
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
                             role="menuitem"
                             onClick={() => {
                               setIsPostMenuOpen(false);
-                              setIsDeleteDialogOpen(true);
+                              setIsReportDialogOpen(true);
                             }}
-                            disabled={deletePostMutation.isPending}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                           >
-                            <Trash2 size={15} aria-hidden="true" />
-                            {deletePostMutation.isPending ? "삭제 중..." : "삭제"}
+                            <Flag size={15} aria-hidden="true" />
+                            신고
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setIsPostMenuOpen(false);
-                            setIsReportDialogOpen(true);
-                          }}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                        >
-                          <Flag size={15} aria-hidden="true" />
-                          신고
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </header>
+
+          {startChatError && (
+            <div className="shrink-0 px-5 pt-3">
+              <ErrorMessage error={startChatError} />
+            </div>
+          )}
 
           <div className="max-h-48 shrink-0 overflow-y-auto border-b border-gray-100 px-5 py-3">
             <p className="whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
