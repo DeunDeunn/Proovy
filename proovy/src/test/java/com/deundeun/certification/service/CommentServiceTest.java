@@ -29,6 +29,7 @@ import com.deundeun.certification.dto.CommentResponse;
 import com.deundeun.certification.dto.CommentRow;
 import com.deundeun.certification.dto.CreateCommentRequest;
 import com.deundeun.certification.dto.CreateCommentSqlParam;
+import com.deundeun.certification.dto.LikeToggleResponse;
 import com.deundeun.certification.dto.UpdateCommentRequest;
 import com.deundeun.certification.enums.CertificationStatus;
 import com.deundeun.certification.mapper.CertificationMapper;
@@ -191,6 +192,7 @@ class CommentServiceTest {
             UpdateCommentRequest r = new UpdateCommentRequest();
             r.setContents("new");
             when(commentMapper.findCommentForAuth(5L)).thenReturn(comment(5, USER_ID, null));
+            when(commentMapper.updateComment(5L, "new")).thenReturn(1);
 
             commentService.updateComment(5L, USER_ID, r);
 
@@ -228,6 +230,7 @@ class CommentServiceTest {
         void postAuthorCanDelete() {
             when(commentMapper.findCommentForAuth(5L)).thenReturn(comment(5, 999L, null));
             when(certificationMapper.findPostAuthorId(POST_ID)).thenReturn(USER_ID); // 게시글 작성자 == 요청자
+            when(commentMapper.softDeleteComment(5L)).thenReturn(1);
 
             commentService.deleteComment(5L, USER_ID);
 
@@ -239,11 +242,71 @@ class CommentServiceTest {
         @DisplayName("[CM-14] 댓글 작성자 본인이면 삭제 + commentCount 감소")
         void commentAuthorDeletes() {
             when(commentMapper.findCommentForAuth(5L)).thenReturn(comment(5, USER_ID, null));
+            when(commentMapper.softDeleteComment(5L)).thenReturn(1);
 
             commentService.deleteComment(5L, USER_ID);
 
             verify(commentMapper).softDeleteComment(5L);
             verify(commentMapper).decrementCommentCount(POST_ID);
+        }
+    }
+
+    @Nested
+    @DisplayName("toggleCommentLike")
+    class Like {
+        @Test
+        @DisplayName("[CM-15] 댓글이 없으면 COMMENT_NOT_FOUND")
+        void commentNotFound() {
+            when(commentMapper.findCommentForAuth(5L)).thenReturn(null);
+
+            assertThatThrownBy(() -> commentService.toggleCommentLike(5L, USER_ID))
+                    .isInstanceOf(ApiException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("[CM-16] 미승인 글의 댓글에는 좋아요할 수 없다")
+        void unapprovedPost() {
+            when(commentMapper.findCommentForAuth(5L)).thenReturn(comment(5, 99L, null));
+            when(certificationMapper.findPostDetail(POST_ID)).thenReturn(post(CertificationStatus.PENDING));
+            doNothing().when(certificationService).assertPostReadable(POST_ID, USER_ID);
+
+            assertThatThrownBy(() -> commentService.toggleCommentLike(5L, USER_ID))
+                    .isInstanceOf(ApiException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.CANNOT_LIKE_COMMENT_UNAPPROVED);
+        }
+
+        @Test
+        @DisplayName("[CM-17] 좋아요 등록 시 liked=true와 증가한 개수를 반환한다")
+        void likeOn() {
+            when(commentMapper.findCommentForAuth(5L)).thenReturn(comment(5, 99L, null));
+            when(certificationMapper.findPostDetail(POST_ID)).thenReturn(post(CertificationStatus.APPROVED));
+            doNothing().when(certificationService).assertPostReadable(POST_ID, USER_ID);
+            when(commentMapper.deleteCommentLike(5L, USER_ID)).thenReturn(0);
+            when(commentMapper.insertCommentLike(5L, USER_ID)).thenReturn(1);
+            when(commentMapper.findCommentLikeCount(5L)).thenReturn(1L);
+
+            LikeToggleResponse result = commentService.toggleCommentLike(5L, USER_ID);
+
+            assertThat(result.isLiked()).isTrue();
+            assertThat(result.getLikeCount()).isEqualTo(1L);
+            verify(commentMapper).incrementCommentLikeCount(5L);
+        }
+
+        @Test
+        @DisplayName("[CM-18] 좋아요 취소 시 liked=false와 감소한 개수를 반환한다")
+        void likeOff() {
+            when(commentMapper.findCommentForAuth(5L)).thenReturn(comment(5, 99L, null));
+            when(certificationMapper.findPostDetail(POST_ID)).thenReturn(post(CertificationStatus.APPROVED));
+            doNothing().when(certificationService).assertPostReadable(POST_ID, USER_ID);
+            when(commentMapper.deleteCommentLike(5L, USER_ID)).thenReturn(1);
+            when(commentMapper.findCommentLikeCount(5L)).thenReturn(0L);
+
+            LikeToggleResponse result = commentService.toggleCommentLike(5L, USER_ID);
+
+            assertThat(result.isLiked()).isFalse();
+            assertThat(result.getLikeCount()).isZero();
+            verify(commentMapper).decrementCommentLikeCount(5L);
         }
     }
 
@@ -264,12 +327,13 @@ class CommentServiceTest {
         @DisplayName("[CM-16] 최상위 댓글이 없으면 빈 리스트 (대댓글 조회 안 함)")
         void empty() {
             when(certificationMapper.findPostDetail(POST_ID)).thenReturn(post(CertificationStatus.APPROVED));
-            when(commentMapper.findTopLevelComments(eq(POST_ID), any(), anyInt())).thenReturn(List.of());
+            when(commentMapper.findTopLevelComments(eq(POST_ID), eq(USER_ID), any(), anyInt()))
+                    .thenReturn(List.of());
 
             List<CommentResponse> result = commentService.getComments(POST_ID, USER_ID, null, 20);
 
             assertThat(result).isEmpty();
-            verify(commentMapper, never()).findReplies(any());
+            verify(commentMapper, never()).findReplies(any(), any());
         }
 
         @Test
@@ -283,7 +347,8 @@ class CommentServiceTest {
             top.setAuthorNickname("nick");
             top.setContents("top");
             top.setCreatedAt(LocalDateTime.now());
-            when(commentMapper.findTopLevelComments(eq(POST_ID), any(), anyInt())).thenReturn(List.of(top));
+            when(commentMapper.findTopLevelComments(eq(POST_ID), eq(USER_ID), any(), anyInt()))
+                    .thenReturn(List.of(top));
 
             CommentRow reply = new CommentRow();
             reply.setCommentId(200L);
@@ -291,7 +356,7 @@ class CommentServiceTest {
             reply.setDeleted(true);              // 삭제된 대댓글
             reply.setContents("secret");
             reply.setCreatedAt(LocalDateTime.now());
-            when(commentMapper.findReplies(List.of(100L))).thenReturn(List.of(reply));
+            when(commentMapper.findReplies(List.of(100L), USER_ID)).thenReturn(List.of(reply));
 
             List<CommentResponse> result = commentService.getComments(POST_ID, USER_ID, null, 20);
 

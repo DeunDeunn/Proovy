@@ -32,24 +32,10 @@
         </foreach>
     </select>
 
-    <sql id="searchCondition">
-        <where>
-            <if test="categoryId != null">
-                AND c.category_id = #{categoryId}
-            </if>
-            <if test="status != null">
-                AND c.status = #{status}
-            </if>
-            <if test="keyword != null and keyword != ''">
-                AND c.title LIKE '%' || #{keyword} || '%'
-            </if>
-        </where>
-    </sql>
-
-    <select id="search" resultType="ChallengeSummaryResponse">
-        SELECT
+    <sql id="challengeSummaryColumns">
         c.id,
         c.title,
+        cat.id AS category_id,
         cat.name AS category_name,
         c.entry_fee,
         (SELECT COUNT(*) FROM challenge_participants p
@@ -58,11 +44,57 @@
         c.start_date,
         c.end_date,
         c.status
+    </sql>
+
+    <sql id="searchCondition">
+        <where>
+            <if test="categoryId != null">
+                AND c.category_id = #{categoryId}
+            </if>
+            <choose>
+                <when test="status != null">
+                    AND c.status = #{status}
+                </when>
+                <otherwise>
+                    AND c.status NOT IN ('COMPLETED', 'CANCELLED')
+                </otherwise>
+            </choose>
+            <if test="keyword != null and keyword != ''">
+                AND c.title LIKE '%' || #{keyword} || '%'
+            </if>
+        </where>
+    </sql>
+
+    <select id="search" resultType="ChallengeSummaryResponse">
+        SELECT
+        <include refid="challengeSummaryColumns"/>
         FROM challenges c
         JOIN categories cat ON cat.id = c.category_id
         <include refid="searchCondition"/>
-        ORDER BY c.created_at DESC, c.id DESC
+        <choose>
+            <when test="sort != null and sort.name() == 'ENTRY_FEE'">
+                ORDER BY c.entry_fee ${direction.name()}, c.id DESC
+            </when>
+            <when test="sort != null and sort.name() == 'PARTICIPANTS'">
+                ORDER BY current_participants ${direction.name()}, c.id DESC
+            </when>
+            <otherwise>
+                ORDER BY c.created_at ${direction.name()}, c.id DESC
+            </otherwise>
+        </choose>
         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <!-- 내가 참가(방장 포함) 중인 챌린지 목록: 참가 이력이 아닌 현재 활동중인 참가만 -->
+    <select id="findMyChallenges" resultType="ChallengeSummaryResponse">
+        SELECT
+        <include refid="challengeSummaryColumns"/>
+        FROM challenges c
+        JOIN categories cat ON cat.id = c.category_id
+        JOIN challenge_participants cp ON cp.challenge_id = c.id
+        WHERE cp.user_id = #{userId}
+        AND cp.status = 'ACTIVE'
+        ORDER BY c.created_at DESC, c.id DESC
     </select>
 
     <select id="countBySearch" resultType="long">
@@ -88,6 +120,21 @@
         FROM challenges c
                  JOIN categories cat ON cat.id = c.category_id
                  LEFT JOIN users u ON u.id = c.host_id
+        WHERE c.id = #{id}
+    </select>
+
+    <!-- 진행 현황: 참가 인원·성공/실패 확정 인원. 진행률(daysElapsed/progressPercentage)은 서비스단에서 계산 -->
+    <select id="findProgressById" resultType="ChallengeProgressResponse">
+        SELECT
+            c.id, c.title, c.status,
+            c.start_date, c.end_date, c.max_participants,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.status = 'ACTIVE') AS current_participants,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.result = 'SUCCESS') AS success_count,
+            (SELECT COUNT(*) FROM challenge_participants p
+             WHERE p.challenge_id = c.id AND p.result = 'FAIL') AS fail_count
+        FROM challenges c
         WHERE c.id = #{id}
     </select>
 
@@ -147,5 +194,23 @@
         SET status = #{status}
         WHERE id = #{id}
     </update>
+
+    <update id="startDueChallenges">
+        UPDATE challenges
+        SET status = 'IN_PROGRESS'
+        WHERE status = 'RECRUITING'
+          AND start_date &lt;= CURRENT_DATE
+    </update>
+
+    <select id="findChallengesToComplete" resultType="Challenge">
+        SELECT id, host_id, title, description, category_id, entry_fee,
+               verification_method, cert_frequency, daily_cert_limit,
+               success_criteria_rate, ai_review_enabled,
+               start_date, end_date, max_participants, status,
+               created_at, updated_at, cert_start_time, cert_end_time, feed_visibility
+        FROM challenges
+        WHERE status = 'IN_PROGRESS'
+          AND end_date &lt; CURRENT_DATE
+    </select>
 
 </mapper>

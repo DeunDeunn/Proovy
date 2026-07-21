@@ -32,6 +32,10 @@ public class UserVerificationService {
         if (userVerificationMapper.existsPending(userId)) {
             throw new ApiException(ErrorCode.VERIFICATION_ALREADY_PENDING);
         }
+        UserVerification latest = userVerificationMapper.findLatestByUserId(userId);
+        if (latest != null && latest.getStatus() == UserVerificationStatus.APPROVED) {
+            throw new ApiException(ErrorCode.VERIFICATION_ALREADY_APPROVED);
+        }
         long successCount = userVerificationMapper.countSuccessfulChallenges(userId, user.getDemotedAt());
         if (successCount < MIN_SUCCESSFUL_CHALLENGES) {
             throw new ApiException(ErrorCode.VERIFICATION_INELIGIBLE);
@@ -47,12 +51,20 @@ public class UserVerificationService {
     }
 
     public UserVerificationStatusResponse getMyStatus(Long userId) {
+        User user = getUserOrThrow(userId);
+        long successCount = userVerificationMapper.countSuccessfulChallenges(userId, user.getDemotedAt());
+
         UserVerification latest = userVerificationMapper.findLatestByUserId(userId);
         if (latest == null) {
-            return new UserVerificationStatusResponse(null, null, null, null);
+            return new UserVerificationStatusResponse(null, null, null, null, successCount, MIN_SUCCESSFUL_CHALLENGES);
         }
         return new UserVerificationStatusResponse(
-                latest.getStatus(), latest.getAppliedAt(), latest.getApprovedAt(), latest.getRejectionReason());
+                latest.getStatus(),
+                latest.getAppliedAt(),
+                latest.getApprovedAt(),
+                latest.getRejectionReason(),
+                successCount,
+                MIN_SUCCESSFUL_CHALLENGES);
     }
 
     public UserVerificationListResponse getList(UserVerificationStatus status, int page, int size) {

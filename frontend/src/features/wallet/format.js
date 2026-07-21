@@ -27,6 +27,24 @@ export const formatSignedAmount = (type, amount) => {
   return `${sign}${formatCurrency(Math.abs(amount ?? 0)).replace("₩ ", "₩")}`;
 };
 
+const TYPE_BADGE_VARIANTS = {
+  CHARGE: "success",
+  CHALLENGE_HOLD: "warning",
+  WITHDRAWAL: "primary",
+};
+
+export const getTransactionBadge = (item) => {
+  const typeLabel = TRANSACTION_TYPE_LABELS[item.type] ?? item.type;
+
+  if (item.status === "FAILED" || item.status === "PENDING") {
+    return { label: `${typeLabel} 실패`, variant: "danger" };
+  }
+  if (item.status === "PROCESSING") {
+    return { label: `${typeLabel} 처리중`, variant: "warning" };
+  }
+  return { label: typeLabel, variant: TYPE_BADGE_VARIANTS[item.type] ?? "gray" };
+};
+
 export const formatDate = (isoString) => {
   if (!isoString) return "-";
   const date = new Date(isoString);

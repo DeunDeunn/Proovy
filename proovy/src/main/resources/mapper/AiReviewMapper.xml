@@ -37,6 +37,26 @@
           AND p.deleted_at IS NULL
     </select>
 
+    <select id="isAiReviewEnabledByChallengeId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM challenges
+            WHERE id = #{challengeId}
+              AND ai_review_enabled = true
+        )
+    </select>
+
+    <select id="existsActiveTicketSubscriptionByHostId" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM ai_ticket_subscriptions
+            WHERE host_id = #{hostId}
+              AND status = 'ACTIVE'
+              AND started_at &lt;= now()
+              AND expired_at &gt; now()
+        )
+    </select>
+
     <select id="findImageUrlsByPostId" resultType="java.lang.String">
         SELECT image_url
         FROM certification_post_images
@@ -64,6 +84,54 @@
             #{newPostStatus}
         )
     </insert>
+
+    <select id="findReviewResultByPostId" resultMap="AiReviewResultMap">
+        SELECT id,
+               challenge_id,
+               host_id,
+               verification_post_id,
+               review_mode,
+               decision,
+               confidence,
+               reason,
+               raw_response,
+               status,
+               previous_post_status,
+               new_post_status,
+               created_at
+        FROM ai_review_results
+        WHERE verification_post_id = #{postId}
+    </select>
+
+    <update id="resetFailedAiReviewResultToProcessing">
+        UPDATE ai_review_results
+        SET review_mode = #{reviewMode},
+            decision = NULL,
+            confidence = NULL,
+            reason = NULL,
+            raw_response = NULL,
+            status = 'PROCESSING',
+            previous_post_status = #{previousPostStatus},
+            new_post_status = #{newPostStatus}
+        WHERE id = #{id}
+          AND status = 'FAILED'
+    </update>
+
+    <update id="updateAiReviewResultFailed">
+        UPDATE ai_review_results
+        SET status = 'FAILED'
+        WHERE id = #{id}
+          AND status = 'PROCESSING'
+    </update>
+
+    <update id="updateCertificationPostStatus">
+        UPDATE certification_posts
+        SET certification_status = #{newStatus},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{postId}
+          AND deleted_at IS NULL
+          AND certification_status = 'PENDING'
+    </update>
 
     <update id="updateAiReviewResultCompleted">
         UPDATE ai_review_results
@@ -93,6 +161,32 @@
                created_at
         FROM ai_review_results
         WHERE id = #{id}
+    </select>
+
+    <select id="findReviewResultsByChallengeId" resultMap="AiReviewResultMap">
+        SELECT id,
+               challenge_id,
+               host_id,
+               verification_post_id,
+               review_mode,
+               decision,
+               confidence,
+               reason,
+               raw_response,
+               status,
+               previous_post_status,
+               new_post_status,
+               created_at
+        FROM ai_review_results
+        WHERE challenge_id = #{challengeId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countReviewResultsByChallengeId" resultType="long">
+        SELECT COUNT(*)
+        FROM ai_review_results
+        WHERE challenge_id = #{challengeId}
     </select>
 
 </mapper>

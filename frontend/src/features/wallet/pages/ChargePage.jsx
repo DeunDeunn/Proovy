@@ -10,23 +10,47 @@ import Loading from "@/components/ui/Loading";
 
 import { useRequestCharge, useWallet } from "../hooks";
 import { formatCurrency } from "../format";
-import { NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY, NAVERPAY_SDK_URL, createNaverPay } from "../naverpay";
+import {
+  NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY,
+  NAVERPAY_SDK_URL,
+  createNaverPay,
+} from "../naverpay";
 
 const MIN_AMOUNT = 1_000;
 const MAX_AMOUNT = 50_000;
 const UNIT = 1_000;
-const PRESET_AMOUNTS = [1_000, 3_000, 5_000, 10_000, 30_000, 50_000];
+const PRESET_AMOUNTS = [1_000, 5_000, 10_000, 20_000, 30_000, 50_000];
 const INCREMENTS = [1_000, 5_000, 10_000];
 
 const clampAmount = (value) => Math.min(MAX_AMOUNT, Math.max(0, value));
 
 const ChargePage = () => {
   const { data: wallet, isLoading, error } = useWallet();
-  const [amount, setAmount] = useState(20_000);
+  const [amount, setAmount] = useState(MIN_AMOUNT);
+  const [customInput, setCustomInput] = useState("");
   const requestChargeMutation = useRequestCharge();
 
   const isValidAmount = amount >= MIN_AMOUNT && amount <= MAX_AMOUNT && amount % UNIT === 0;
-  const isPresetSelected = PRESET_AMOUNTS.includes(amount);
+  const isPresetSelected = customInput === "" && PRESET_AMOUNTS.includes(amount);
+
+  const handlePresetClick = (preset) => {
+    setAmount(preset);
+    setCustomInput("");
+  };
+
+  const handleCustomChange = (e) => {
+    const normalized = e.target.value.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "");
+    const numeric = Number(normalized) || 0;
+    const clamped = clampAmount(numeric);
+    setCustomInput(numeric > MAX_AMOUNT ? String(clamped) : normalized);
+    setAmount(clamped);
+  };
+
+  const handleIncrement = (inc) => {
+    const next = clampAmount(amount + inc);
+    setAmount(next);
+    setCustomInput(String(next));
+  };
 
   const projected = useMemo(() => {
     if (!wallet) return null;
@@ -46,7 +70,10 @@ const ChargePage = () => {
 
     requestChargeMutation.mutate(amount, {
       onSuccess: (chargeResponse) => {
-        sessionStorage.setItem(NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY, chargeResponse.merchantPayKey);
+        sessionStorage.setItem(
+          NAVERPAY_MERCHANT_PAY_KEY_STORAGE_KEY,
+          chargeResponse.merchantPayKey
+        );
 
         const oPay = createNaverPay();
         oPay.open({
@@ -84,7 +111,7 @@ const ChargePage = () => {
               {PRESET_AMOUNTS.map((preset) => (
                 <button
                   key={preset}
-                  onClick={() => setAmount(preset)}
+                  onClick={() => handlePresetClick(preset)}
                   className={`rounded-lg border px-3 py-4 text-sm font-medium transition-colors ${
                     amount === preset
                       ? "border-primary bg-primary-light text-primary"
@@ -101,10 +128,12 @@ const ChargePage = () => {
               >
                 <span className="shrink-0 text-sm text-gray-500">직접 입력</span>
                 <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(clampAmount(Number(e.target.value) || 0))}
-                  className="w-full min-w-0 border-none bg-transparent text-right text-sm font-medium text-gray-900 outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={customInput}
+                  onChange={handleCustomChange}
+                  className="w-full min-w-0 border-none bg-transparent text-right text-sm font-medium text-gray-900 outline-none"
                 />
                 <span className="shrink-0 text-sm text-gray-500">원</span>
               </div>
@@ -114,7 +143,7 @@ const ChargePage = () => {
               {INCREMENTS.map((inc) => (
                 <button
                   key={inc}
-                  onClick={() => setAmount((prev) => clampAmount(prev + inc))}
+                  onClick={() => handleIncrement(inc)}
                   className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                 >
                   +{formatCurrency(inc).replace("₩ ", "")}
@@ -173,17 +202,19 @@ const ChargePage = () => {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">충전 후 총 보유 캐시</span>
-                <span className="font-semibold text-success">{formatCurrency(totalAfterCharge)}</span>
+                <span className="font-semibold text-success">
+                  {formatCurrency(totalAfterCharge)}
+                </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between pl-3">
                 <span className="text-gray-500">충전 캐시</span>
                 <span className="text-gray-700">{formatCurrency(projected?.chargedBalance)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between pl-3">
                 <span className="text-gray-500">리워드 캐시</span>
                 <span className="text-gray-700">{formatCurrency(projected?.rewardBalance)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between pl-3">
                 <span className="text-gray-500">홀딩 캐시</span>
                 <span className="text-gray-700">{formatCurrency(projected?.lockedBalance)}</span>
               </div>

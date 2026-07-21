@@ -72,7 +72,7 @@ public class CertificationController {
         return ApiResponse.success(null);
     }
 
-    // 방장 검수 대기 목록 API (커서 무한스크롤·최신순)
+    // 방장 검수 대기 목록 API (커서 무한스크롤·오래된 순)
     @GetMapping("/api/v1/challenge/{challengeId}/pending-certifications")
     public ApiResponse<List<PendingCertificationResponse>> getPendingCertifications(
             @PathVariable Long challengeId,
@@ -89,7 +89,7 @@ public class CertificationController {
     public ApiResponse<Void> updateCertificationPost(
             @PathVariable Long postId,
             @RequestPart("request") UpdateCertificationPostRequest request,
-            @RequestPart("thumbnail") MultipartFile thumbnail,
+            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestPart(value = "images", required = false) List<MultipartFile> images) {
         Long userId = CurrentUser.getUserId();
         certificationService.updateCertificationPost(postId, userId, request, thumbnail, images);

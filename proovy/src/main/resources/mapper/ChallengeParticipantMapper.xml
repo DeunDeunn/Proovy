@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.deundeun.challenge.mapper.ChallengeParticipantMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO challenge_participants (challenge_id, user_id, status)
+        VALUES (#{challengeId}, #{userId}, #{status})
+    </insert>
+
+    <!-- 활동 중인 참가자만 목록으로 보여준다 (탈퇴/강퇴된 이력은 제외) -->
+    <select id="findAllByChallengeId" resultType="ChallengeParticipantListItemResponse">
+        SELECT p.user_id, u.nickname, p.status, p.joined_at
+        FROM challenge_participants p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.challenge_id = #{challengeId}
+          AND p.status = 'ACTIVE'
+        ORDER BY p.joined_at ASC
+    </select>
+
+    <!-- 상태 무관 전체 이력 조회: 탈퇴(WITHDRAWN) 이력이 있으면 재참가를 막기 위해 상태를 걸지 않는다 -->
+    <select id="findByChallengeIdAndUserId" resultType="ChallengeParticipant">
+        SELECT id, challenge_id, user_id, status, result, joined_at, left_at
+        FROM challenge_participants
+        WHERE challenge_id = #{challengeId}
+          AND user_id = #{userId}
+    </select>
+
+    <select id="findByChallengeIdAndUserIdForUpdate" resultType="ChallengeParticipant">
+        SELECT id, challenge_id, user_id, status, result, joined_at, left_at
+        FROM challenge_participants
+        WHERE challenge_id = #{challengeId}
+          AND user_id = #{userId}
+        FOR UPDATE
+    </select>
+
+    <select id="countActiveParticipants" resultType="int">
+        SELECT COUNT(*)
+        FROM challenge_participants
+        WHERE challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </select>
+
+    <update id="updateStatus">
+        UPDATE challenge_participants
+        SET status = #{status}, left_at = #{leftAt}
+        WHERE id = #{id}
+    </update>
+
+    <select id="findActiveUserIdsByChallengeId" resultType="long">
+        SELECT user_id
+        FROM challenge_participants
+        WHERE challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </select>
+
+    <update id="withdrawAllActiveByChallengeId">
+        UPDATE challenge_participants
+        SET status = 'WITHDRAWN', left_at = #{leftAt}
+        WHERE challenge_id = #{challengeId}
+          AND status = 'ACTIVE'
+    </update>
+
+    <!-- 승인(APPROVED)된 인증글 개수: 삭제된(deleted_at IS NOT NULL) 인증글은 세지 않는다 -->
+    <select id="findActiveParticipantsWithApprovedCount" resultType="ParticipantResultCandidate">
+        SELECT p.id, p.user_id,
+               COUNT(cp.id) FILTER (WHERE cp.certification_status = 'APPROVED' AND cp.deleted_at IS NULL) AS approved_count
+        FROM challenge_participants p
+        LEFT JOIN certification_posts cp ON cp.challenge_participant_id = p.id
+        WHERE p.challenge_id = #{challengeId}
+          AND p.status = 'ACTIVE'
+        GROUP BY p.id, p.user_id
+    </select>
+
+    <update id="updateResult">
+        UPDATE challenge_participants
+        SET result = #{result}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

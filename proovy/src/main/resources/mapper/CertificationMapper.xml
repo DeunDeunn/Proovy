@@ -194,7 +194,7 @@
         GROUP BY challenge_participant_id
     </select>
 
-    <!-- 특정 챌린지의 검수 대기(PENDING) 목록 (커서 무한스크롤, 최신순) -->
+    <!-- 특정 챌린지의 검수 대기(PENDING) 목록 (커서 무한스크롤, 오래된 순) -->
     <select id="findPendingCertifications" resultType="PendingCertificationResponse">
         SELECT p.id                      AS post_id,
                p.user_id                 AS author_id,
@@ -212,12 +212,12 @@
             cp.challenge_id = #{challengeId}
             AND p.certification_status = 'PENDING'
             AND p.deleted_at IS NULL
-            <!-- 커서 페이징(최신순) -->
+            <!-- 커서 페이징(오래된 순) -->
             <if test="cursor != null">
-                AND p.id &lt; #{cursor}
+                AND p.id &gt; #{cursor}
             </if>
         </where>
-        ORDER BY p.id DESC
+        ORDER BY p.id ASC
         LIMIT #{size}
     </select>
 
@@ -390,6 +390,16 @@
     <!-- 현재 좋아요 갯수 -->
     <select id="findLikeCount" resultType="long">
         SELECT like_count FROM certification_posts WHERE id = #{postId}
+    </select>
+
+    <!-- 현재 사용자의 좋아요 여부 (상세 화면 하트 초기 상태용) -->
+    <select id="existsLike" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+            FROM certification_post_like
+            WHERE post_id = #{postId}
+              AND user_id = #{userId}
+        )
     </select>
 
 </mapper>

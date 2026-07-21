@@ -3,6 +3,7 @@ package com.deundeun.certification.controller;
 import com.deundeun.certification.dto.CommentResponse;
 import com.deundeun.certification.dto.CreateCommentRequest;
 import com.deundeun.certification.dto.CreateCommentResponse;
+import com.deundeun.certification.dto.LikeToggleResponse;
 import com.deundeun.certification.dto.UpdateCommentRequest;
 import com.deundeun.certification.service.CommentService;
 import com.deundeun.global.common.ApiResponse;
@@ -54,5 +55,12 @@ public class CommentController {
         Long userId = CurrentUser.getUserId();
         commentService.deleteComment(commentId, userId);
         return ApiResponse.success(null);
+    }
+
+    // 댓글 좋아요 토글 (읽을 수 있는 승인된 인증글의 댓글에만)
+    @PostMapping("/api/v1/comments/{commentId}/like")
+    public ApiResponse<LikeToggleResponse> toggleCommentLike(@PathVariable Long commentId) {
+        Long userId = CurrentUser.getUserId();
+        return ApiResponse.success(commentService.toggleCommentLike(commentId, userId));
     }
 }

@@ -1,7 +1,9 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- S3 외부 프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
+
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
 import {
@@ -12,15 +14,22 @@ import {
   Bell,
   Flag,
   Wallet,
+  ShoppingBag,
   User,
   ChevronDown,
   ChevronUp,
+  LogIn,
+  LogOut,
+  Plus,
+  ShieldCheck,
 } from "lucide-react";
 
 import Image from "next/image";
 
 import { useUnreadChatCount } from "@/features/chat/store";
-import { useUnreadNotificationCount } from "@/features/notification/store";
+import { useUnreadCount } from "@/features/notification/hooks/notificationHooks";
+import { useLogout, useMe } from "@/features/auth/hooks";
+import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 
 const menus = [
   { name: "홈", href: "/", icon: Home },
@@ -38,16 +47,22 @@ const walletMenus = [
   { name: "정산 내역", href: "/wallet/settlements" },
 ];
 
-const mypageMenus = [
+const adminMenus = [
+  { name: "우수 사용자 인증", href: "/admin/user-verifications" },
+  { name: "신고 관리", href: "/admin/reports" },
+  { name: "출금 관리", href: "/admin/withdrawals" },
+];
+
+const baseMypageMenus = [
   { name: "내 정보", href: "/mypage" },
   { name: "내 인증피드", href: "/mypage/feed" },
   { name: "우수 사용자 인증", href: "/mypage/verification" },
   { name: "AI 티켓 관리", href: "/mypage/tickets" },
   { name: "설정", href: "/mypage/settings" },
-  { name: "회원탈퇴", href: "/mypage/delete" },
 ];
+const withdrawMenu = { name: "회원탈퇴", href: "/mypage/withdraw" };
 
-const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
+const SidebarDropdown = ({ icon: Icon, label, items, pathname, onItemAction }) => {
   const isActive = items.some((m) => m.href === pathname);
   const [manualOpen, setManualOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
@@ -76,6 +91,19 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
       </button>
       {open &&
         items.map((menu) => {
+          if (menu.action) {
+            return (
+              <button
+                key={menu.name}
+                type="button"
+                onClick={() => onItemAction(menu.action)}
+                className="block w-full rounded-lg py-2 pl-11 pr-3 text-left text-sm text-gray-600 hover:bg-gray-50"
+              >
+                {menu.name}
+              </button>
+            );
+          }
+
           const active = pathname === menu.href;
           return (
             <Link
@@ -97,11 +125,23 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname }) => {
 
 const Sidebar = () => {
   const pathname = usePathname();
-  const unreadNotificationCount = useUnreadNotificationCount();
+  const router = useRouter();
+  const { data: unreadCountData } = useUnreadCount();
+  const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   const unreadChatCount = useUnreadChatCount();
+  const { data: me, isLoading: isMeLoading } = useMe();
+  const logoutMutation = useLogout();
+
+  const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
+
+  const handleLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => router.replace("/"),
+    });
+  };
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-surface px-4 py-6">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-gray-200 bg-surface px-4 py-6">
       {/* 로고 */}
       <Link href="/" className="mb-8 px-3">
         <Image
@@ -114,8 +154,8 @@ const Sidebar = () => {
         />
       </Link>
 
-      {/* 메인 메뉴 */}
-      <nav className="flex flex-col gap-1">
+      {/* 메인 메뉴: 드롭다운이 펼쳐져도 아래 버튼/프로필 위치가 안 밀리게 이 영역만 따로 스크롤 */}
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {menus.map((menu) => {
           const active = pathname === menu.href;
           return (
@@ -135,7 +175,7 @@ const Sidebar = () => {
                   {unreadNotificationCount}
                 </span>
               )}
-              {menu.href === "/chat" && unreadChatCount > 0 && (
+              {menu.href === "/chat" && me && unreadChatCount > 0 && (
                 <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
                   {unreadChatCount}
                 </span>
@@ -150,17 +190,87 @@ const Sidebar = () => {
 
         <div className="my-3 border-t border-gray-200" />
 
-        <SidebarDropdown icon={User} label="마이페이지" items={mypageMenus} pathname={pathname} />
+        <Link
+          href="/mypage/tickets/store"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+            pathname === "/mypage/tickets/store"
+              ? "bg-primary-light font-semibold text-primary"
+              : "text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          <ShoppingBag size={18} />
+          스토어
+        </Link>
+
+        <div className="my-3 border-t border-gray-200" />
+
+        <SidebarDropdown
+          icon={User}
+          label="마이페이지"
+          items={mypageMenuItems}
+          pathname={pathname}
+        />
+
+        {me?.role === "ADMIN" && (
+          <>
+            <div className="my-3 border-t border-gray-200" />
+            <SidebarDropdown
+              icon={ShieldCheck}
+              label="관리자"
+              items={adminMenus}
+              pathname={pathname}
+            />
+          </>
+        )}
       </nav>
 
-      {/* 하단 프로필 자리 */}
-      <Link
-        href="/login"
-        className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-50"
-      >
-        <div className="h-8 w-8 rounded-full bg-gray-200" />
-        <span className="text-sm text-gray-700">로그인 / 회원가입</span>
-      </Link>
+      {/* 로그인 안 한 사용자는 어차피 개설할 수 없으니 로그인했을 때만 노출 */}
+      {me && (
+        <Link
+          href="/challenges/new"
+          className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+        >
+          <Plus size={16} />
+          챌린지 개설하기
+        </Link>
+      )}
+
+      {/* 하단 프로필 자리: 위 메뉴/버튼과 충분한 여백만으로 구분 */}
+      <div className="mt-6">
+        {isMeLoading ? (
+          <div className="h-11 animate-pulse rounded-lg bg-gray-100" />
+        ) : me ? (
+          <div className="flex items-center gap-1 rounded-lg px-3 py-2">
+            <Link
+              href="/mypage"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg hover:bg-gray-50"
+            >
+              <img
+                src={me.profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
+                alt={`${me.nickname} 프로필 이미지`}
+                className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+              />
+              <span className="truncate text-sm font-medium text-gray-700">{me.nickname}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="로그아웃"
+              className="cursor-pointer rounded-lg p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+          >
+            <LogIn size={16} />
+            로그인 / 회원가입
+          </Link>
+        )}
+      </div>
     </aside>
   );
 };

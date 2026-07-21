@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -44,10 +43,14 @@ public class AiReviewRuleController {
     @PatchMapping("/review-mode")
     public ApiResponse<AiReviewRuleResponse> updateAiReviewMode(
             @PathVariable Long challengeId,
-            @RequestParam String reviewMode
+            @RequestBody AiReviewRuleRequest request
     ) {
         Long userId = CurrentUser.getUserId();
-        AiReviewRuleResponse response = aiReviewRuleService.updateAiReviewModeByChallengeId(userId, challengeId, reviewMode);
+        AiReviewRuleResponse response = aiReviewRuleService.updateAiReviewModeByChallengeId(
+                userId,
+                challengeId,
+                request == null ? null : request.getReviewMode()
+        );
         return ApiResponse.success(response);
     }
 }

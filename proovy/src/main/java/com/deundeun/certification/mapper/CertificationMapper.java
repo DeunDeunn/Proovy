@@ -74,7 +74,7 @@ public interface CertificationMapper {
    // 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용). 인증 0건 참가자는 결과에 없음
    List<ParticipantSuccessCount> countApprovedDaysByParticipantIds(@Param("participantIds") List<Long> participantIds);
 
-   // 특정 챌린지의 승인대기 인증글 목록 (방장 검수용, 커서 무한스크롤·최신순)
+   // 특정 챌린지의 승인대기 인증글 목록 (방장 검수용, 커서 무한스크롤·오래된 순)
    List<PendingCertificationResponse> findPendingCertifications(@Param("challengeId") Long challengeId,
                                                                 @Param("cursor") Long cursor,
                                                                 @Param("size") int size);
@@ -107,4 +107,7 @@ public interface CertificationMapper {
 
    // 해당글 좋아요집계
    long findLikeCount(Long postId);
+
+   // 현재 사용자가 해당 글에 좋아요를 눌렀는지
+   boolean existsLike(@Param("postId") Long postId, @Param("userId") Long userId);
 }

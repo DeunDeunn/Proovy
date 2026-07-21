@@ -10,6 +10,14 @@ export const getComments = (postId, { cursor, size = 20 } = {}) =>
 export const createComment = (postId, payload) =>
   api.post(`/v1/certification-post/${postId}/comments`, payload);
 
+export const createReport = (payload) => api.post("/v1/reports", payload);
+
+export const updateComment = (commentId, payload) => api.put(`/v1/comments/${commentId}`, payload);
+
+export const deleteComment = (commentId) => api.delete(`/v1/comments/${commentId}`);
+
+export const toggleCommentLike = (commentId) => api.post(`/v1/comments/${commentId}/like`);
+
 export const createCertificationPost = (challengeId, { contents, thumbnail, images }) => {
   const formData = new FormData();
 
@@ -25,15 +33,30 @@ export const createCertificationPost = (challengeId, { contents, thumbnail, imag
   return api.post(`/v1/challenge/${challengeId}/certification-post`, formData);
 };
 
-export const updateCertificationPost = (postId, { contents, thumbnail, images }) => {
+export const updateCertificationPost = (
+  postId,
+  { contents, thumbnail, keptImageUrls, newImages }
+) => {
   const formData = new FormData();
 
+  // 대표이미지를 유지하면 thumbnail 파일 없이 keepThumbnail=true만 보낸다.
+  const keepThumbnail = !thumbnail;
   formData.append(
     "request",
-    new Blob([JSON.stringify({ contents })], { type: "application/json" })
+    new Blob([JSON.stringify({ contents, keepThumbnail, keptImageUrls })], {
+      type: "application/json",
+    })
   );
-  formData.append("thumbnail", thumbnail);
-  images.forEach((image) => formData.append("images", image));
+  if (thumbnail) {
+    formData.append("thumbnail", thumbnail);
+  }
+  // 새로 추가한 파일만 업로드한다(유지 이미지는 URL로만 전달).
+  newImages.forEach((image) => formData.append("images", image));
 
   return api.put(`/v1/certification-post/${postId}`, formData);
 };
+
+export const deleteCertificationPost = (postId) => api.delete(`/v1/certification-post/${postId}`);
+
+export const toggleCertificationPostLike = (postId) =>
+  api.post(`/v1/certification-post/${postId}/like`);

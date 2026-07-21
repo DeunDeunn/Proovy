@@ -5,8 +5,14 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   createCertificationPost,
   createComment,
+  createReport,
+  deleteCertificationPost,
+  deleteComment,
   getCertificationPost,
   getComments,
+  toggleCommentLike,
+  toggleCertificationPostLike,
+  updateComment,
   updateCertificationPost,
 } from "./api";
 
@@ -54,6 +60,97 @@ export const useCreateComment = (postId) => {
 
   return useMutation({
     mutationFn: (payload) => createComment(postId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certification-comments", postId] });
+      queryClient.invalidateQueries({ queryKey: ["certification-post", postId] });
+    },
+  });
+};
+
+export const useCreateReport = () =>
+  useMutation({
+    mutationFn: (payload) => createReport(payload),
+  });
+
+export const useDeleteCertificationPost = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (postId) => deleteCertificationPost(postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["challenge-feed"] });
+      queryClient.invalidateQueries({ queryKey: ["certification-post"] });
+    },
+  });
+};
+
+export const useToggleCertificationPostLike = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => toggleCertificationPostLike(postId),
+    onSuccess: ({ liked, likeCount }) => {
+      queryClient.setQueryData(["certification-post", postId], (post) =>
+        post ? { ...post, liked, likeCount } : post
+      );
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["challenge-feed"] });
+    },
+  });
+};
+
+const updateCommentLikeState = (comment, commentId, liked, likeCount) => {
+  if (comment.commentId === commentId) {
+    return { ...comment, liked, likeCount };
+  }
+
+  if (!comment.replies) return comment;
+
+  return {
+    ...comment,
+    replies: comment.replies.map((reply) =>
+      reply.commentId === commentId ? { ...reply, liked, likeCount } : reply
+    ),
+  };
+};
+
+export const useToggleCommentLike = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (commentId) => toggleCommentLike(commentId),
+    onSuccess: ({ liked, likeCount }, commentId) => {
+      queryClient.setQueryData(["certification-comments", postId], (data) =>
+        data
+          ? {
+              ...data,
+              pages: data.pages.map((page) =>
+                page.map((comment) => updateCommentLikeState(comment, commentId, liked, likeCount))
+              ),
+            }
+          : data
+      );
+    },
+  });
+};
+
+export const useUpdateComment = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ commentId, payload }) => updateComment(commentId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certification-comments", postId] });
+    },
+  });
+};
+
+export const useDeleteComment = (postId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (commentId) => deleteComment(commentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["certification-comments", postId] });
       queryClient.invalidateQueries({ queryKey: ["certification-post", postId] });

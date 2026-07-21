@@ -91,6 +91,26 @@ class AiReviewRuleServiceImplTest {
     }
 
     @Test
+    @DisplayName("AUTO_DECISION 요청 값은 기존 AUTO 모드로 정규화해 수정한다")
+    void updateAiReviewMode_autoDecisionAlias_succeeds() {
+        Long hostId = 1L;
+        Long challengeId = 10L;
+        AiReviewRuleVo savedRule = rule(100L, hostId, challengeId, "인증 사진 기준을 확인한다.", "AUTO");
+
+        when(aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId)).thenReturn(hostId);
+        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(savedRule);
+
+        AiReviewRuleResponse response = aiReviewRuleService.updateAiReviewModeByChallengeId(
+                hostId,
+                challengeId,
+                "AUTO_DECISION"
+        );
+
+        verify(aiReviewRuleMapper).updateAiReviewModeByChallengeId(challengeId, "AUTO");
+        assertThat(response.getReviewMode()).isEqualTo("AUTO");
+    }
+
+    @Test
     @DisplayName("존재하지 않는 챌린지는 검수 규칙을 생성할 수 없다")
     void upsertAiReviewRule_missingChallenge_fails() {
         Long userId = 1L;

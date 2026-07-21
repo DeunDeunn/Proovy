@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -140,7 +140,7 @@ public class AuthController {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, reauthCookie.toString());
 
-        response.sendRedirect("/oauth2/authorization/" + provider);
+        response.sendRedirect("/api/oauth2/authorization/" + provider);
     }
 
     @GetMapping("/connect/{provider}")

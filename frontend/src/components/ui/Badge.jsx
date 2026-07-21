@@ -2,8 +2,6 @@ const variants = {
   primary: "bg-primary-light text-primary",
   success: "bg-green-50 text-success",
   danger: "bg-red-50 text-danger",
-  warning: "bg-amber-50 text-amber-600",
-  purple: "bg-purple-50 text-purple-600",
   gray: "bg-gray-100 text-gray-600",
 };
 
