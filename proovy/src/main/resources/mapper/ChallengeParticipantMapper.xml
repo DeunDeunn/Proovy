@@ -78,4 +78,23 @@
         WHERE id = #{id}
     </update>
 
+    <!-- 방장 관리 화면용 참가자 목록: 인증 승인 일수(진행률)와 검수 대기 건수를 함께 내려준다 -->
+    <select id="findParticipantsForManage" resultType="ChallengeParticipantManageResponse">
+        SELECT
+            p.user_id,
+            u.nickname,
+            p.joined_at,
+            COUNT(DISTINCT (cp.created_at::date))
+                FILTER (WHERE cp.certification_status = 'APPROVED' AND cp.deleted_at IS NULL) AS approved_days,
+            COUNT(cp.id)
+                FILTER (WHERE cp.certification_status = 'PENDING' AND cp.deleted_at IS NULL) AS pending_count
+        FROM challenge_participants p
+        JOIN users u ON u.id = p.user_id
+        LEFT JOIN certification_posts cp ON cp.challenge_participant_id = p.id
+        WHERE p.challenge_id = #{challengeId}
+          AND p.status = 'ACTIVE'
+        GROUP BY p.user_id, u.nickname, p.joined_at
+        ORDER BY p.joined_at ASC
+    </select>
+
 </mapper>

@@ -1,6 +1,7 @@
 package com.deundeun.challenge.controller;
 
 import com.deundeun.challenge.dto.response.ChallengeParticipantListItemResponse;
+import com.deundeun.challenge.dto.response.ChallengeParticipantManageResponse;
 import com.deundeun.challenge.dto.response.ChallengeParticipantResponse;
 import com.deundeun.challenge.service.ChallengeParticipantService;
 import com.deundeun.global.common.ApiResponse;
@@ -41,5 +42,12 @@ public class ChallengeParticipantController {
         Long hostId = CurrentUser.getUserId();
         challengeParticipantService.kick(challengeId, hostId, userId);
         return ApiResponse.success(null);
+    }
+
+    @GetMapping("/manage")
+    public ApiResponse<List<ChallengeParticipantManageResponse>> getParticipantsForManage(
+            @PathVariable Long challengeId) {
+        Long hostId = CurrentUser.getUserId();
+        return ApiResponse.success(challengeParticipantService.getParticipantsForManage(challengeId, hostId));
     }
 }

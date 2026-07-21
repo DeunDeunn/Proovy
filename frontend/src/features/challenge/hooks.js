@@ -7,8 +7,10 @@ import {
   getCategories,
   getChallenge,
   getChallengeParticipants,
+  getChallengeParticipantsManage,
   getChallenges,
   joinChallenge,
+  kickParticipant,
   leaveChallenge,
   updateChallenge,
   updateChallengeThumbnail,
@@ -44,6 +46,25 @@ export const useChallengeParticipants = (challengeId) =>
     queryFn: () => getChallengeParticipants(challengeId),
     enabled: !!challengeId,
   });
+
+export const useChallengeParticipantsManage = (challengeId, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: challengeKeys.participantsManage(challengeId),
+    queryFn: () => getChallengeParticipantsManage(challengeId),
+    enabled: !!challengeId && enabled,
+  });
+
+export const useKickParticipant = (challengeId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId) => kickParticipant(challengeId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.participants(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.participantsManage(challengeId) });
+    },
+  });
+};
 
 export const useJoinChallenge = (challengeId) => {
   const queryClient = useQueryClient();

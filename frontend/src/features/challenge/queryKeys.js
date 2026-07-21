@@ -7,4 +7,8 @@ export const challengeKeys = {
   details: () => [...challengeKeys.all, "detail"],
   detail: (challengeId) => [...challengeKeys.details(), challengeId],
   participants: (challengeId) => [...challengeKeys.detail(challengeId), "participants"],
+  participantsManage: (challengeId) => [
+    ...challengeKeys.detail(challengeId),
+    "participants-manage",
+  ],
 };

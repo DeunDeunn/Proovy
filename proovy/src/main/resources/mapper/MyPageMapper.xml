@@ -14,7 +14,8 @@
             c.max_participants,
             c.start_date,
             c.end_date,
-            c.status
+            c.status,
+            c.thumbnail_url
         FROM challenge_participants p
         JOIN challenges c ON c.id = p.challenge_id
         JOIN categories cat ON cat.id = c.category_id
@@ -36,7 +37,8 @@
             c.max_participants,
             c.start_date,
             c.end_date,
-            c.status
+            c.status,
+            c.thumbnail_url
         FROM challenges c
         JOIN categories cat ON cat.id = c.category_id
         WHERE c.host_id = #{userId}

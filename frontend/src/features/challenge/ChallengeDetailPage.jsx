@@ -239,9 +239,17 @@ const ChallengeDetailPage = ({ challengeId }) => {
 
             {isParticipant ? (
               isHost ? (
-                <p className="rounded-lg bg-gray-50 py-2.5 text-center text-sm font-semibold text-gray-500">
-                  방장으로 참여 중
-                </p>
+                <>
+                  <p className="rounded-lg bg-gray-50 py-2.5 text-center text-sm font-semibold text-gray-500">
+                    방장으로 참여 중
+                  </p>
+                  <Link
+                    href={`/challenges/${challengeId}/manage`}
+                    className="block w-full rounded-lg border border-gray-300 py-2.5 text-center text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                  >
+                    챌린지 관리
+                  </Link>
+                </>
               ) : (
                 <button
                   type="button"
