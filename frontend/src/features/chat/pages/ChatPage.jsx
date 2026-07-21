@@ -21,14 +21,16 @@ const ChatPageContent = () => {
   const searchParams = useSearchParams();
   const roomIdParam = searchParams.get("roomId");
 
-  const { isLoading: isMeLoading, isError: isMeError, error: meError } = useMe();
-  const isUnauthorized = isMeError && meError?.status === 401;
+  const { data: me, isLoading: isMeLoading, isError: isMeError, error: meError } = useMe();
+  // 로그아웃 시 setQueryData(["auth","me"], null)로 me가 null이 되는데, 이건 에러가 아니라
+  // 성공 상태라서 그 케이스도 명시적으로 잡아줘야 페이지를 보고 있는 도중 로그아웃해도 바로 막힌다.
+  const isUnauthorized = (isMeError && meError?.status === 401) || (!isMeLoading && me === null);
 
   const {
     isLoading: isRoomsLoading,
     isError: isRoomsError,
     error: roomsError,
-  } = useChatRoomsSync({ enabled: !isMeLoading && !isMeError });
+  } = useChatRoomsSync({ enabled: !!me });
   const rooms = useChatStore((state) => state.rooms);
   const messagesByRoomId = useChatStore((state) => state.messagesByRoomId);
   const sendMessage = useChatStore((state) => state.sendMessage);
