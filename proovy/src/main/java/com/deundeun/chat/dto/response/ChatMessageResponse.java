@@ -22,12 +22,14 @@ public record ChatMessageResponse(
     Long referenceId,
     SharedCertificationResponse sharedCertification,
     List<ChatAttachmentResponse> attachments,
+    boolean read,
     LocalDateTime deletedAt,
     LocalDateTime createdAt
 ) {
 
     public static ChatMessageResponse of(ChatMessage message, User sender, List<ChatAttachment> attachments,
-                                          SharedCertificationResponse sharedCertification, boolean senderBadgeApproved) {
+                                          SharedCertificationResponse sharedCertification, boolean senderBadgeApproved,
+                                          boolean read) {
         boolean deleted = message.getDeletedAt() != null;
 
         return new ChatMessageResponse(
@@ -43,6 +45,7 @@ public record ChatMessageResponse(
             deleted ? null : message.getReferenceId(),
             deleted ? null : sharedCertification,
             deleted ? List.of() : attachments.stream().map(ChatAttachmentResponse::of).toList(),
+            read,
             message.getDeletedAt(),
             message.getCreatedAt()
         );

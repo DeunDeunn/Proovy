@@ -5,6 +5,8 @@ import com.deundeun.chat.dto.response.ChatMessageCreatedEvent;
 import com.deundeun.chat.dto.response.ChatMessageDeleteResponse;
 import com.deundeun.chat.dto.response.ChatMessageDeletedEvent;
 import com.deundeun.chat.dto.response.ChatMessageResponse;
+import com.deundeun.chat.dto.response.ChatRoomReadEvent;
+import com.deundeun.chat.dto.response.ChatRoomReadResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -32,6 +34,15 @@ public class ChatMessageBroadcaster {
         } catch (Exception e) {
             log.error("[Chat] 메시지 삭제는 성공했으나 브로드캐스트에 실패했습니다: chatRoomId={}, messageId={}",
                 response.chatRoomId(), response.messageId(), e);
+        }
+    }
+
+    public void broadcastRead(ChatRoomReadResponse response) {
+        try {
+            messagingTemplate.convertAndSend(ChatStompDestinations.roomTopic(response.chatRoomId()), ChatRoomReadEvent.of(response));
+        } catch (Exception e) {
+            log.error("[Chat] 읽음 처리는 성공했으나 브로드캐스트에 실패했습니다: chatRoomId={}, userId={}",
+                response.chatRoomId(), response.userId(), e);
         }
     }
 }

@@ -66,6 +66,24 @@ export const useChatStore = create((set) => ({
 
   receiveMessage: (event) =>
     set((state) => {
+      if (event.eventType === "ROOM_READ") {
+        const { chatRoomId, userId, lastReadMessageId } = event;
+        const roomMessages = state.messagesByRoomId[chatRoomId];
+        if (!roomMessages || lastReadMessageId == null) return state;
+
+        // 상대방(userId)이 읽음 처리한 시점까지, 내가(=상대방이 아닌 발신자) 보낸 메시지를 읽음으로 표시한다.
+        return {
+          messagesByRoomId: {
+            ...state.messagesByRoomId,
+            [chatRoomId]: roomMessages.map((message) =>
+              message.senderId !== userId && message.messageId <= lastReadMessageId
+                ? { ...message, read: true }
+                : message
+            ),
+          },
+        };
+      }
+
       if (event.eventType !== "MESSAGE_CREATED") return state;
 
       const message = { ...event, createdAt: new Date(event.createdAt) };
