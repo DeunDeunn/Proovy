@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -16,6 +17,10 @@ const LIST_WIDTH_OPEN_REM = 20;
 const PANEL_TRANSITION_MS = 300;
 
 const ChatPage = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const roomIdParam = searchParams.get("roomId");
+
   const { isLoading: isMeLoading, isError: isMeError, error: meError } = useMe();
   const isUnauthorized = isMeError && meError?.status === 401;
 
@@ -81,6 +86,17 @@ const ChatPage = () => {
       setPendingOpenId(chatRoomId);
     }
   };
+
+  // ?roomId= 로 진입한 경우, 목록 로딩 후 해당 방을 자동으로 연다
+  useEffect(() => {
+    if (!roomIdParam) return;
+
+    const targetRoomId = Number(roomIdParam);
+    if (!rooms.some((room) => room.chatRoomId === targetRoomId)) return;
+
+    handleSelectRoom(targetRoomId);
+    router.replace("/chat");
+  }, [roomIdParam, rooms]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const panelRoom = rooms.find((room) => room.chatRoomId === panelRoomId) ?? null;
   const panelMessages = panelRoomId ? (messagesByRoomId[panelRoomId] ?? []) : [];
