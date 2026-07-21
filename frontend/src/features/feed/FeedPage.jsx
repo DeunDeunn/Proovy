@@ -9,6 +9,7 @@ import {
   Heart,
   ImageOff,
   MessageCircle,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -17,6 +18,8 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
+import { useMe } from "@/features/auth/hooks";
+import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 
 import { usePublicFeed } from "./hooks";
 
@@ -42,7 +45,7 @@ const formatCreatedAt = (value) => {
   }).format(date);
 };
 
-const FeedCard = ({ post }) => (
+const FeedCard = ({ post, currentUserId, onStartChat, isStartingChat }) => (
   <Card className="self-start overflow-hidden !p-4">
     <Link
       href={`/certification-posts/${post.postId}`}
@@ -87,6 +90,18 @@ const FeedCard = ({ post }) => (
             </p>
           </div>
         </div>
+        {currentUserId != null && currentUserId !== post.authorId && (
+          <button
+            type="button"
+            onClick={() => onStartChat(post.authorId)}
+            disabled={isStartingChat}
+            aria-label="채팅하기"
+            title="채팅하기"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <MessageSquare size={17} aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       <p className="mt-3 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-gray-700">
@@ -111,6 +126,8 @@ const FeedPage = () => {
   const [filter, setFilter] = useState("all");
   const { data, error, fetchNextPage, hasNextPage, isError, isFetchingNextPage, isLoading } =
     usePublicFeed(filter);
+  const { data: me } = useMe();
+  const { startChat, isPending: isStartingChat } = useStartDirectChat();
 
   const posts = data?.pages.flat() ?? [];
 
@@ -171,7 +188,13 @@ const FeedPage = () => {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <FeedCard key={post.postId} post={post} />
+              <FeedCard
+                key={post.postId}
+                post={post}
+                currentUserId={me?.id}
+                onStartChat={startChat}
+                isStartingChat={isStartingChat}
+              />
             ))}
           </div>
 

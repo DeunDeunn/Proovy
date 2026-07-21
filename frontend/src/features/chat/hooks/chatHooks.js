@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { createOrGetDirectRoom, getChatMessages, getChatRooms } from "@/features/chat/api/chatApi";
@@ -113,4 +114,18 @@ export const useCreateDirectChatRoom = () => {
     mutationFn: (targetUserId) => createOrGetDirectRoom(targetUserId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-rooms"] }),
   });
+};
+
+// 프로필/목록에서 "채팅하기" 클릭 시 1:1 방을 생성/조회하고 해당 방으로 이동시키는 공용 진입점
+export const useStartDirectChat = () => {
+  const router = useRouter();
+  const mutation = useCreateDirectChatRoom();
+
+  const startChat = (targetUserId) => {
+    mutation.mutate(targetUserId, {
+      onSuccess: (room) => router.push(`/chat?roomId=${room.chatRoomId}`),
+    });
+  };
+
+  return { startChat, isPending: mutation.isPending, error: mutation.error };
 };

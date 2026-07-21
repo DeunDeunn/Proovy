@@ -8,6 +8,7 @@ import {
   Flag,
   Heart,
   MessageCircle,
+  MessageSquare,
   MoreVertical,
   Pencil,
   Trash2,
@@ -19,6 +20,7 @@ import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
+import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 
 import {
   useComments,
@@ -115,9 +117,11 @@ const CommentKebabMenu = ({
   comment,
   currentUserId,
   isActionPending,
+  isStartingChat,
   onEdit,
   onDelete,
   onReport,
+  onStartChat,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
@@ -173,15 +177,27 @@ const CommentKebabMenu = ({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => runAction(() => onReport(comment.commentId))}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-            >
-              <Flag size={15} aria-hidden="true" />
-              신고
-            </button>
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(() => onStartChat(comment.authorId))}
+                disabled={isStartingChat}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+              >
+                <MessageSquare size={15} aria-hidden="true" />
+                채팅하기
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => runAction(() => onReport(comment.commentId))}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Flag size={15} aria-hidden="true" />
+                신고
+              </button>
+            </>
           )}
         </div>
       )}
@@ -209,6 +225,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
     isLoading,
   } = useComments(postId);
   const { data: me } = useMe();
+  const { startChat, isPending: isStartingChat } = useStartDirectChat();
   const createMutation = useCreateComment(postId);
   const updateCommentMutation = useUpdateComment(postId);
   const deleteCommentMutation = useDeleteComment(postId);
@@ -381,9 +398,11 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                           comment={comment}
                           currentUserId={me?.id}
                           isActionPending={isCommentActionPending}
+                          isStartingChat={isStartingChat}
                           onEdit={startEditingComment}
                           onDelete={deleteComment}
                           onReport={setReportTargetId}
+                          onStartChat={startChat}
                         />
                       </div>
                     </div>
@@ -473,9 +492,11 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                               comment={reply}
                               currentUserId={me?.id}
                               isActionPending={isCommentActionPending}
+                              isStartingChat={isStartingChat}
                               onEdit={startEditingComment}
                               onDelete={deleteComment}
                               onReport={setReportTargetId}
+                              onStartChat={startChat}
                             />
                           </div>
                         </div>
