@@ -91,15 +91,24 @@ export const useChatStore = create((set) => ({
       if (event.eventType === "MESSAGE_DELETED") {
         const { chatRoomId, messageId, deletedAt } = event;
         const roomMessages = state.messagesByRoomId[chatRoomId];
-        if (!roomMessages) return state;
+        const deletedAtDate = new Date(deletedAt);
 
         return {
-          messagesByRoomId: {
-            ...state.messagesByRoomId,
-            [chatRoomId]: roomMessages.map((message) =>
-              message.messageId === messageId ? { ...message, deletedAt: new Date(deletedAt) } : message
-            ),
-          },
+          messagesByRoomId: roomMessages
+            ? {
+                ...state.messagesByRoomId,
+                [chatRoomId]: roomMessages.map((message) =>
+                  message.messageId === messageId ? { ...message, deletedAt: deletedAtDate } : message
+                ),
+              }
+            : state.messagesByRoomId,
+          // 삭제된 메시지가 방 목록의 마지막 메시지 미리보기였다면, 사이드바에
+          // 삭제된 내용이 계속 보이지 않도록 미리보기도 함께 갱신한다.
+          rooms: state.rooms.map((room) =>
+            room.chatRoomId === chatRoomId && room.lastMessage?.messageId === messageId
+              ? { ...room, lastMessage: { ...room.lastMessage, content: null, deletedAt: deletedAtDate } }
+              : room
+          ),
         };
       }
 
@@ -117,7 +126,16 @@ export const useChatStore = create((set) => ({
           room.chatRoomId === chatRoomId
             ? {
                 ...room,
-                lastMessage: { senderNickname: message.senderNickname, content: message.content },
+                // messageId를 남겨둬야, 이 메시지가 나중에 삭제될 때 방 목록 미리보기와
+                // 매칭해서 함께 갱신할 수 있다.
+                lastMessage: {
+                  messageId: message.messageId,
+                  senderId: message.senderId,
+                  senderNickname: message.senderNickname,
+                  content: message.content,
+                  messageType: message.messageType,
+                  deletedAt: null,
+                },
                 createdAt: message.createdAt,
               }
             : room
