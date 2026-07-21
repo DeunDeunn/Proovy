@@ -4,6 +4,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Award, Camera, ChevronDown, ChevronUp, Share2 } from "lucide-react";
 
 import Loading from "@/components/ui/Loading";
@@ -13,7 +14,7 @@ import { formatChallengePeriod } from "@/lib/date";
 import { useMe } from "@/features/auth/hooks";
 import { useUserProfile } from "@/features/users/hooks";
 import { useWallet } from "@/features/wallet/hooks";
-import { categoryGradientMap, defaultGradient, statusBadgeMap } from "./categoryVisuals";
+import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
 import {
   useChallenge,
   useChallengeParticipants,
@@ -35,11 +36,12 @@ const ChallengeDetailPage = ({ challengeId }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const searchParams = useSearchParams();
 
   const { data: me } = useMe();
   const { data: challenge, isLoading, isError, error } = useChallenge(challengeId);
   const { data: hostProfile } = useUserProfile(challenge?.hostId);
-  const { data: wallet } = useWallet({ enabled: !!me });
+  const { data: wallet, isLoading: isWalletLoading } = useWallet({ enabled: !!me });
   const { data: participants } = useChallengeParticipants(challengeId);
 
   const joinMutation = useJoinChallenge(challengeId);
@@ -52,12 +54,13 @@ const ChallengeDetailPage = ({ challengeId }) => {
   if (!challenge) return null;
 
   const statusBadge = statusBadgeMap[challenge.status] ?? statusBadgeMap.RECRUITING;
-  const gradient = categoryGradientMap[challenge.categoryId] ?? defaultGradient;
+  const gradient = getCategoryGradient(challenge.categoryName);
 
   const isHost = me?.id != null && me.id === challenge.hostId;
   const isParticipant = participants?.some((p) => p.userId === me?.id) ?? false;
   const isFull = challenge.currentParticipants >= challenge.maxParticipants;
-  const hasEnoughCash = !wallet || wallet.availableBalance >= challenge.entryFee;
+  const hasEnoughCash = wallet?.availableBalance >= challenge.entryFee;
+  const thumbnailUploadFailed = searchParams.get("thumbnailUpload") === "failed";
 
   const visibleParticipants = showAllParticipants
     ? (participants ?? [])
@@ -168,6 +171,11 @@ const ChallengeDetailPage = ({ challengeId }) => {
       </div>
 
       {thumbnailMutation.isError && <ErrorMessage error={thumbnailMutation.error} />}
+      {thumbnailUploadFailed && (
+        <p role="alert" className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          챌린지는 생성됐지만 사진 업로드에 실패했어요. 사진 변경 버튼으로 다시 시도해주세요.
+        </p>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
@@ -270,12 +278,16 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 <button
                   type="button"
                   onClick={() => joinMutation.mutate()}
-                  disabled={joinMutation.isPending || !hasEnoughCash}
+                  disabled={joinMutation.isPending || isWalletLoading || !hasEnoughCash}
                   className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
                 >
-                  {joinMutation.isPending ? "참가하는 중..." : "참가하기"}
+                  {joinMutation.isPending
+                    ? "참가하는 중..."
+                    : isWalletLoading
+                      ? "잔액 확인 중..."
+                      : "참가하기"}
                 </button>
-                {!hasEnoughCash && (
+                {!isWalletLoading && !hasEnoughCash && (
                   <p className="text-center text-xs text-danger">
                     보유 캐시가 부족해요. 충전 후 참가할 수 있어요.
                   </p>

@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- blob: 미리보기 URL은 next/image 설정 대상이 아니다. */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "lucide-react";
 
@@ -90,6 +90,13 @@ const ChallengeCreatePage = () => {
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
 
+  useEffect(
+    () => () => {
+      if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+    },
+    [thumbnailPreview]
+  );
+
   const handleThumbnailChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,15 +163,19 @@ const ChallengeCreatePage = () => {
       },
       {
         onSuccess: async (created) => {
+          let thumbnailUploadFailed = false;
           if (thumbnailFile) {
             try {
               await thumbnailMutation.mutateAsync({ challengeId: created.id, file: thumbnailFile });
             } catch {
               // 사진 업로드가 실패해도 챌린지 자체는 이미 만들어졌으니 상세 페이지로 이동시키고,
               // 사진은 상세 페이지의 "사진 변경"으로 나중에 다시 시도할 수 있다
+              thumbnailUploadFailed = true;
             }
           }
-          router.push(`/challenges/${created.id}`);
+          router.push(
+            `/challenges/${created.id}${thumbnailUploadFailed ? "?thumbnailUpload=failed" : ""}`
+          );
         },
       }
     );

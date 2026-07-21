@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
@@ -43,6 +43,19 @@ const getSortChipState = (option, sort, direction) => {
   return { isSelected, currentDirection, label };
 };
 
+const getFiltersFromSearchParams = (searchParams) => {
+  const rawCategoryId = searchParams.get("category");
+  const categoryId = rawCategoryId ? Number(rawCategoryId) : undefined;
+
+  return {
+    categoryId: Number.isNaN(categoryId) ? undefined : categoryId,
+    status: searchParams.get("status") ?? undefined,
+    sort: searchParams.get("sort") ?? undefined,
+    direction: searchParams.get("direction") ?? undefined,
+    keyword: searchParams.get("keyword")?.trim() || undefined,
+  };
+};
+
 const FilterChip = ({ label, selected, onClick }) => (
   <button
     type="button"
@@ -58,41 +71,54 @@ const FilterChip = ({ label, selected, onClick }) => (
   </button>
 );
 
+const KeywordSearchInput = ({ initialKeyword, onSearch }) => {
+  const [keywordInput, setKeywordInput] = useState(initialKeyword);
+
+  useEffect(() => {
+    const timer = setTimeout(() => onSearch(keywordInput.trim() || undefined), 300);
+    return () => clearTimeout(timer);
+  }, [keywordInput, onSearch]);
+
+  return (
+    <div className="relative min-w-[240px] flex-1">
+      <Search
+        size={16}
+        aria-hidden="true"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+      />
+      <input
+        type="text"
+        value={keywordInput}
+        onChange={(e) => setKeywordInput(e.target.value)}
+        placeholder="챌린지 제목 또는 키워드 검색"
+        className="w-full max-w-lg rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
+      />
+    </div>
+  );
+};
+
 const ChallengePageContent = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [categoryId, setCategoryId] = useState(() => {
-    const raw = searchParams.get("category");
-    const parsed = raw ? Number(raw) : undefined;
-    return Number.isNaN(parsed) ? undefined : parsed;
-  });
-  const [status, setStatus] = useState(() => searchParams.get("status") ?? undefined);
-  const [sort, setSort] = useState(() => searchParams.get("sort") ?? undefined);
-  const [direction, setDirection] = useState(() => searchParams.get("direction") ?? undefined);
-  const [keywordInput, setKeywordInput] = useState(() => searchParams.get("keyword") ?? "");
-  const [keyword, setKeyword] = useState(() => searchParams.get("keyword") ?? undefined);
+  const { categoryId, status, sort, direction, keyword } = getFiltersFromSearchParams(searchParams);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setKeyword(keywordInput.trim() === "" ? undefined : keywordInput.trim());
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [keywordInput]);
-
-  // 필터 상태를 URL 쿼리스트링에 반영 — 새로고침/뒤로가기 시에도 유지되고, 링크 공유도 가능해짐
-  useEffect(() => {
+  // URL을 필터의 단일 기준으로 둬서 브라우저 뒤로가기/앞으로가기와 공유 링크도 같은 상태를 보여준다.
+  const updateFilters = useCallback((updates) => {
+    const nextFilters = { categoryId, status, sort, direction, keyword, ...updates };
     const params = new URLSearchParams();
-    if (categoryId !== undefined) params.set("category", categoryId);
-    if (status !== undefined) params.set("status", status);
-    if (sort !== undefined) params.set("sort", sort);
-    if (direction !== undefined) params.set("direction", direction);
-    if (keyword) params.set("keyword", keyword);
+    if (nextFilters.categoryId !== undefined) params.set("category", nextFilters.categoryId);
+    if (nextFilters.status !== undefined) params.set("status", nextFilters.status);
+    if (nextFilters.sort !== undefined) params.set("sort", nextFilters.sort);
+    if (nextFilters.direction !== undefined) params.set("direction", nextFilters.direction);
+    if (nextFilters.keyword) params.set("keyword", nextFilters.keyword);
 
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }, [categoryId, status, sort, direction, keyword, pathname, router]);
+    if (query !== searchParams.toString()) {
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    }
+  }, [categoryId, status, sort, direction, keyword, pathname, router, searchParams]);
 
   const { data: categories, isError: isCategoriesError, error: categoriesError } = useCategories();
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -127,20 +153,11 @@ const ChallengePageContent = () => {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative min-w-[240px] flex-1">
-          <Search
-            size={16}
-            aria-hidden="true"
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            placeholder="챌린지 제목 또는 키워드 검색"
-            className="w-full max-w-lg rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none"
-          />
-        </div>
+        <KeywordSearchInput
+          key={keyword ?? ""}
+          initialKeyword={keyword ?? ""}
+          onSearch={(nextKeyword) => updateFilters({ keyword: nextKeyword })}
+        />
 
         <div className="flex flex-wrap gap-2" role="group" aria-label="정렬 기준">
           {sortOptions.map((option) => {
@@ -157,10 +174,9 @@ const ChallengePageContent = () => {
                 selected={isSelected}
                 onClick={() => {
                   if (isSelected) {
-                    setDirection(currentDirection === "ASC" ? "DESC" : "ASC");
+                    updateFilters({ direction: currentDirection === "ASC" ? "DESC" : "ASC" });
                   } else {
-                    setSort(option.value);
-                    setDirection(undefined);
+                    updateFilters({ sort: option.value, direction: undefined });
                   }
                 }}
               />
@@ -179,14 +195,14 @@ const ChallengePageContent = () => {
               <FilterChip
                 label="전체"
                 selected={categoryId === undefined}
-                onClick={() => setCategoryId(undefined)}
+                onClick={() => updateFilters({ categoryId: undefined })}
               />
               {categories?.map((category) => (
                 <FilterChip
                   key={category.id}
                   label={category.name}
                   selected={categoryId === category.id}
-                  onClick={() => setCategoryId(category.id)}
+                  onClick={() => updateFilters({ categoryId: category.id })}
                 />
               ))}
             </div>
@@ -201,7 +217,7 @@ const ChallengePageContent = () => {
                 key={option.label}
                 label={option.label}
                 selected={status === option.value}
-                onClick={() => setStatus(option.value)}
+                onClick={() => updateFilters({ status: option.value })}
               />
             ))}
           </div>

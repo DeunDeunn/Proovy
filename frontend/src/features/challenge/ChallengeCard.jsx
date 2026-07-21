@@ -3,11 +3,11 @@
 import Link from "next/link";
 
 import { formatChallengePeriod } from "@/lib/date";
-import { categoryGradientMap, defaultGradient, statusBadgeMap } from "./categoryVisuals";
+import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
 
 const ChallengeCard = ({ challenge }) => {
   const statusBadge = statusBadgeMap[challenge.status] ?? statusBadgeMap.RECRUITING;
-  const gradient = categoryGradientMap[challenge.categoryId] ?? defaultGradient;
+  const gradient = getCategoryGradient(challenge.categoryName);
 
   return (
     <Link

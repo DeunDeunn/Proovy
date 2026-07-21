@@ -1,6 +1,5 @@
 package com.deundeun.challenge.service;
 
-import com.deundeun.challenge.domain.CertFrequency;
 import com.deundeun.challenge.domain.Challenge;
 import com.deundeun.challenge.domain.ChallengeParticipant;
 import com.deundeun.challenge.domain.ChallengeStatus;
@@ -67,14 +66,11 @@ public class ChallengeService {
                 .categoryId(request.categoryId())
                 .entryFee(request.entryFee())
                 .verificationMethod(request.verificationMethod())
-                .certFrequency(CertFrequency.DAILY)                // MVP 고정
                 .dailyCertLimit(request.dailyCertLimit())
-                .successCriteriaRate(80)                           // 80% 고정
                 .aiReviewEnabled(request.aiReviewEnabled())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .maxParticipants(request.maxParticipants())
-                .status(ChallengeStatus.RECRUITING)                // 생성 시 무조건 모집중
                 .certStartTime(request.certStartTime())
                 .certEndTime(request.certEndTime())
                 .feedVisibility(request.feedVisibility())
