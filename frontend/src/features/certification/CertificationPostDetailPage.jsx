@@ -188,6 +188,7 @@ const CertificationPostDetailPage = ({ postId }) => {
   const displayedImageIndex = Math.min(currentImageIndex, Math.max(images.length - 1, 0));
   const currentImageUrl = images[displayedImageIndex];
   const isAuthor = me?.id != null && me.id === post.authorId;
+  const canUseAuthorActions = me?.id != null && !isAuthor;
 
   const deletePost = () => {
     deletePostMutation.mutate(postId, {
@@ -261,11 +262,7 @@ const CertificationPostDetailPage = ({ postId }) => {
                 />
                 <div ref={authorActionsRef} className="relative min-w-0">
                   <div className="flex items-center gap-1.5">
-                    {isAuthor ? (
-                      <p className="truncate text-sm font-semibold text-gray-900">
-                        {post.authorNickname ?? "알 수 없는 사용자"}
-                      </p>
-                    ) : (
+                    {canUseAuthorActions ? (
                       <button
                         type="button"
                         onClick={() => setIsAuthorActionsOpen((open) => !open)}
@@ -275,6 +272,10 @@ const CertificationPostDetailPage = ({ postId }) => {
                       >
                         {post.authorNickname ?? "알 수 없는 사용자"}
                       </button>
+                    ) : (
+                      <p className="truncate text-sm font-semibold text-gray-900">
+                        {post.authorNickname ?? "알 수 없는 사용자"}
+                      </p>
                     )}
                     {post.authorBadgeApproved && (
                       <span className="inline-flex text-sky-500" title="인증 회원">
@@ -284,7 +285,7 @@ const CertificationPostDetailPage = ({ postId }) => {
                     )}
                   </div>
 
-                  {!isAuthor && isAuthorActionsOpen && (
+                  {canUseAuthorActions && isAuthorActionsOpen && (
                     <div
                       role="menu"
                       className="absolute left-0 top-7 z-20 flex w-40 flex-col gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
