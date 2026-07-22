@@ -6,6 +6,7 @@ import com.deundeun.ai.dto.AiTicketHistoryItemResponse;
 import com.deundeun.ai.dto.AiTicketPlanResponse;
 import com.deundeun.ai.dto.AiTicketPurchaseRequest;
 import com.deundeun.ai.dto.AiTicketPurchaseResponse;
+import com.deundeun.ai.event.AiTicketActivatedEvent;
 import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiTicketHistoryVo;
 import com.deundeun.ai.vo.AiTicketPlanVo;
@@ -15,6 +16,7 @@ import com.deundeun.global.exception.ErrorCode;
 import com.deundeun.pay.service.WalletTicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class AiTicketService {
 
     private final AiTicketMapper aiTicketMapper;
     private final WalletTicketService walletTicketService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<AiTicketPlanResponse> findActivePlans() {
@@ -102,6 +105,7 @@ public class AiTicketService {
                 .subscriptionId(subscription.getId())
                 .type(TICKET_HISTORY_TYPE_PURCHASE)
                 .build());
+        eventPublisher.publishEvent(new AiTicketActivatedEvent(userId));
 
         return AiTicketPurchaseResponse.from(subscription, plan);
     }
