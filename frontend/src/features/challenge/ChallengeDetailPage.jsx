@@ -58,6 +58,7 @@ const ChallengeDetailPage = ({ challengeId }) => {
 
   const isHost = me?.id != null && me.id === challenge.hostId;
   const isParticipant = participants?.some((p) => p.userId === me?.id) ?? false;
+  const isInProgress = challenge.status === "IN_PROGRESS";
   const isFull = challenge.currentParticipants >= challenge.maxParticipants;
   const hasEnoughCash = wallet?.availableBalance >= challenge.entryFee;
   const thumbnailUploadFailed = searchParams.get("thumbnailUpload") === "failed";
@@ -147,7 +148,7 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 <Share2 size={14} />
                 {linkCopied ? "링크가 복사됐어요" : "공유하기"}
               </button>
-              {isParticipant && (
+              {isParticipant && isInProgress && (
                 <div className="absolute top-full right-0 z-10 mt-2 flex w-full flex-col gap-2">
                   <Link
                     href={`/challenges/${challengeId}/feed`}

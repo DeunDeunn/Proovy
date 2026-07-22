@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useWallet } from "@/features/wallet/hooks";
 import { useChallenges } from "@/features/challenge/hooks";
 import ChallengeCard from "@/features/challenge/ChallengeCard";
-import { usePopularFeed } from "./hooks";
+import { useMyMaxCertificationStreak, usePopularFeed } from "./hooks";
 import ProfileAvatar from "@/components/ui/ProfileAvatar";
 import Loading from "@/components/ui/Loading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -100,6 +100,11 @@ const HomePage = () => {
     isError: isFeedError,
     error: feedError,
   } = usePopularFeed();
+  const {
+    data: maxCertificationStreak,
+    isLoading: isStreakLoading,
+    isError: isStreakError,
+  } = useMyMaxCertificationStreak();
 
   const challenges = challengesData?.content ?? [];
   const popularFeeds = popularFeed ?? [];
@@ -138,7 +143,13 @@ const HomePage = () => {
               icon={Flame}
               iconClassName="bg-orange-50 text-orange-500"
               label="연속 성공일"
-              value="12일"
+              value={
+                isStreakLoading
+                  ? "불러오는 중..."
+                  : isStreakError
+                    ? "조회 실패"
+                    : `${maxCertificationStreak ?? 0}일`
+              }
             />
             {isWalletLoading ? (
               <Loading label="포인트 불러오는 중..." />

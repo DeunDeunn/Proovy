@@ -1,6 +1,7 @@
 package com.deundeun.certification.controller;
 
 import com.deundeun.certification.dto.CertificationPostDetailResponse;
+import com.deundeun.certification.dto.CertificationStreakResponse;
 import com.deundeun.certification.dto.CreateCertificationPostRequest;
 import com.deundeun.certification.dto.FeedItemResponse;
 import com.deundeun.certification.dto.LikeToggleResponse;
@@ -131,6 +132,13 @@ public class CertificationController {
         Long viewerId = CurrentUser.getUserId();
         return ApiResponse.success(
                 certificationService.getMyFeed(viewerId, cursor, size));
+    }
+
+    // 내 현재 연속 성공일. 오늘 미승인 상태면 어제까지의 연속일을 유지한다.
+    @GetMapping("/api/v1/challenge/{challengeId}/my-certification-streak")
+    public ApiResponse<CertificationStreakResponse> getMyCertificationStreak(@PathVariable Long challengeId) {
+        Long userId = CurrentUser.getUserId();
+        return ApiResponse.success(certificationService.getMyCertificationStreak(challengeId, userId));
     }
 
     // #4 타인 피드 (그 사람 APPROVED, 비공개 챌린지 글은 뷰어가 참가자일 때만, 필터 없음)

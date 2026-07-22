@@ -1,6 +1,7 @@
 package com.deundeun.certification.service;
 
 import com.deundeun.certification.dto.CertificationPostDetailResponse;
+import com.deundeun.certification.dto.CertificationStreakResponse;
 import com.deundeun.certification.dto.ChallengeForCertification;
 import com.deundeun.certification.dto.CreateCertificationPostRequest;
 import com.deundeun.certification.dto.CreateCertificationPostSqlParam;
@@ -30,11 +31,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -427,7 +431,7 @@ public class CertificationService {
         }
     }
 
-    //챌린지 피드 — 그 챌린지 참가자랑 승인글만
+    // 챌린지 피드 — 참가자는 승인글, 방장·관리자는 filter=review로 승인 대기글 조회
     public List<FeedItemResponse> getChallengeFeed(Long challengeId, Long viewerId,
                                                    Long cursor, Long cursorLike, Integer size,
                                                    String filter, String sort) {
@@ -436,26 +440,41 @@ public class CertificationService {
         if (challenge == null) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
         }
-        // 접근하려면 그 챌린지 참가자 활성 상태여야함
-        ParticipantForCertification participant = certificationMapper.findParticipant(challengeId, viewerId);
-        if (participant == null) {
-            throw new ApiException(ErrorCode.NOT_CHALLENGE_PARTICIPANT);
-        }
-        if (!"ACTIVE".equals(participant.getStatus())) {
-            throw new ApiException(ErrorCode.PARTICIPANT_NOT_ACTIVE);
+        FeedFilter feedFilter = FeedFilter.from(filter);
+        boolean isReviewMode = feedFilter == FeedFilter.REVIEW;
+
+        if (isReviewMode) {
+            // 검수 피드는 방장·관리자만 보고, 방장은 참가자 등록 여부와 무관하게 접근한다.
+            boolean isHost = challenge.getHostId().equals(viewerId);
+            boolean isAdmin = certificationMapper.isAdmin(viewerId) > 0;
+            if (!isHost && !isAdmin) {
+                throw new ApiException(ErrorCode.FORBIDDEN);
+            }
+        } else {
+            // 일반 챌린지 피드는 ACTIVE 참가자만 접근한다.
+            ParticipantForCertification participant = certificationMapper.findParticipant(challengeId, viewerId);
+            if (participant == null) {
+                throw new ApiException(ErrorCode.NOT_CHALLENGE_PARTICIPANT);
+            }
+            if (!"ACTIVE".equals(participant.getStatus())) {
+                throw new ApiException(ErrorCode.PARTICIPANT_NOT_ACTIVE);
+            }
         }
 
-        FeedSort feedSort = FeedSort.from(sort);
-        validatePopularCursor(feedSort, cursor, cursorLike);
+        FeedSort feedSort = isReviewMode ? FeedSort.LATEST : FeedSort.from(sort);
+        if (!isReviewMode) {
+            validatePopularCursor(feedSort, cursor, cursorLike);
+        }
 
         FeedQuery q = new FeedQuery();
         q.setChallengeId(challengeId);
         q.setViewerId(viewerId);
-        q.setFilter(FeedFilter.from(filter));
+        q.setFilter(feedFilter);
         q.setSort(feedSort);
         q.setCursor(cursor);
-        q.setCursorLike(cursorLike);   // 인기순 커서 복합키
+        q.setCursorLike(isReviewMode ? null : cursorLike);   // 검수는 오래된 순 단일 커서
         q.setSize(clampSize(size));
+        q.setReviewMode(isReviewMode);
         return certificationMapper.findFeed(q);
     }
 
@@ -517,5 +536,29 @@ public class CertificationService {
             result.add(item);
         }
         return result;
+    }
+
+    // 내 현재 연속 성공일 조회.
+    // 오늘 승인된 글이 있으면 오늘부터, 아직 승인되지 않았으면 어제부터 날짜를 거꾸로 센다.
+    public CertificationStreakResponse getMyCertificationStreak(Long challengeId, Long userId) {
+        ParticipantForCertification participant = certificationMapper.findParticipant(challengeId, userId);
+        if (participant == null) {
+            throw new ApiException(ErrorCode.NOT_CHALLENGE_PARTICIPANT);
+        }
+        if (!"ACTIVE".equals(participant.getStatus())) {
+            throw new ApiException(ErrorCode.PARTICIPANT_NOT_ACTIVE);
+        }
+
+        Set<LocalDate> approvedDates = new HashSet<>(
+                certificationMapper.findApprovedCertificationDates(participant.getId()));
+        LocalDate today = LocalDate.now(KST);
+        LocalDate cursor = approvedDates.contains(today) ? today : today.minusDays(1);
+
+        int currentStreakDays = 0;
+        while (approvedDates.contains(cursor)) {
+            currentStreakDays++;
+            cursor = cursor.minusDays(1);
+        }
+        return new CertificationStreakResponse(currentStreakDays);
     }
 }

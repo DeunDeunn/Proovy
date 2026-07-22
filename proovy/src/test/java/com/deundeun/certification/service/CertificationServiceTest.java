@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.deundeun.certification.dto.CertificationPostDetailResponse;
+import com.deundeun.certification.dto.CertificationStreakResponse;
 import com.deundeun.certification.dto.ChallengeForCertification;
 import com.deundeun.certification.dto.CreateCertificationPostRequest;
 import com.deundeun.certification.dto.CreateCertificationPostSqlParam;
@@ -658,7 +660,39 @@ class CertificationServiceTest {
         }
 
         @Test
-        @DisplayName("[C-41] getMyFeed: size가 null이면 기본 20으로 클램프되어 조회한다")
+        @DisplayName("[C-41] getChallengeFeed: review 필터는 방장이 참가자 여부와 무관하게 오래된 순으로 조회한다")
+        void reviewFeedForHost() {
+            when(certificationMapper.findChallengeById(CHALLENGE_ID)).thenReturn(challengeInRange("IN_PROGRESS"));
+            when(certificationMapper.findFeed(any())).thenReturn(List.of());
+
+            certificationService.getChallengeFeed(
+                    CHALLENGE_ID, HOST_ID, 10L, 999L, 20, "review", "popular");
+
+            ArgumentCaptor<FeedQuery> captor = ArgumentCaptor.forClass(FeedQuery.class);
+            verify(certificationMapper).findFeed(captor.capture());
+            FeedQuery q = captor.getValue();
+            assertThat(q.isReviewMode()).isTrue();
+            assertThat(q.getFilter().name()).isEqualTo("REVIEW");
+            assertThat(q.getSort().name()).isEqualTo("LATEST");
+            assertThat(q.getCursor()).isEqualTo(10L);
+            assertThat(q.getCursorLike()).isNull();
+            verify(certificationMapper, never()).findParticipant(CHALLENGE_ID, HOST_ID);
+        }
+
+        @Test
+        @DisplayName("[C-42] getChallengeFeed: review 필터는 방장·관리자가 아니면 FORBIDDEN")
+        void reviewFeedForbiddenForRegularUser() {
+            when(certificationMapper.findChallengeById(CHALLENGE_ID)).thenReturn(challengeInRange("IN_PROGRESS"));
+            when(certificationMapper.isAdmin(USER_ID)).thenReturn(0);
+
+            assertThatThrownBy(() -> certificationService.getChallengeFeed(
+                    CHALLENGE_ID, USER_ID, null, null, 20, "review", "latest"))
+                    .isInstanceOf(ApiException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
+        }
+
+        @Test
+        @DisplayName("[C-43] getMyFeed: size가 null이면 기본 20으로 클램프되어 조회한다")
         void myFeedClampsSize() {
             when(certificationMapper.findFeed(any())).thenReturn(List.of());
 
@@ -711,6 +745,71 @@ class CertificationServiceTest {
                     .containsExactly(1L, 2L, 3L);   // 요청 순서 유지
             assertThat(result).extracting(ParticipantSuccessCount::getSuccessCount)
                     .containsExactly(0, 5, 0);      // 없는 참가자는 0
+        }
+    }
+
+    @Nested
+    @DisplayName("getMyCertificationStreak")
+    class CertificationStreak {
+        private static final Long PARTICIPANT_ID = 5L;
+
+        private void activeParticipant() {
+            when(certificationMapper.findParticipant(CHALLENGE_ID, USER_ID))
+                    .thenReturn(participant(PARTICIPANT_ID, "ACTIVE"));
+        }
+
+        @Test
+        @DisplayName("[C-45] 오늘부터 끊기지 않은 승인 인증일 수를 반환한다")
+        void countsStreakFromToday() {
+            LocalDate today = LocalDate.now(KST);
+            activeParticipant();
+            when(certificationMapper.findApprovedCertificationDates(PARTICIPANT_ID))
+                    .thenReturn(List.of(today, today.minusDays(1), today.minusDays(2)));
+
+            CertificationStreakResponse result =
+                    certificationService.getMyCertificationStreak(CHALLENGE_ID, USER_ID);
+
+            assertThat(result.currentStreakDays()).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("[C-46] 오늘 미승인이어도 어제까지 이어진 연속일을 유지한다")
+        void keepsYesterdayStreakWhenTodayIsNotApproved() {
+            LocalDate today = LocalDate.now(KST);
+            activeParticipant();
+            when(certificationMapper.findApprovedCertificationDates(PARTICIPANT_ID))
+                    .thenReturn(List.of(today.minusDays(1), today.minusDays(2)));
+
+            CertificationStreakResponse result =
+                    certificationService.getMyCertificationStreak(CHALLENGE_ID, USER_ID);
+
+            assertThat(result.currentStreakDays()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("[C-47] 어제 승인 인증이 없으면 연속일은 0이다")
+        void returnsZeroWhenYesterdayIsMissing() {
+            LocalDate today = LocalDate.now(KST);
+            activeParticipant();
+            when(certificationMapper.findApprovedCertificationDates(PARTICIPANT_ID))
+                    .thenReturn(List.of(today.minusDays(2)));
+
+            CertificationStreakResponse result =
+                    certificationService.getMyCertificationStreak(CHALLENGE_ID, USER_ID);
+
+            assertThat(result.currentStreakDays()).isZero();
+        }
+
+        @Test
+        @DisplayName("[C-48] 챌린지 ACTIVE 참가자가 아니면 조회할 수 없다")
+        void rejectsNonActiveParticipant() {
+            when(certificationMapper.findParticipant(CHALLENGE_ID, USER_ID))
+                    .thenReturn(participant(PARTICIPANT_ID, "WITHDRAWN"));
+
+            assertThatThrownBy(() -> certificationService.getMyCertificationStreak(CHALLENGE_ID, USER_ID))
+                    .isInstanceOf(ApiException.class)
+                    .extracting("errorCode").isEqualTo(ErrorCode.PARTICIPANT_NOT_ACTIVE);
+            verify(certificationMapper, never()).findApprovedCertificationDates(anyLong());
         }
     }
 }

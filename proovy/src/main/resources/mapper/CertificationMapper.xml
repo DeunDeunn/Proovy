@@ -194,6 +194,15 @@
         GROUP BY challenge_participant_id
     </select>
 
+    <!-- 현재 연속일 계산용 승인 날짜 목록. 삭제된 글도 한번 승인된 실적으로 인정한다. -->
+    <select id="findApprovedCertificationDates" resultType="java.time.LocalDate">
+        SELECT DISTINCT created_at::date
+        FROM certification_posts
+        WHERE challenge_participant_id = #{challengeParticipantId}
+          AND certification_status = 'APPROVED'
+        ORDER BY created_at::date DESC
+    </select>
+
     <!-- 특정 챌린지의 검수 대기(PENDING) 목록 (커서 무한스크롤, 오래된 순) -->
     <select id="findPendingCertifications" resultType="PendingCertificationResponse">
         SELECT p.id                      AS post_id,
@@ -272,7 +281,9 @@
                p.contents,
                p.like_count,
                p.comment_count,
-               p.created_at
+               p.created_at,
+               p.certification_status AS status,
+               p.rejection_reason
         FROM certification_posts p
         JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
         JOIN challenges c              ON c.id = cp.challenge_id
@@ -287,13 +298,24 @@
         <where>
             p.deleted_at IS NULL
 
-            <!-- 상태: 내 피드만 전체, 나머지는 APPROVED만 -->
-            <if test="!includeAllStatus">
-                AND p.certification_status = 'APPROVED'
-            </if>
+            <!-- 상태: 검수 피드는 PENDING, 내 피드는 전체, 나머지는 APPROVED만 -->
+            <choose>
+                <when test="reviewMode">
+                    AND p.certification_status = 'PENDING'
+                </when>
+                <when test="!includeAllStatus">
+                    AND p.certification_status = 'APPROVED'
+                </when>
+            </choose>
 
             <!-- 커서  페이징 -->
             <choose>
+                <!-- 검수 피드: 오래된 순 -->
+                <when test="reviewMode">
+                    <if test="cursor != null">
+                        AND p.id &gt; #{cursor}
+                    </if>
+                </when>
                 <!-- 인기순: 복합키 아이디랑 족아요 수 같이 있어야함 -->
                 <when test="sort != null and sort.name() == 'POPULAR'">
                     <if test="cursor != null and cursorLike != null">
@@ -348,6 +370,9 @@
             </if>
         </where>
         <choose>
+            <when test="reviewMode">
+                ORDER BY p.id ASC
+            </when>
             <when test="sort != null and sort.name() == 'POPULAR'">
                 ORDER BY p.like_count DESC, p.id DESC
             </when>

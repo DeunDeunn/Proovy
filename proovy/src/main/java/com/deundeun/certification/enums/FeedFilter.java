@@ -4,7 +4,8 @@ package com.deundeun.certification.enums;
 public enum FeedFilter {
     ALL,     // 전체
     MINE,    // 내 글만
-    TODAY;   // 오늘 글만
+    TODAY,   // 오늘 글만
+    REVIEW;  // 방장·관리자 검수용 (PENDING, 오래된 순)
 
     // 기본 전체
     public static FeedFilter from(String value) {
