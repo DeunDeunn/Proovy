@@ -707,7 +707,7 @@ class CertificationServiceTest {
         }
 
         @Test
-        @DisplayName("[C-42] getPublicFeed: publicOnly=true로 조회한다")
+        @DisplayName("[C-44] getPublicFeed: publicOnly=true로 조회한다")
         void publicFeed() {
             when(certificationMapper.findFeed(any())).thenReturn(List.of());
 
@@ -723,7 +723,7 @@ class CertificationServiceTest {
     @DisplayName("getSuccessCounts (챌린지 도메인 연동)")
     class SuccessCounts {
         @Test
-        @DisplayName("[C-43] null/빈 입력이면 빈 리스트, mapper를 호출하지 않는다")
+        @DisplayName("[C-45] null/빈 입력이면 빈 리스트, mapper를 호출하지 않는다")
         void emptyInput() {
             assertThat(certificationService.getSuccessCounts(null)).isEmpty();
             assertThat(certificationService.getSuccessCounts(List.of())).isEmpty();
@@ -731,7 +731,7 @@ class CertificationServiceTest {
         }
 
         @Test
-        @DisplayName("[C-44] 요청 순서대로 반환하고 집계 없는 참가자는 0으로 채운다")
+        @DisplayName("[C-46] 요청 순서대로 반환하고 집계 없는 참가자는 0으로 채운다")
         void fillsZeroInOrder() {
             ParticipantSuccessCount counted = new ParticipantSuccessCount();
             counted.setParticipantId(2L);
@@ -759,7 +759,7 @@ class CertificationServiceTest {
         }
 
         @Test
-        @DisplayName("[C-45] 오늘부터 끊기지 않은 승인 인증일 수를 반환한다")
+        @DisplayName("[C-47] 오늘부터 끊기지 않은 승인 인증일 수를 반환한다")
         void countsStreakFromToday() {
             LocalDate today = LocalDate.now(KST);
             activeParticipant();
@@ -773,7 +773,7 @@ class CertificationServiceTest {
         }
 
         @Test
-        @DisplayName("[C-46] 오늘 미승인이어도 어제까지 이어진 연속일을 유지한다")
+        @DisplayName("[C-48] 오늘 미승인이어도 어제까지 이어진 연속일을 유지한다")
         void keepsYesterdayStreakWhenTodayIsNotApproved() {
             LocalDate today = LocalDate.now(KST);
             activeParticipant();
@@ -787,7 +787,7 @@ class CertificationServiceTest {
         }
 
         @Test
-        @DisplayName("[C-47] 어제 승인 인증이 없으면 연속일은 0이다")
+        @DisplayName("[C-49] 어제 승인 인증이 없으면 연속일은 0이다")
         void returnsZeroWhenYesterdayIsMissing() {
             LocalDate today = LocalDate.now(KST);
             activeParticipant();
@@ -801,7 +801,7 @@ class CertificationServiceTest {
         }
 
         @Test
-        @DisplayName("[C-48] 챌린지 ACTIVE 참가자가 아니면 조회할 수 없다")
+        @DisplayName("[C-50] 챌린지 ACTIVE 참가자가 아니면 조회할 수 없다")
         void rejectsNonActiveParticipant() {
             when(certificationMapper.findParticipant(CHALLENGE_ID, USER_ID))
                     .thenReturn(participant(PARTICIPANT_ID, "WITHDRAWN"));
