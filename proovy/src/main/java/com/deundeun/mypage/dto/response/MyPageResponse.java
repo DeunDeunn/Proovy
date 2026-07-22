@@ -16,6 +16,7 @@ public record MyPageResponse(
         long followerCount,
         long followingCount,
         List<ChallengeSummaryResponse> participatingChallenges,
-        List<ChallengeSummaryResponse> hostingChallenges
+        List<ChallengeSummaryResponse> hostingChallenges,
+        List<ChallengeSummaryResponse> completedChallenges
 ) {
 }

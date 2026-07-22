@@ -10,7 +10,7 @@
   --color-danger: #dc2626; /* 에러, 회원탈퇴 같은 위험 동작 */
 
   --color-surface: #ffffff; /* 카드, 사이드바 배경 */
-  --color-canvas: #f9fafb; /* 페이지 전체 배경 */
+  --color-canvas: var(--color-surface); /* 페이지 전체 배경 - 사이드바와 동일한 색 */
 }
 
 body {

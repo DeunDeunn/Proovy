@@ -13,8 +13,11 @@ export const getCategoryGradient = (categoryName) =>
   categoryGradientMap[categoryName] ?? defaultGradient;
 
 export const statusBadgeMap = {
-  RECRUITING: { label: "모집중", className: "bg-primary" },
-  IN_PROGRESS: { label: "진행중", className: "bg-orange-500" },
-  COMPLETED: { label: "종료", className: "bg-gray-400" },
-  CANCELLED: { label: "취소됨", className: "bg-gray-400" },
+  RECRUITING: { label: "모집중", className: "border border-primary bg-primary-light text-primary" },
+  IN_PROGRESS: {
+    label: "진행중",
+    className: "border border-orange-500 bg-orange-50 text-orange-600",
+  },
+  COMPLETED: { label: "종료", className: "border border-gray-300 bg-gray-50 text-gray-500" },
+  CANCELLED: { label: "취소됨", className: "border border-gray-300 bg-gray-50 text-gray-500" },
 };

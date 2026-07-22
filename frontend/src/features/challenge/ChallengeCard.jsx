@@ -22,7 +22,7 @@ const ChallengeCard = ({ challenge }) => {
           </div>
         )}
         <span
-          className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[11px] font-bold text-white ${statusBadge.className}`}
+          className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[11px] font-bold ${statusBadge.className}`}
         >
           {statusBadge.label}
         </span>
