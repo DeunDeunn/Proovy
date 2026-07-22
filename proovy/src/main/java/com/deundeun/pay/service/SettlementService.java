@@ -174,12 +174,14 @@ public class SettlementService implements WalletSettlementService {
             walletService.updateChargedBalance(wallet.getId(), wallet.getChargedBalance() - chargedPortion); // 진짜 출금(영구 손실, charged 몫만)
             walletService.updateRewardBalance(wallet.getId(), wallet.getRewardBalance() - rewardPortion);   // 진짜 출금(영구 손실, reward 몫만)
 
+            // 홀딩 해제와 실제 손실이 동시에 반영되어 사용 가능 잔액(availableBalance) 자체는 변하지 않는다
+            // (다른 거래 타입들과 balance_after 기준을 맞추기 위해 charged/reward 단독 잔액이 아닌 availableBalance를 남긴다)
             if (chargedPortion > 0) {
                 cashTransactionMapper.insert(CashTransaction.builder()
                         .walletId(wallet.getId())
                         .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
                         .amount(chargedPortion)
-                        .balanceAfter(wallet.getChargedBalance() - chargedPortion)  // 실제로 줄어든 충전잔액 (charged 몫만)
+                        .balanceAfter(wallet.getAvailableBalance())
                         .status(CashTransactionStatus.COMPLETED)
                         .referenceId(challengeId)
                         .build());
@@ -190,7 +192,7 @@ public class SettlementService implements WalletSettlementService {
                         .walletId(wallet.getId())
                         .type(CashTransactionType.CHALLENGE_PRINCIPAL_FAIL)
                         .amount(rewardPortion)
-                        .balanceAfter(wallet.getRewardBalance() - rewardPortion)  // 실제로 줄어든 리워드잔액 (reward 몫만)
+                        .balanceAfter(wallet.getAvailableBalance())
                         .status(CashTransactionStatus.COMPLETED)
                         .referenceId(challengeId)
                         .build());
