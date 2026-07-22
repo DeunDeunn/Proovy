@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class SettlementHistoryItem {
     private Long challengeId;
     private String title;
+    private String thumbnailUrl;
     // 필드에 @JsonProperty를 붙이면 Jackson이 getter(isSuccess())에서 유추한 "success"와
     // 별개 프로퍼티로 취급해 success/isSuccess가 중복으로 직렬화된다. 생성되는 getter
     // 메서드 자체에 annotation을 붙여야 "isSuccess" 하나로만 나간다.

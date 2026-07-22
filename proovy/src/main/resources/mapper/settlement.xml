@@ -45,6 +45,7 @@
     <select id="selectMyHistory" resultType="com.deundeun.pay.dto.SettlementHistoryItem">
         SELECT cp.challenge_id,
         c.title,
+        c.thumbnail_url,
         (cp.result = 'SUCCESS') AS is_success,
         s.settled_at,
         CASE WHEN cp.result = 'SUCCESS' THEN s.profit_per_user ELSE 0 END AS profit_amount
