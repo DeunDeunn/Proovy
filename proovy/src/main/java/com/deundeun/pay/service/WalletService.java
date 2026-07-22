@@ -276,12 +276,13 @@ public class WalletService implements WalletHoldService {
     }
 
     @Transactional
-    public TransactionHistoryResponse getTransactionHistory(Long userId, CashTransactionType type, int page, int size) {
+    public TransactionHistoryResponse getTransactionHistory(
+            Long userId, CashTransactionType type, Long referenceId, int page, int size) {
         Wallet wallet = getOrCreateWallet(userId);
 
         List<CashTransaction> transactions = cashTransactionMapper.selectByWalletId(
-                wallet.getId(), type, page * size, size);
-        long totalElements = cashTransactionMapper.countByWalletId(wallet.getId(), type);
+                wallet.getId(), type, referenceId, page * size, size);
+        long totalElements = cashTransactionMapper.countByWalletId(wallet.getId(), type, referenceId);
 
         List<TransactionItem> content = transactions.stream()
                 .map(t -> TransactionItem.builder()
