@@ -55,6 +55,7 @@ public enum ErrorCode {
     CHALLENGE_HAS_PARTICIPANTS(HttpStatus.CONFLICT, "CHL009", "참가자가 있어 챌린지를 취소할 수 없습니다."),
     CANNOT_REJOIN_CHALLENGE(HttpStatus.CONFLICT, "CHL010", "참가 이력이 있는 챌린지는 다시 참가할 수 없습니다."),
     START_DATE_TOO_SOON(HttpStatus.BAD_REQUEST, "CHL011", "시작일은 최소 내일 이후여야 합니다."),
+    CERT_TIME_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "CHL012", "인증 가능 시간은 오전 2시 ~ 오후 11시 사이여야 합니다."),
 
     // AI
     AI_REVIEW_RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "AI 검수 규칙을 찾을 수 없습니다."),

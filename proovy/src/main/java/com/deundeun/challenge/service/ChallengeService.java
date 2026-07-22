@@ -38,6 +38,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChallengeService {
 
+    // 인증 가능 시간대 정책: 오전 2시 ~ 오후 11시 사이로만 설정 가능 (프론트 CERT_TIME_MIN/MAX와 동일)
+    private static final LocalTime CERT_TIME_MIN = LocalTime.of(2, 0);
+    private static final LocalTime CERT_TIME_MAX = LocalTime.of(23, 0);
+
     private final ChallengeMapper  challengeMapper;
     private final CategoryMapper  categoryMapper;
     private final ChallengeParticipantMapper challengeParticipantMapper;
@@ -57,6 +61,9 @@ public class ChallengeService {
         }
         if (!request.certEndTime().isAfter(request.certStartTime())) {
             throw new ApiException(ErrorCode.INVALID_CERT_TIME_RANGE);
+        }
+        if (request.certStartTime().isBefore(CERT_TIME_MIN) || request.certEndTime().isAfter(CERT_TIME_MAX)) {
+            throw new ApiException(ErrorCode.CERT_TIME_OUT_OF_RANGE);
         }
         if (!categoryMapper.existsById(request.categoryId())) {
             throw new ApiException(ErrorCode.CATEGORY_NOT_FOUND);
@@ -157,6 +164,9 @@ public class ChallengeService {
         if (!newCertEnd.isAfter(newCertStart)) {
             throw new ApiException(ErrorCode.INVALID_CERT_TIME_RANGE);
         }
+        if (newCertStart.isBefore(CERT_TIME_MIN) || newCertEnd.isAfter(CERT_TIME_MAX)) {
+            throw new ApiException(ErrorCode.CERT_TIME_OUT_OF_RANGE);
+        }
 
         if (request.categoryId() != null && !categoryMapper.existsById(request.categoryId())) {
             throw new ApiException(ErrorCode.CATEGORY_NOT_FOUND);
@@ -208,6 +218,10 @@ public class ChallengeService {
     public void autoCancelChallenge(Long challengeId) {
         Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
         if (challenge == null || challenge.getStatus() != ChallengeStatus.RECRUITING) {
+            return;
+        }
+        // 조회 이후 방장이 시작일을 미래로 미뤘을 수 있으니, findChallengesToAutoCancel()과 동일한 조건을 다시 확인한다
+        if (challenge.getStartDate().isAfter(LocalDate.now())) {
             return;
         }
         if (challengeMapper.countActiveParticipantsExceptHost(challengeId) > 0) {
