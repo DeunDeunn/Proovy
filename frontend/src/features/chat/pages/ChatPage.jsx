@@ -13,7 +13,6 @@ import ChatRoomList from "@/features/chat/components/ChatRoomList";
 import { useChatRoomsSync, useMarkRoomRead } from "@/features/chat/hooks/chatHooks";
 import { useChatStore } from "@/features/chat/store";
 
-const LIST_WIDTH_REM = 24;
 const PANEL_TRANSITION_MS = 300;
 
 const ChatPageContent = () => {
@@ -130,7 +129,7 @@ const ChatPageContent = () => {
       </h1>
 
       <div className="mt-5 flex min-h-0 flex-1 gap-4">
-        <div className="shrink-0" style={{ width: `${LIST_WIDTH_REM}rem` }}>
+        <div className={`w-full shrink-0 lg:block lg:w-96 ${panelRoom ? "hidden" : "block"}`}>
           <ChatRoomList
             rooms={rooms}
             selectedRoomId={selectedRoomId}
@@ -138,7 +137,9 @@ const ChatPageContent = () => {
           />
         </div>
 
-        <div className="relative min-w-0 flex-1 overflow-hidden">
+        <div
+          className={`relative min-w-0 flex-1 overflow-hidden lg:block ${panelRoom ? "block" : "hidden"}`}
+        >
           {!panelRoom && (
             <div className="flex h-full flex-col items-center justify-center gap-2 rounded-2xl border border-gray-100 bg-surface text-gray-400 shadow-xl shadow-black/5">
               <MessageCircle size={28} className="text-gray-300" />
