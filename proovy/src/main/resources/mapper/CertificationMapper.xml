@@ -267,11 +267,14 @@
                p.created_at
         FROM certification_posts p
         JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
         JOIN users u                   ON u.id = p.user_id
         <where>
             cp.challenge_id = #{challengeId}
             AND p.certification_status = 'PENDING'
             AND p.deleted_at IS NULL
+            <!-- 방장 작성 글은 AI 자동 검수 대상이므로 사람 검수 대기 목록에서 제외 -->
+            AND p.user_id &lt;&gt; c.host_id
             <!-- 커서 페이징(오래된 순) -->
             <if test="cursor != null">
                 AND p.id &gt; #{cursor}
@@ -353,6 +356,8 @@
             <choose>
                 <when test="reviewMode">
                     AND p.certification_status = 'PENDING'
+                    <!-- 방장 작성 글은 AI 자동 검수 대상이므로 사람 검수 대기 목록에서 제외 -->
+                    AND p.user_id &lt;&gt; c.host_id
                 </when>
                 <when test="!includeAllStatus">
                     AND p.certification_status = 'APPROVED'
