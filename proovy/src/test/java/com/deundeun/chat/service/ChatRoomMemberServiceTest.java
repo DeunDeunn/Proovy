@@ -155,4 +155,22 @@ class ChatRoomMemberServiceTest {
 
         verify(chatRoomMemberMapper, never()).findActiveByChatRoomId(chatRoomId);
     }
+
+    @Test
+    @DisplayName("요청자가 방을 나간(비활성) 상태면 거부한다")
+    void getMembers_requesterLeftRoom_throws() {
+        Long chatRoomId = 1L;
+        Long requesterId = 10L;
+        ChatRoomMember leftMember = ChatRoomMember.join(chatRoomId, requesterId);
+        leftMember.leave();
+        when(chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, requesterId))
+            .thenReturn(Optional.of(leftMember));
+
+        assertThatThrownBy(() -> chatRoomMemberService.getMembers(chatRoomId, requesterId))
+            .isInstanceOf(ApiException.class)
+            .extracting(e -> ((ApiException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ROOM_FORBIDDEN);
+
+        verify(chatRoomMemberMapper, never()).findActiveByChatRoomId(chatRoomId);
+    }
 }

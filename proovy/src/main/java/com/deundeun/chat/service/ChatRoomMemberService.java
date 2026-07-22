@@ -86,7 +86,12 @@ public class ChatRoomMemberService {
     }
 
     public List<ChatRoomMemberResponse> getMembers(Long chatRoomId, Long requesterId) {
-        getChatRoomMember(chatRoomId, requesterId); // 이 방의 멤버만 참여자 목록을 볼 수 있다
+        ChatRoomMember requester = getChatRoomMember(chatRoomId, requesterId);
+        // getChatRoomMember는 나간(비활성) 레코드도 반환하므로, 방을 나간 사용자가
+        // 계속 참여자 목록을 조회하지 못하도록 활성 상태까지 확인한다.
+        if (!requester.isActive()) {
+            throw new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN);
+        }
 
         List<ChatRoomMember> members = chatRoomMemberMapper.findActiveByChatRoomId(chatRoomId);
         List<Long> userIds = members.stream().map(ChatRoomMember::getUserId).toList();
