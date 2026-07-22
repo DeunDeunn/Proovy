@@ -50,26 +50,16 @@ public class AuthController {
     @Value("${cookie.secure:true}")
     private boolean cookieSecure;
 
+    @Value("${cookie.domain:}")
+    private String cookieDomain;
+
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<Void>> refresh(HttpServletRequest request) {
         String refreshToken = extractCookie(request, "refreshToken");
         AuthService.TokenPair tokens = authService.reissueTokens(refreshToken);
 
-        ResponseCookie accessCookie = ResponseCookie.from("accessToken", tokens.accessToken())
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(accessTokenExpiration / 1000)
-                .build();
-
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", tokens.refreshToken())
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(refreshTokenExpiration / 1000)
-                .build();
+        ResponseCookie accessCookie = buildCookie("accessToken", tokens.accessToken(), accessTokenExpiration / 1000);
+        ResponseCookie refreshCookie = buildCookie("refreshToken", tokens.refreshToken(), refreshTokenExpiration / 1000);
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
@@ -97,26 +87,28 @@ public class AuthController {
     }
 
     private HttpHeaders expireAuthCookies() {
-        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
-
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
+        ResponseCookie accessCookie = buildCookie("accessToken", "", 0);
+        ResponseCookie refreshCookie = buildCookie("refreshToken", "", 0);
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
         headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
         return headers;
+    }
+
+    // 로컬은 도메인 미지정(host-only)으로 두고, 운영만 서브도메인 간 쿠키 공유를 위해 상위 도메인을 지정한다
+    // (www/api 서브도메인이 분리돼 있고 WebSocket은 프록시를 못 타서 api 서브도메인에 직접 붙기 때문)
+    private ResponseCookie buildCookie(String name, String value, long maxAgeSeconds) {
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(maxAgeSeconds);
+        if (!cookieDomain.isBlank()) {
+            builder.domain(cookieDomain);
+        }
+        return builder.build();
     }
 
     private static final Set<String> REAUTH_PROVIDERS = Set.of("google", "kakao");
@@ -131,13 +123,7 @@ public class AuthController {
 
         authService.startReauth(userDetails.getUserId());
 
-        ResponseCookie reauthCookie = ResponseCookie.from("reauthUid", String.valueOf(userDetails.getUserId()))
-                .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(600)
-                .build();
+        ResponseCookie reauthCookie = buildCookie("reauthUid", String.valueOf(userDetails.getUserId()), 600);
         response.addHeader(HttpHeaders.SET_COOKIE, reauthCookie.toString());
 
         response.sendRedirect("/api/oauth2/authorization/" + provider);

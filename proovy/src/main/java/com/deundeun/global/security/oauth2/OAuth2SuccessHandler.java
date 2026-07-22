@@ -40,6 +40,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Value("${cookie.secure:true}")
     private boolean cookieSecure;
 
+    @Value("${cookie.domain:}")
+    private String cookieDomain;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                          Authentication authentication) throws IOException, ServletException {
@@ -93,14 +96,18 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, long maxAgeSeconds) {
-        ResponseCookie cookie = ResponseCookie.from(name, value)
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite("Lax")
                 .path("/")
-                .maxAge(maxAgeSeconds)
-                .build();
-        response.addHeader("Set-Cookie", cookie.toString());
+                .maxAge(maxAgeSeconds);
+        // 로컬은 도메인 미지정(host-only)으로 두고, 운영만 서브도메인 간 쿠키 공유를 위해 상위 도메인을 지정한다
+        // (www/api 서브도메인이 분리돼 있고 WebSocket은 프록시를 못 타서 api 서브도메인에 직접 붙기 때문)
+        if (!cookieDomain.isBlank()) {
+            builder.domain(cookieDomain);
+        }
+        response.addHeader("Set-Cookie", builder.build().toString());
     }
 
     private void expireCookie(HttpServletResponse response, String name) {
