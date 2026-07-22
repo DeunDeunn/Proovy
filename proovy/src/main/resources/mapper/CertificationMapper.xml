@@ -94,6 +94,7 @@
                p.contents,
                p.certification_image_url                   AS thumbnail_url,
                p.certification_status                      AS status,
+               p.rejection_reason                           AS rejection_reason,
                p.like_count,
                p.comment_count,
                p.created_at
