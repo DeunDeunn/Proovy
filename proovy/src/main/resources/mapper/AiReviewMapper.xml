@@ -104,6 +104,23 @@
         WHERE verification_post_id = #{postId}
     </select>
 
+    <select id="findPendingParticipantPostIdsByHostId" resultType="java.lang.Long">
+        SELECT p.id
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE c.host_id = #{hostId}
+          AND p.user_id != c.host_id
+          AND p.certification_status = 'PENDING'
+          AND p.deleted_at IS NULL
+          AND NOT EXISTS (
+              SELECT 1
+              FROM ai_review_results ar
+              WHERE ar.verification_post_id = p.id
+          )
+        ORDER BY p.created_at ASC, p.id ASC
+    </select>
+
     <update id="resetFailedAiReviewResultToProcessing">
         UPDATE ai_review_results
         SET review_mode = #{reviewMode},
