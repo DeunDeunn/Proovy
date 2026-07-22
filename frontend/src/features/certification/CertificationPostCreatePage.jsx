@@ -171,7 +171,7 @@ const CertificationPostCreatePage = ({ challengeId }) => {
                   type="button"
                   onClick={() => thumbnailInputRef.current?.click()}
                   disabled={createMutation.isPending}
-                  className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-black/60 px-4 py-2 text-sm font-medium text-white hover:bg-black/75 disabled:opacity-50"
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-sm font-medium text-white hover:bg-black/75 disabled:opacity-50"
                 >
                   사진 변경
                 </button>
@@ -323,12 +323,17 @@ const CertificationPostCreatePage = ({ challengeId }) => {
           <Button
             type="button"
             variant="outline"
+            className="!rounded-full"
             onClick={() => router.back()}
             disabled={createMutation.isPending}
           >
             취소
           </Button>
-          <Button type="submit" className="min-w-28" disabled={createMutation.isPending}>
+          <Button
+            type="submit"
+            className="min-w-28 !rounded-full"
+            disabled={createMutation.isPending}
+          >
             {createMutation.isPending ? "등록 중..." : "인증글 등록"}
           </Button>
         </div>

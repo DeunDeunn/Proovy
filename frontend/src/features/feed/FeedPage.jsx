@@ -175,7 +175,7 @@ const FeedPage = () => {
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => setFilter(item.value)}
-                className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                   isSelected
                     ? "border-primary bg-primary text-white shadow-sm"
                     : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300 hover:text-gray-800"
@@ -197,7 +197,7 @@ const FeedPage = () => {
                 role="tab"
                 aria-selected={isSelected}
                 onClick={() => setSort(value)}
-                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                   isSelected
                     ? "border-primary bg-primary text-white shadow-sm"
                     : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300 hover:text-gray-800"
@@ -240,6 +240,7 @@ const FeedPage = () => {
               <Button
                 type="button"
                 variant="outline"
+                className="!rounded-full"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
               >

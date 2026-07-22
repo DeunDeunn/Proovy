@@ -133,7 +133,7 @@ const AuthorName = ({ authorId, nickname, badgeApproved, currentUserId }) => {
             role="menuitem"
             onClick={toggleFollow}
             disabled={!authorProfile || isFollowActionPending}
-            className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-gray-300 ${authorProfile?.following ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-primary text-white hover:bg-primary-dark"}`}
+            className={`rounded-full px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-gray-300 ${authorProfile?.following ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-primary text-white hover:bg-primary-dark"}`}
           >
             {authorProfile?.following
               ? "팔로우 중"
@@ -148,7 +148,7 @@ const AuthorName = ({ authorId, nickname, badgeApproved, currentUserId }) => {
               closeActions();
               router.push(`/users/${authorId}`);
             }}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-full border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
           >
             상대 피드로 이동
           </button>
@@ -231,7 +231,7 @@ const CommentKebabMenu = ({
                 type="button"
                 role="menuitem"
                 onClick={() => runAction(() => onEdit(comment))}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Pencil size={15} aria-hidden="true" />
                 수정
@@ -240,7 +240,7 @@ const CommentKebabMenu = ({
                 type="button"
                 role="menuitem"
                 onClick={() => runAction(() => onDelete(comment.commentId))}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-red-50"
+                className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm text-danger hover:bg-red-50"
               >
                 <Trash2 size={15} aria-hidden="true" />
                 삭제
@@ -253,7 +253,7 @@ const CommentKebabMenu = ({
                 role="menuitem"
                 onClick={() => runAction(() => onStartChat(comment.authorId))}
                 disabled={isStartingChat}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
               >
                 <MessageSquare size={15} aria-hidden="true" />
                 채팅하기
@@ -262,7 +262,7 @@ const CommentKebabMenu = ({
                 type="button"
                 role="menuitem"
                 onClick={() => runAction(() => onReport(comment.commentId))}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Flag size={15} aria-hidden="true" />
                 신고
@@ -503,12 +503,17 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                           <Button
                             type="button"
                             variant="outline"
+                            className="!rounded-full"
                             onClick={cancelEditingComment}
                             disabled={updateCommentMutation.isPending}
                           >
                             취소
                           </Button>
-                          <Button type="submit" disabled={updateCommentMutation.isPending}>
+                          <Button
+                            type="submit"
+                            className="!rounded-full"
+                            disabled={updateCommentMutation.isPending}
+                          >
                             {updateCommentMutation.isPending ? "저장 중..." : "저장"}
                           </Button>
                         </div>
@@ -604,12 +609,17 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                               <Button
                                 type="button"
                                 variant="outline"
+                                className="!rounded-full"
                                 onClick={cancelEditingComment}
                                 disabled={updateCommentMutation.isPending}
                               >
                                 취소
                               </Button>
-                              <Button type="submit" disabled={updateCommentMutation.isPending}>
+                              <Button
+                                type="submit"
+                                className="!rounded-full"
+                                disabled={updateCommentMutation.isPending}
+                              >
                                 {updateCommentMutation.isPending ? "저장 중..." : "저장"}
                               </Button>
                             </div>
@@ -662,12 +672,17 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                     <Button
                       type="button"
                       variant="outline"
+                      className="!rounded-full"
                       onClick={() => toggleReplyForm(comment.commentId)}
                       disabled={createMutation.isPending}
                     >
                       취소
                     </Button>
-                    <Button type="submit" disabled={createMutation.isPending}>
+                    <Button
+                      type="submit"
+                      className="!rounded-full"
+                      disabled={createMutation.isPending}
+                    >
                       {createMutation.isPending ? "등록 중..." : "답글 등록"}
                     </Button>
                   </div>
@@ -686,6 +701,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
               <Button
                 type="button"
                 variant="outline"
+                className="!rounded-full"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
               >
@@ -725,7 +741,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
         </button>
       ) : (
         <div className="mt-3 flex justify-end">
-          <Button type="submit" disabled={createMutation.isPending}>
+          <Button type="submit" className="!rounded-full" disabled={createMutation.isPending}>
             {createMutation.isPending ? "등록 중..." : "댓글 등록"}
           </Button>
         </div>
