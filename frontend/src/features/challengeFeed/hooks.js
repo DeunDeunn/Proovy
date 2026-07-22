@@ -11,16 +11,26 @@ import {
 
 const PAGE_SIZE = 20;
 
-export const useChallengeFeed = (challengeId, filter) =>
+export const useChallengeFeed = (challengeId, filter, sort) =>
   useInfiniteQuery({
-    queryKey: ["challenge-feed", challengeId, { filter, sort: "latest" }],
+    queryKey: ["challenge-feed", challengeId, { filter, sort }],
     queryFn: ({ pageParam }) =>
-      getChallengeFeed(challengeId, { cursor: pageParam, filter, size: PAGE_SIZE }),
-    initialPageParam: null,
+      getChallengeFeed(challengeId, {
+        cursor: pageParam?.cursor,
+        cursorLike: pageParam?.cursorLike,
+        filter,
+        sort,
+        size: PAGE_SIZE,
+      }),
+    initialPageParam: { cursor: null, cursorLike: null },
     enabled: !!challengeId,
     getNextPageParam: (lastPage) => {
       if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
-      return lastPage[lastPage.length - 1]?.postId;
+      const lastPost = lastPage[lastPage.length - 1];
+      return {
+        cursor: lastPost?.postId,
+        cursorLike: sort === "popular" ? lastPost?.likeCount : null,
+      };
     },
   });
 
