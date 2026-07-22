@@ -50,7 +50,7 @@ const MyChallengePage = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">내 챌린지</h1>
         <p className="mt-2 text-sm text-gray-500">
-          참여 중이거나 운영 중인 챌린지를 한눈에 확인해보세요!
+          참여 중이거나 운영 중이거나 종료된 챌린지를 한눈에 확인해보세요!
         </p>
       </div>
 

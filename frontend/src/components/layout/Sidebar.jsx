@@ -47,12 +47,21 @@ const menus = [
   { name: "내 챌린지", href: "/my-challenges", icon: Flag },
 ];
 
+// prefix로 시작하되 "/feeds-archive"가 "/feeds"에 걸리는 것처럼 다음 글자가 이어지는 오탐은 막는다
+// (정확히 같거나, prefix 뒤에 "/"가 와야 하위 경로로 인정)
+const matchesPrefix = (pathname, prefix) =>
+  prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`);
+
 // 메뉴의 href(또는 matchPrefixes)로 시작하는 하위 경로에 있어도 계속 활성 표시되게 한다.
-// "/"만 정확히 일치할 때만 활성 처리 (안 그러면 모든 경로가 "/"로 시작해서 항상 활성이 돼버림)
 const isMenuActive = (menu, pathname) =>
-  (menu.matchPrefixes ?? [menu.href]).some((prefix) =>
-    prefix === "/" ? pathname === "/" : pathname.startsWith(prefix)
-  );
+  (menu.matchPrefixes ?? [menu.href]).some((prefix) => matchesPrefix(pathname, prefix));
+
+// 형제 항목들의 href가 서로의 접두사인 경우(예: "/wallet"과 "/wallet/settlements")
+// 가장 구체적으로(가장 긴 href로) 일치하는 항목 하나만 활성으로 고른다
+const findActiveHref = (items, pathname) =>
+  items
+    .filter((item) => item.href && matchesPrefix(pathname, item.href))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
 
 const walletMenus = [
   { name: "내 지갑", href: "/wallet" },
@@ -84,7 +93,8 @@ const SidebarDropdown = ({
   onToggle,
   onItemAction,
 }) => {
-  const isActive = items.some((m) => m.href === pathname);
+  const activeHref = findActiveHref(items, pathname);
+  const isActive = activeHref !== null;
   // 현재 이 드롭다운 안의 페이지에 있으면(isActive) 다른 메뉴로 이동하기 전까지 계속 펼쳐둔다
   const open = isActive || forceOpen;
 
@@ -119,7 +129,7 @@ const SidebarDropdown = ({
             );
           }
 
-          const active = pathname === menu.href;
+          const active = menu.href === activeHref;
           return (
             <Link
               key={menu.href}
