@@ -3,22 +3,23 @@
 import Link from "next/link";
 
 import { formatChallengePeriod } from "@/lib/date";
-import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
+import { statusBadgeMap } from "./categoryVisuals";
 
 const ChallengeCard = ({ challenge }) => {
   const statusBadge = statusBadgeMap[challenge.status] ?? statusBadgeMap.RECRUITING;
-  const gradient = getCategoryGradient(challenge.categoryName);
 
   return (
     <Link
       href={`/challenges/${challenge.id}`}
       className="block overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md"
     >
-      <div
-        className={`relative h-28 ${challenge.thumbnailUrl ? "" : `bg-gradient-to-br ${gradient}`}`}
-      >
-        {challenge.thumbnailUrl && (
+      <div className="relative h-44 bg-gray-50">
+        {challenge.thumbnailUrl ? (
           <img src={challenge.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <img src="/logo.png" alt="" className="h-9 w-auto opacity-30" />
+          </div>
         )}
         <span
           className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[11px] font-bold text-white ${statusBadge.className}`}
