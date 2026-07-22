@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
+import { BadgeCheck, ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
 
 import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
 import MessageBubble from "@/features/chat/components/MessageBubble";
 import {
   useChatRoomHistory,
+  useChatRoomMembers,
   useChatRoomSubscription,
   useDeleteChatMessage,
   useMarkRoomRead,
@@ -15,6 +16,7 @@ import {
 } from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
 import { useChatStore } from "@/features/chat/store";
+import { useDismissable } from "@/features/chat/useDismissable";
 
 const SCROLL_TOP_THRESHOLD = 80;
 
@@ -45,6 +47,12 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   const { mutate: markRoomRead } = useMarkRoomRead();
 
   const isChallenge = room.chatRoomType === "CHALLENGE";
+  const { data: members } = useChatRoomMembers(room.chatRoomId, { enabled: isChallenge });
+  const [isMemberListOpen, setIsMemberListOpen] = useState(false);
+  const memberListRef = useRef(null);
+  const closeMemberList = useCallback(() => setIsMemberListOpen(false), []);
+  useDismissable(isMemberListOpen, memberListRef, closeMemberList);
+
   const displayName = getRoomDisplayName(room);
   const avatarColor = getAvatarColor(room.chatRoomId);
   const lastMessageId = messages[messages.length - 1]?.messageId;
@@ -131,8 +139,8 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               </span>
             )}
           </div>
-          {isChallenge && (
-            <p className="mt-0.5 text-xs text-gray-400">참여자 {room.participantCount}명</p>
+          {isChallenge && members && (
+            <p className="mt-0.5 text-xs text-gray-400">참여자 {members.length}명</p>
           )}
         </div>
 
@@ -141,13 +149,53 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
             <Search size={18} />
           </button>
           {isChallenge && (
-            <button
-              type="button"
-              aria-label="참여자 목록"
-              className="rounded-lg p-2 hover:bg-gray-100"
-            >
-              <Users size={18} />
-            </button>
+            <div ref={memberListRef} className="relative">
+              <button
+                type="button"
+                aria-label="참여자 목록"
+                aria-expanded={isMemberListOpen}
+                onClick={() => setIsMemberListOpen((open) => !open)}
+                className="rounded-lg p-2 hover:bg-gray-100"
+              >
+                <Users size={18} />
+              </button>
+
+              {isMemberListOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-10 z-20 max-h-72 w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                >
+                  {!members && (
+                    <p className="px-3 py-2 text-xs text-gray-400">불러오는 중...</p>
+                  )}
+                  {members?.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-gray-400">참여자가 없습니다.</p>
+                  )}
+                  {members?.map((member) => {
+                    const memberAvatarColor = getAvatarColor(member.userId);
+                    return (
+                      <div key={member.userId} className="flex items-center gap-2 px-3 py-2">
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${memberAvatarColor.bg} ${memberAvatarColor.text}`}
+                        >
+                          {member.nickname.slice(0, 1)}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                          {member.nickname}
+                        </span>
+                        {member.badgeApproved && (
+                          <BadgeCheck
+                            size={14}
+                            className="shrink-0 fill-primary stroke-white"
+                            aria-label="우수 인증자"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
           <button type="button" aria-label="더보기" className="rounded-lg p-2 hover:bg-gray-100">
             <MoreVertical size={18} />

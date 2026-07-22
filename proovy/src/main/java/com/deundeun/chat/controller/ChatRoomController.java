@@ -3,6 +3,7 @@ package com.deundeun.chat.controller;
 import com.deundeun.chat.dto.request.DirectChatRoomRequest;
 import com.deundeun.chat.dto.response.ChallengeChatRoomResponse;
 import com.deundeun.chat.dto.response.ChatRoomListResponse;
+import com.deundeun.chat.dto.response.ChatRoomMemberResponse;
 import com.deundeun.chat.dto.response.ChatRoomReadResponse;
 import com.deundeun.chat.dto.response.DirectChatRoomResponse;
 import com.deundeun.chat.service.ChatRoomMemberService;
@@ -13,6 +14,7 @@ import com.deundeun.global.common.CurrentUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +57,14 @@ public class ChatRoomController {
         ChallengeChatRoomResponse response = chatRoomService.getChallengeRoom(challengeId, userId);
 
         return ApiResponse.success(response, "챌린지 채팅방을 조회했습니다.");
+    }
+
+    @GetMapping("/rooms/{chatRoomId}/members")
+    public ApiResponse<List<ChatRoomMemberResponse>> getMembers(@PathVariable Long chatRoomId) {
+        Long userId = CurrentUser.getUserId();
+        List<ChatRoomMemberResponse> response = chatRoomMemberService.getMembers(chatRoomId, userId);
+
+        return ApiResponse.success(response);
     }
 
     @PatchMapping("/rooms/{chatRoomId}/read")
