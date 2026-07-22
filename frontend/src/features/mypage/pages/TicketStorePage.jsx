@@ -15,22 +15,38 @@ import {
   useAiTicketPlans,
   usePurchaseAiTicket,
 } from "@/features/ai/hooks";
+import { useWallet } from "@/features/wallet/hooks";
 
 const TicketStorePage = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [isBalanceDialogOpen, setIsBalanceDialogOpen] = useState(false);
   const dialogRef = useRef(null);
+  const balanceDialogRef = useRef(null);
   const purchaseTriggerRef = useRef(null);
   const isPurchasePendingRef = useRef(false);
   const { data: plans, isLoading: plansLoading, error: plansError } = useAiTicketPlans();
   const { data: activeTicket, isLoading: activeLoading, error: activeError } =
     useActiveAiTicket();
+  const { data: wallet, isLoading: walletLoading, error: walletError } = useWallet();
   const purchaseMutation = usePurchaseAiTicket();
 
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
+  const totalBalance = (wallet?.chargedBalance ?? 0) + (wallet?.rewardBalance ?? 0);
 
   useEffect(() => {
     isPurchasePendingRef.current = purchaseMutation.isPending;
   }, [purchaseMutation.isPending]);
+
+  useEffect(() => {
+    if (!isBalanceDialogOpen) return undefined;
+
+    balanceDialogRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setIsBalanceDialogOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isBalanceDialogOpen]);
 
   useEffect(() => {
     if (!selectedPlan) return undefined;
@@ -83,6 +99,12 @@ const TicketStorePage = () => {
   }, [selectedPlan]);
 
   const openPurchaseDialog = (plan) => {
+    purchaseMutation.reset();
+    if (totalBalance < plan.price) {
+      setIsBalanceDialogOpen(true);
+      return;
+    }
+
     purchaseTriggerRef.current = document.activeElement;
     setSelectedPlan(plan);
   };
@@ -94,8 +116,12 @@ const TicketStorePage = () => {
     });
   };
 
-  if (plansLoading || activeLoading) return <Loading label="AI 티켓 스토어를 불러오는 중..." />;
-  if (plansError || activeError) return <ErrorMessage error={plansError || activeError} />;
+  if (plansLoading || activeLoading || walletLoading) {
+    return <Loading label="AI 티켓 스토어를 불러오는 중..." />;
+  }
+  if (plansError || activeError || walletError) {
+    return <ErrorMessage error={plansError || activeError || walletError} />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -147,6 +173,30 @@ const TicketStorePage = () => {
       {purchaseMutation.error && (
         <div className="mt-4">
           <ErrorMessage error={purchaseMutation.error} />
+        </div>
+      )}
+
+      {isBalanceDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            ref={balanceDialogRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="balance-dialog-title"
+            aria-describedby="balance-dialog-description"
+            tabIndex={-1}
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <h2 id="balance-dialog-title" className="text-lg font-bold text-gray-900">
+              잔액이 부족합니다
+            </h2>
+            <p id="balance-dialog-description" className="mt-2 text-sm text-gray-500">
+              캐시를 충전한 후 다시 구매해주세요.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setIsBalanceDialogOpen(false)}>확인</Button>
+            </div>
+          </div>
         </div>
       )}
 
