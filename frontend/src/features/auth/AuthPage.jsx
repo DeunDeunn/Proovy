@@ -1,5 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+
 const GoogleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
     <path
@@ -45,11 +48,27 @@ const OAUTH_PROVIDERS = [
   },
 ];
 
-const handleOAuthLogin = (provider) => {
+// OAuth 인증은 백엔드→소셜 로그인 창→백엔드→/auth/callback으로 이어지는 풀 페이지 리다이렉트라
+// URL 쿼리로 목적지를 들고 다닐 수 없어서, 같은 탭에 남는 sessionStorage에 잠깐 저장해둔다.
+export const POST_LOGIN_REDIRECT_KEY = "postLoginRedirect";
+
+export const isSafeRedirectPath = (redirect) =>
+  typeof redirect === "string" &&
+  redirect.startsWith("/") &&
+  !redirect.startsWith("//") &&
+  !redirect.startsWith("/\\");
+
+const handleOAuthLogin = (provider, redirect) => {
+  sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+  if (isSafeRedirectPath(redirect)) {
+    sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, redirect);
+  }
   window.location.href = `/api/oauth2/authorization/${provider}`;
 };
 
-const AuthPage = () => {
+const AuthPageContent = () => {
+  const redirect = useSearchParams().get("redirect");
+
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8">
       <div className="flex flex-col items-center gap-2">
@@ -62,7 +81,7 @@ const AuthPage = () => {
           <button
             key={id}
             type="button"
-            onClick={() => handleOAuthLogin(id)}
+            onClick={() => handleOAuthLogin(id, redirect)}
             className={`relative flex cursor-pointer items-center rounded-full px-5 py-3.5 text-sm font-semibold transition-colors ${className}`}
           >
             <span className="absolute left-5">
@@ -75,5 +94,11 @@ const AuthPage = () => {
     </div>
   );
 };
+
+const AuthPage = () => (
+  <Suspense fallback={null}>
+    <AuthPageContent />
+  </Suspense>
+);
 
 export default AuthPage;

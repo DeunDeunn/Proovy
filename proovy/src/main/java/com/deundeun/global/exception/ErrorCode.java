@@ -53,6 +53,7 @@ public enum ErrorCode {
     ALREADY_JOINED_CHALLENGE(HttpStatus.CONFLICT, "CHL007", "이미 참여 중인 챌린지입니다."),
     HOST_CANNOT_LEAVE(HttpStatus.BAD_REQUEST, "CHL008", "방장은 자신의 챌린지에서 탈퇴할 수 없습니다."),
     CHALLENGE_HAS_PARTICIPANTS(HttpStatus.CONFLICT, "CHL009", "참가자가 있어 챌린지를 취소할 수 없습니다."),
+    CANNOT_REJOIN_CHALLENGE(HttpStatus.CONFLICT, "CHL010", "참가 이력이 있는 챌린지는 다시 참가할 수 없습니다."),
 
     // AI
     AI_REVIEW_RULE_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "AI 검수 규칙을 찾을 수 없습니다."),

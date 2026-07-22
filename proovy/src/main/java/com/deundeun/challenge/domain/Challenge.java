@@ -13,6 +13,8 @@ import java.time.LocalTime;
 @AllArgsConstructor
 public class Challenge {
 
+    private static final int DEFAULT_SUCCESS_CRITERIA_RATE = 80;
+
     private Long id;
     private Long hostId; // users.id (도메인 밖, FK 없음)
     private String title;
@@ -20,18 +22,22 @@ public class Challenge {
     private Long categoryId;
     private Long entryFee;
     private String verificationMethod;
-    private CertFrequency certFrequency;
+    @Builder.Default
+    private CertFrequency certFrequency = CertFrequency.DAILY;
     private Integer dailyCertLimit;
-    private Integer successCriteriaRate;
-    private Boolean aiReviewEnabled;
+    @Builder.Default
+    private Integer successCriteriaRate = DEFAULT_SUCCESS_CRITERIA_RATE;
+    private boolean aiReviewEnabled;
     private LocalDate startDate;
     private LocalDate endDate;
     private Integer maxParticipants;
-    private ChallengeStatus status;
+    @Builder.Default
+    private ChallengeStatus status = ChallengeStatus.RECRUITING;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalTime certStartTime;
     private LocalTime certEndTime;
     private FeedVisibility feedVisibility;
+    private String thumbnailUrl;
 
 }

@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 import {
   Home,
@@ -63,24 +63,16 @@ const baseMypageMenus = [
 ];
 const withdrawMenu = { name: "회원탈퇴", href: "/mypage/withdraw" };
 
-const SidebarDropdown = ({ icon: Icon, label, items, pathname, onItemAction }) => {
+const SidebarDropdown = ({ icon: Icon, label, items, pathname, open, onToggle, onItemAction }) => {
   const isActive = items.some((m) => m.href === pathname);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [prevPathname, setPrevPathname] = useState(pathname);
-
-  // 렌더링 도중 pathname이 바뀐 걸 감지하면, 그 자리에서 바로 리셋
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname);
-    setManualOpen(false);
-  }
-
-  const open = isActive || manualOpen;
 
   return (
     <div>
       <button
-        onClick={() => setManualOpen((prev) => !prev)}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+        onClick={onToggle}
+        className={`flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+          isActive ? "font-semibold text-primary" : "text-gray-600 hover:bg-gray-50"
+        }`}
       >
         <Icon size={18} />
         {label}
@@ -127,12 +119,23 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname, onItemAction }) =
 const Sidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: unreadCountData } = useUnreadCount();
-  const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   const { data: me, isLoading: isMeLoading } = useMe();
+  const { data: unreadCountData } = useUnreadCount({ enabled: !!me });
+  const unreadNotificationCount = unreadCountData?.unreadCount ?? 0;
   useChatRoomsSync({ enabled: !!me });
   const unreadChatCount = useUnreadChatCount();
   const logoutMutation = useLogout();
+
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+
+  // 하위 항목을 클릭해 다른 페이지로 이동했을 때는 항상 접히도록, pathname이 바뀌면 그 자리에서 리셋
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setOpenDropdown(null);
+  }
+
+  const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
 
   const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
 
@@ -186,11 +189,18 @@ const Sidebar = () => {
           );
         })}
 
-        <div className="my-3 border-t border-gray-200" />
+        <div className="my-1 border-t border-gray-200" />
 
-        <SidebarDropdown icon={Wallet} label="지갑" items={walletMenus} pathname={pathname} />
+        <SidebarDropdown
+          icon={Wallet}
+          label="지갑"
+          items={walletMenus}
+          pathname={pathname}
+          open={openDropdown === "wallet"}
+          onToggle={() => toggleDropdown("wallet")}
+        />
 
-        <div className="my-3 border-t border-gray-200" />
+        <div className="my-1 border-t border-gray-200" />
 
         <Link
           href="/mypage/tickets/store"
@@ -204,23 +214,27 @@ const Sidebar = () => {
           스토어
         </Link>
 
-        <div className="my-3 border-t border-gray-200" />
+        <div className="my-1 border-t border-gray-200" />
 
         <SidebarDropdown
           icon={User}
           label="마이페이지"
           items={mypageMenuItems}
           pathname={pathname}
+          open={openDropdown === "mypage"}
+          onToggle={() => toggleDropdown("mypage")}
         />
 
         {me?.role === "ADMIN" && (
           <>
-            <div className="my-3 border-t border-gray-200" />
+            <div className="my-1 border-t border-gray-200" />
             <SidebarDropdown
               icon={ShieldCheck}
               label="관리자"
               items={adminMenus}
               pathname={pathname}
+              open={openDropdown === "admin"}
+              onToggle={() => toggleDropdown("admin")}
             />
           </>
         )}

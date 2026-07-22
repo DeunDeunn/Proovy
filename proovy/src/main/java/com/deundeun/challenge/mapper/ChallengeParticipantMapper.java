@@ -5,6 +5,7 @@ import com.deundeun.challenge.domain.ParticipantResult;
 import com.deundeun.challenge.domain.ParticipantResultCandidate;
 import com.deundeun.challenge.domain.ParticipantStatus;
 import com.deundeun.challenge.dto.response.ChallengeParticipantListItemResponse;
+import com.deundeun.challenge.dto.response.ChallengeParticipantManageResponse;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -52,4 +53,9 @@ public interface ChallengeParticipantMapper {
             @Param("challengeId") Long challengeId);
 
     void updateResult(@Param("id") Long id, @Param("result") ParticipantResult result);
+
+    /**
+     * 방장 관리 화면용: 참가자별 인증 승인 일수(진행률)와 검수 대기 건수.
+     */
+    List<ChallengeParticipantManageResponse> findParticipantsForManage(@Param("challengeId") Long challengeId);
 }

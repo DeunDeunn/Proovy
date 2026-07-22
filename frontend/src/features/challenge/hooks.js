@@ -6,10 +6,17 @@ import {
   createChallenge,
   getCategories,
   getChallenge,
+  getChallengeParticipants,
+  getChallengeParticipantsManage,
   getChallenges,
+  joinChallenge,
+  kickParticipant,
+  leaveChallenge,
   updateChallenge,
+  updateChallengeThumbnail,
 } from "./api";
 import { challengeKeys } from "./queryKeys";
+import { walletKeys } from "@/features/wallet/queryKeys";
 
 export const useCategories = () =>
   useQuery({ queryKey: challengeKeys.categories(), queryFn: getCategories });
@@ -33,11 +40,66 @@ export const useChallenge = (challengeId) =>
     enabled: !!challengeId,
   });
 
+export const useChallengeParticipants = (challengeId) =>
+  useQuery({
+    queryKey: challengeKeys.participants(challengeId),
+    queryFn: () => getChallengeParticipants(challengeId),
+    enabled: !!challengeId,
+  });
+
+export const useChallengeParticipantsManage = (challengeId, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: challengeKeys.participantsManage(challengeId),
+    queryFn: () => getChallengeParticipantsManage(challengeId),
+    enabled: !!challengeId && enabled,
+  });
+
+export const useKickParticipant = (challengeId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId) => kickParticipant(challengeId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.participants(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.participantsManage(challengeId) });
+    },
+  });
+};
+
+export const useJoinChallenge = (challengeId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => joinChallenge(challengeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.participants(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: walletKeys.me() });
+    },
+  });
+};
+
+export const useLeaveChallenge = (challengeId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => leaveChallenge(challengeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.participants(challengeId) });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: walletKeys.me() });
+    },
+  });
+};
+
 export const useCreateChallenge = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createChallenge,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: challengeKeys.lists() }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: walletKeys.me() });
+    },
   });
 };
 
@@ -48,6 +110,17 @@ export const useUpdateChallenge = (challengeId) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) });
+    },
+  });
+};
+
+export const useUpdateChallengeThumbnail = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ challengeId, file }) => updateChallengeThumbnail(challengeId, file),
+    onSuccess: (_, payload) => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.detail(payload.challengeId) });
     },
   });
 };

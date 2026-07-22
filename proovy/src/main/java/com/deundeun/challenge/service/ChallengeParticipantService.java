@@ -5,6 +5,7 @@ import com.deundeun.challenge.domain.ChallengeParticipant;
 import com.deundeun.challenge.domain.ChallengeStatus;
 import com.deundeun.challenge.domain.ParticipantStatus;
 import com.deundeun.challenge.dto.response.ChallengeParticipantListItemResponse;
+import com.deundeun.challenge.dto.response.ChallengeParticipantManageResponse;
 import com.deundeun.challenge.dto.response.ChallengeParticipantResponse;
 import com.deundeun.challenge.mapper.ChallengeMapper;
 import com.deundeun.challenge.mapper.ChallengeParticipantMapper;
@@ -41,8 +42,12 @@ public class ChallengeParticipantService {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
         }
         // 탈퇴 이력이 있어도(challenge_id, user_id) 유니크 제약 때문에 재참가는 불가능하다
-        if (challengeParticipantMapper.findByChallengeIdAndUserId(challengeId, userId) != null) {
-            throw new ApiException(ErrorCode.ALREADY_JOINED_CHALLENGE);
+        ChallengeParticipant existing = challengeParticipantMapper.findByChallengeIdAndUserId(challengeId, userId);
+        if (existing != null) {
+            if (existing.getStatus() == ParticipantStatus.ACTIVE) {
+                throw new ApiException(ErrorCode.ALREADY_JOINED_CHALLENGE);
+            }
+            throw new ApiException(ErrorCode.CANNOT_REJOIN_CHALLENGE);
         }
         if (challengeParticipantMapper.countActiveParticipants(challengeId) >= challenge.getMaxParticipants()) {
             throw new ApiException(ErrorCode.CHALLENGE_FULL);
@@ -125,5 +130,17 @@ public class ChallengeParticipantService {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
         }
         return challengeParticipantMapper.findAllByChallengeId(challengeId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChallengeParticipantManageResponse> getParticipantsForManage(Long challengeId, Long hostId) {
+        Challenge challenge = challengeMapper.findById(challengeId);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        if (!challenge.getHostId().equals(hostId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+        return challengeParticipantMapper.findParticipantsForManage(challengeId);
     }
 }

@@ -22,5 +22,6 @@ public class ChallengeSummaryResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private ChallengeStatus status;
+    private String thumbnailUrl;
 
 }

@@ -1,20 +1,16 @@
 "use client";
 
-import { ArrowRight, ShoppingBag, Sparkles, Ticket } from "lucide-react";
+import { ArrowRight, ShoppingBag, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import ActiveTicketCard from "@/features/ai/components/ActiveTicketCard";
-import TicketHistoryTable from "@/features/ai/components/TicketHistoryTable";
-import { useActiveAiTicket, useAiTicketHistory } from "@/features/ai/hooks";
+import { useActiveAiTicket } from "@/features/ai/hooks";
 
 const TicketPage = () => {
   const { data: activeTicket, isLoading: activeLoading, error: activeError } =
     useActiveAiTicket();
-  const { data: history, isLoading: historyLoading, error: historyError } =
-    useAiTicketHistory({ page: 0, size: 10 });
 
   if (activeLoading) return <Loading label="AI 티켓 정보를 불러오는 중..." />;
   if (activeError) return <ErrorMessage error={activeError} />;
@@ -30,7 +26,7 @@ const TicketPage = () => {
             <h1 className="text-xl font-bold text-gray-900">AI 티켓 관리</h1>
           </div>
           <p className="mt-2 text-sm text-gray-500">
-            현재 이용권과 AI 검수 사용 내역을 확인하세요.
+            현재 이용권을 확인하세요.
           </p>
         </div>
         <Link
@@ -50,23 +46,6 @@ const TicketPage = () => {
         <ActiveTicketCard ticket={activeTicket} />
       </section>
 
-      <section className="mt-8" aria-labelledby="ticket-history-heading">
-        <Card>
-          <div className="mb-4 flex items-center gap-2">
-            <Ticket size={18} className="text-primary" />
-            <h2 id="ticket-history-heading" className="font-semibold text-gray-900">
-              최근 이용 내역
-            </h2>
-          </div>
-          {historyLoading ? (
-            <Loading label="이용 내역을 불러오는 중..." />
-          ) : historyError ? (
-            <ErrorMessage error={historyError} />
-          ) : (
-            <TicketHistoryTable items={history?.content ?? []} />
-          )}
-        </Card>
-      </section>
     </div>
   );
 };

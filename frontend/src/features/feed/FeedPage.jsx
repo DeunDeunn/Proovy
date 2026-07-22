@@ -4,8 +4,8 @@
 
 import {
   BadgeCheck,
-  ChevronDown,
   Clock3,
+  Flame,
   Heart,
   ImageOff,
   MessageCircle,
@@ -29,6 +29,11 @@ const filters = [
   { value: "all", label: "전체" },
   { value: "mine", label: "내 인증" },
   { value: "today", label: "오늘" },
+];
+
+const sorts = [
+  { value: "latest", label: "최신순", icon: Clock3 },
+  { value: "popular", label: "인기순", icon: Flame },
 ];
 
 const formatCreatedAt = (value) => {
@@ -137,8 +142,9 @@ const FeedCard = ({
 
 const FeedPage = () => {
   const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("latest");
   const { data, error, fetchNextPage, hasNextPage, isError, isFetchingNextPage, isLoading } =
-    usePublicFeed(filter);
+    usePublicFeed(filter, sort);
   const { data: me } = useMe();
   const {
     startChat,
@@ -181,16 +187,27 @@ const FeedPage = () => {
           })}
         </div>
 
-        <div aria-label="피드 정렬">
-          <button
-            type="button"
-            title="현재 최신순으로 정렬되어 있습니다."
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-surface px-4 py-2 text-sm font-semibold text-gray-600 shadow-sm"
-          >
-            <Clock3 size={17} aria-hidden="true" />
-            최신순
-            <ChevronDown size={16} aria-hidden="true" />
-          </button>
+        <div className="flex gap-2" role="tablist" aria-label="피드 정렬">
+          {sorts.map(({ value, label, icon: Icon }) => {
+            const isSelected = sort === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                onClick={() => setSort(value)}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                  isSelected
+                    ? "border-primary bg-primary text-white shadow-sm"
+                    : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300 hover:text-gray-800"
+                }`}
+              >
+                <Icon size={17} aria-hidden="true" />
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

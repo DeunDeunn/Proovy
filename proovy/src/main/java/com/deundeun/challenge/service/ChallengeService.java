@@ -1,8 +1,9 @@
 package com.deundeun.challenge.service;
 
-import com.deundeun.challenge.domain.CertFrequency;
 import com.deundeun.challenge.domain.Challenge;
+import com.deundeun.challenge.domain.ChallengeParticipant;
 import com.deundeun.challenge.domain.ChallengeStatus;
+import com.deundeun.challenge.domain.ParticipantStatus;
 import com.deundeun.challenge.dto.request.ChallengeCreateRequest;
 import com.deundeun.challenge.dto.request.ChallengeSearchCondition;
 import com.deundeun.challenge.dto.request.ChallengeUpdateRequest;
@@ -10,6 +11,7 @@ import com.deundeun.challenge.dto.response.ChallengeCreateResponse;
 import com.deundeun.challenge.dto.response.ChallengeDetailResponse;
 import com.deundeun.challenge.dto.response.ChallengeProgressResponse;
 import com.deundeun.challenge.dto.response.ChallengeSummaryResponse;
+import com.deundeun.challenge.dto.response.ChallengeThumbnailUpdateResponse;
 import com.deundeun.challenge.dto.response.PageResponse;
 import com.deundeun.challenge.mapper.CategoryMapper;
 import com.deundeun.challenge.mapper.ChallengeMapper;
@@ -19,10 +21,13 @@ import com.deundeun.chat.service.ChatRoomMemberService;
 import com.deundeun.chat.service.ChatRoomService;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.global.file.FileCategory;
+import com.deundeun.global.file.TransactionalFileUploader;
 import com.deundeun.pay.service.WalletHoldService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,6 +44,7 @@ public class ChallengeService {
     private final WalletHoldService walletHoldService;
     private final ChatRoomService chatRoomService;
     private final ChatRoomMemberService chatRoomMemberService;
+    private final TransactionalFileUploader transactionalFileUploader;
 
     @Transactional
     public ChallengeCreateResponse create(Long hostId, ChallengeCreateRequest request) {
@@ -60,20 +66,27 @@ public class ChallengeService {
                 .categoryId(request.categoryId())
                 .entryFee(request.entryFee())
                 .verificationMethod(request.verificationMethod())
-                .certFrequency(CertFrequency.DAILY)                // MVP 고정
                 .dailyCertLimit(request.dailyCertLimit())
-                .successCriteriaRate(80)                           // 80% 고정
                 .aiReviewEnabled(request.aiReviewEnabled())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .maxParticipants(request.maxParticipants())
-                .status(ChallengeStatus.RECRUITING)                // 생성 시 무조건 모집중
                 .certStartTime(request.certStartTime())
                 .certEndTime(request.certEndTime())
                 .feedVisibility(request.feedVisibility())
                 .build();
 
         challengeMapper.insert(challenge);
+
+        // 방장도 참가자와 동일하게 참가비를 내고 챌린지에 참여한다 (개설만 하고 빠지는 것 방지)
+        if (challenge.getEntryFee() > 0) {
+            walletHoldService.hold(hostId, challenge.getEntryFee(), challenge.getId());
+        }
+        ChallengeParticipant hostParticipant = new ChallengeParticipant();
+        hostParticipant.setChallengeId(challenge.getId());
+        hostParticipant.setUserId(hostId);
+        hostParticipant.setStatus(ParticipantStatus.ACTIVE);
+        challengeParticipantMapper.insert(hostParticipant);
 
         ChatRoom chatRoom = chatRoomService.createChallengeRoom(challenge.getId());
         chatRoomMemberService.join(chatRoom.getId(), hostId);
@@ -183,6 +196,24 @@ public class ChallengeService {
         chatRoomMemberService.leave(chatRoomId, challenge.getHostId());
 
         challengeMapper.updateStatus(challengeId, ChallengeStatus.CANCELLED);
+    }
+
+    @Transactional
+    public ChallengeThumbnailUpdateResponse updateThumbnail(Long challengeId, Long userId, MultipartFile image) {
+        // 행 잠금: 다른 챌린지 API들(cancel, update)과 동일하게 확인-변경 사이 경쟁 조건 방지
+        Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
+        if (challenge == null) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_FOUND);
+        }
+        if (!challenge.getHostId().equals(userId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN); // 방장만 수정 가능
+        }
+        String oldUrl = challenge.getThumbnailUrl(); // 없을 수도 있음(null)
+
+        String newUrl = transactionalFileUploader.uploadReplacing(image, FileCategory.CHALLENGE_THUMBNAIL, oldUrl);
+        challengeMapper.updateThumbnailUrl(challengeId, newUrl);
+
+        return new ChallengeThumbnailUpdateResponse(newUrl);
     }
 
     @Transactional(readOnly = true)

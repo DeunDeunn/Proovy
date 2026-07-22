@@ -20,6 +20,7 @@ public class ChallengeDetailResponse {
     private String hostNickname;         // users JOIN
     private String title;
     private String description;
+    private Long categoryId;             // categories JOIN
     private String categoryName;         // categories JOIN
     private Long entryFee;
     private String verificationMethod;
@@ -34,6 +35,7 @@ public class ChallengeDetailResponse {
     private LocalTime certStartTime;
     private LocalTime certEndTime;
     private FeedVisibility feedVisibility;
+    private String thumbnailUrl;
     private LocalDateTime createdAt;
 
 }

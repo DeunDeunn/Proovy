@@ -1,6 +1,6 @@
 import api from "@/lib/api";
 
-export const getMe = () => api.get("/auth/me");
+export const getMe = ({ signal } = {}) => api.get("/auth/me", { signal });
 
 export const checkNicknameDuplicate = (nickname) =>
   api.get("/auth/nickname/duplicate", { params: { nickname } });

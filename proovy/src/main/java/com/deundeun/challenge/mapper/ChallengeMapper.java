@@ -48,6 +48,8 @@ public interface ChallengeMapper {
 
     void updateStatus(@Param("id") Long id, @Param("status") ChallengeStatus status);
 
+    void updateThumbnailUrl(@Param("id") Long id, @Param("thumbnailUrl") String thumbnailUrl);
+
     /**
      * 모집중이면서 시작일이 지난 챌린지를 전부 진행중으로 전환한다 (스케줄러용, 매번 조건 검사라 누락분도 자동 처리됨).
      */

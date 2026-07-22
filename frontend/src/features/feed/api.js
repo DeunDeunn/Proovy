@@ -1,11 +1,18 @@
 import api from "@/lib/api";
 
-export const getPublicFeed = ({ cursor, filter = "all", size = 20 } = {}) =>
+export const getPublicFeed = ({
+  cursor,
+  cursorLike,
+  filter = "all",
+  sort = "latest",
+  size = 20,
+} = {}) =>
   api.get("/v1/feed", {
     params: {
       cursor,
+      cursorLike,
       filter,
       size,
-      sort: "latest",
+      sort,
     },
   });
