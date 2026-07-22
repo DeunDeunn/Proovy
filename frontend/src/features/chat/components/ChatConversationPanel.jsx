@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- S3 썸네일/프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck, ImagePlus, Plus, Send, Users, X } from "lucide-react";
@@ -7,6 +8,7 @@ import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
 import MessageBubble from "@/features/chat/components/MessageBubble";
 import ParticipantAvatarMenu from "@/features/chat/components/ParticipantAvatarMenu";
+import ProfileAvatar from "@/components/ui/ProfileAvatar";
 import {
   useChatRoomHistory,
   useChatRoomMembers,
@@ -125,11 +127,23 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-surface">
       <div className="flex shrink-0 items-center gap-3 border-b border-gray-100 px-5 py-4">
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}
-        >
-          {displayName.slice(0, 1)}
-        </div>
+        {isChallenge ? (
+          room.challengeThumbnailUrl ? (
+            <img src={room.challengeThumbnailUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          ) : (
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}
+            >
+              {displayName.slice(0, 1)}
+            </div>
+          )
+        ) : (
+          <ProfileAvatar
+            nickname={displayName}
+            profileImageUrl={room.directChatPartner?.profileImageUrl}
+            size="h-10 w-10"
+          />
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -169,30 +183,27 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
                   {members?.length === 0 && (
                     <p className="px-3 py-2 text-xs text-gray-400">참여자가 없습니다.</p>
                   )}
-                  {members?.map((member) => {
-                    const memberAvatarColor = getAvatarColor(member.userId);
-                    return (
-                      <div key={member.userId} className="flex items-center gap-2 px-3 py-2">
-                        <ParticipantAvatarMenu userId={member.userId} canStartChat={member.userId !== me?.id}>
-                          <span
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${memberAvatarColor.bg} ${memberAvatarColor.text}`}
-                          >
-                            {member.nickname.slice(0, 1)}
-                          </span>
-                        </ParticipantAvatarMenu>
-                        <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
-                          {member.nickname}
-                        </span>
-                        {member.badgeApproved && (
-                          <BadgeCheck
-                            size={14}
-                            className="shrink-0 fill-primary stroke-white"
-                            aria-label="우수 인증자"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
+                  {members?.map((member) => (
+                    <div key={member.userId} className="flex items-center gap-2 px-3 py-2">
+                      <ParticipantAvatarMenu userId={member.userId} canStartChat={member.userId !== me?.id}>
+                        <ProfileAvatar
+                          nickname={member.nickname}
+                          profileImageUrl={member.profileImageUrl}
+                          size="h-7 w-7"
+                        />
+                      </ParticipantAvatarMenu>
+                      <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                        {member.nickname}
+                      </span>
+                      {member.badgeApproved && (
+                        <BadgeCheck
+                          size={14}
+                          className="shrink-0 fill-primary stroke-white"
+                          aria-label="우수 인증자"
+                        />
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

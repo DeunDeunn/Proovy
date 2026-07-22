@@ -1,4 +1,6 @@
+/* eslint-disable @next/next/no-img-element -- S3 썸네일 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 import Badge from "@/components/ui/Badge";
+import ProfileAvatar from "@/components/ui/ProfileAvatar";
 import {
   CHAT_ROOM_TYPES,
   formatChatTime,
@@ -23,11 +25,23 @@ const ChatRoomItem = ({ room, selected, onSelect }) => {
         selected ? "bg-primary-light" : "hover:bg-gray-50"
       }`}
     >
-      <div
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}
-      >
-        {displayName.slice(0, 1)}
-      </div>
+      {isChallenge ? (
+        room.challengeThumbnailUrl ? (
+          <img src={room.challengeThumbnailUrl} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+        ) : (
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}
+          >
+            {displayName.slice(0, 1)}
+          </div>
+        )
+      ) : (
+        <ProfileAvatar
+          nickname={displayName}
+          profileImageUrl={room.directChatPartner?.profileImageUrl}
+          size="h-12 w-12"
+        />
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">

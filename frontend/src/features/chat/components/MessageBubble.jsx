@@ -2,11 +2,11 @@ import { useRouter } from "next/navigation";
 import { BadgeCheck, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import ParticipantAvatarMenu from "@/features/chat/components/ParticipantAvatarMenu";
-import { formatChatTime, formatFileSize, getAvatarColor } from "@/features/chat/mockData";
+import ProfileAvatar from "@/components/ui/ProfileAvatar";
+import { formatChatTime, formatFileSize } from "@/features/chat/mockData";
 
 const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, isDeletePending }) => {
   const router = useRouter();
-  const avatarColor = getAvatarColor(message.senderId);
   const time = formatChatTime(message.createdAt);
   const readLabel = isOwn && !isChallenge && message.read ? "읽음" : null;
   const canDelete = isOwn && !message.deletedAt && !!onDelete;
@@ -122,11 +122,11 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
         <div className="w-8 shrink-0">
           {showSenderInfo && (
             <ParticipantAvatarMenu userId={message.senderId} canStartChat={isChallenge}>
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${avatarColor.bg} ${avatarColor.text}`}
-              >
-                {message.senderNickname.slice(0, 1)}
-              </div>
+              <ProfileAvatar
+                nickname={message.senderNickname}
+                profileImageUrl={message.senderProfileImage}
+                size="h-8 w-8"
+              />
             </ParticipantAvatarMenu>
           )}
         </div>

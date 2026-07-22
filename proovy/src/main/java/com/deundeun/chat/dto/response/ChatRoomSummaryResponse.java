@@ -10,6 +10,7 @@ public record ChatRoomSummaryResponse(
     ChatRoomType chatRoomType,
     Long challengeId,
     String challengeTitle,
+    String challengeThumbnailUrl,
     DirectChatPartnerResponse directChatPartner,
     LastMessageResponse lastMessage,
     int unreadCount,
@@ -18,7 +19,7 @@ public record ChatRoomSummaryResponse(
     LocalDateTime createdAt
 ) {
 
-    public static ChatRoomSummaryResponse of(ChatRoomListItem item, String challengeTitle,
+    public static ChatRoomSummaryResponse of(ChatRoomListItem item, String challengeTitle, String challengeThumbnailUrl,
                                               DirectChatPartnerResponse directChatPartner,
                                               String lastMessageSenderNickname, int unreadCount) {
         return new ChatRoomSummaryResponse(
@@ -26,6 +27,7 @@ public record ChatRoomSummaryResponse(
             item.chatRoomType(),
             item.challengeId(),
             challengeTitle,
+            challengeThumbnailUrl,
             directChatPartner,
             LastMessageResponse.of(item, lastMessageSenderNickname),
             unreadCount,
