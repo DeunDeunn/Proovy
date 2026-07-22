@@ -13,11 +13,11 @@ import Loading from "@/components/ui/Loading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useMe } from "@/features/auth/hooks";
 import {
-  useAiReviewCertificationPost,
   useApproveCertificationPost,
   usePendingCertifications,
   useRejectCertificationPost,
 } from "@/features/certification/hooks";
+import { useActiveAiTicket } from "@/features/ai/hooks";
 import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import {
@@ -333,21 +333,13 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
   );
 };
 
-const AI_DECISION_LABEL = {
-  APPROVED: "승인 추천",
-  REJECTED: "반려 추천",
-  NEEDS_REVIEW: "추가 검토 필요",
-};
-
 const PendingCertificationCard = ({
   post,
-  aiResult,
-  onAiReview,
   onApprove,
   onReject,
-  isAiReviewing,
   isApproving,
   isRejecting,
+  canManualReview,
 }) => (
   <div className="flex gap-4 rounded-xl border border-gray-200 p-4">
     <img
@@ -364,63 +356,49 @@ const PendingCertificationCard = ({
       </div>
       <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.contents}</p>
 
-      {aiResult && (
-        <div className="mt-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">
-          <span className="font-semibold text-primary">
-            AI {AI_DECISION_LABEL[aiResult.decision] ?? aiResult.decision}
-          </span>{" "}
-          (신뢰도 {Math.round((aiResult.confidence ?? 0) * 100)}%) — {aiResult.reason}
-        </div>
-      )}
-
       <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={onAiReview}
-          disabled={isAiReviewing}
-          className="rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isAiReviewing ? "AI 검수 중..." : "AI 자동 검수"}
-        </button>
-        <button
-          type="button"
-          onClick={onApprove}
-          disabled={isApproving}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isApproving ? "승인 중..." : "승인"}
-        </button>
-        <button
-          type="button"
-          onClick={onReject}
-          disabled={isRejecting}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isRejecting ? "반려 중..." : "반려"}
-        </button>
+        {canManualReview ? (
+          <>
+            <button
+              type="button"
+              onClick={onApprove}
+              disabled={isApproving}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isApproving ? "승인 중..." : "승인"}
+            </button>
+            <button
+              type="button"
+              onClick={onReject}
+              disabled={isRejecting}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isRejecting ? "반려 중..." : "반려"}
+            </button>
+          </>
+        ) : (
+          <span className="rounded-lg bg-primary-light px-3 py-1.5 text-xs font-semibold text-primary">
+            AI 자동 검수 중
+          </span>
+        )}
       </div>
     </div>
   </div>
 );
 
-const CertificationReviewTab = ({ challengeId }) => {
-  const [aiResults, setAiResults] = useState({});
-
+const CertificationReviewTab = ({ challengeId, hostId }) => {
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     usePendingCertifications(challengeId);
-  const aiReviewMutation = useAiReviewCertificationPost(challengeId);
+  const {
+    data: activeTicket,
+    isLoading: isTicketLoading,
+    error: ticketError,
+  } = useActiveAiTicket();
   const approveMutation = useApproveCertificationPost(challengeId);
   const rejectMutation = useRejectCertificationPost(challengeId);
 
   const posts = data?.pages.flat() ?? [];
-
-  const handleAiReview = (postId) => {
-    aiReviewMutation.mutate(postId, {
-      onSuccess: (result) => {
-        setAiResults((prev) => ({ ...prev, [postId]: result }));
-      },
-    });
-  };
+  const hasActiveTicket = activeTicket?.hasActiveTicket === true;
 
   const handleApprove = (postId) => {
     approveMutation.mutate(postId);
@@ -450,6 +428,35 @@ const CertificationReviewTab = ({ challengeId }) => {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">
+            {hasActiveTicket ? "AI 티켓 활성화 중" : "AI 티켓 비활성화"}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            {hasActiveTicket
+              ? "참가자의 인증 게시물을 AI가 자동으로 검수합니다."
+              : "참가자의 인증 게시물을 방장이 직접 검수합니다."}
+          </p>
+        </div>
+        {isTicketLoading ? (
+          <span className="text-xs text-gray-400">티켓 확인 중...</span>
+        ) : !hasActiveTicket ? (
+          <Link
+            href="/mypage/tickets/store"
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+          >
+            티켓 활성화
+          </Link>
+        ) : (
+          <span className="shrink-0 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
+            자동 검수 사용 중
+          </span>
+        )}
+      </div>
+
+      {ticketError && <ErrorMessage error={ticketError} />}
+
       {posts.length === 0 ? (
         <div className="rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
           검수 대기 중인 인증글이 없어요.
@@ -459,15 +466,13 @@ const CertificationReviewTab = ({ challengeId }) => {
           <PendingCertificationCard
             key={post.postId}
             post={post}
-            aiResult={aiResults[post.postId]}
-            onAiReview={() => handleAiReview(post.postId)}
             onApprove={() => handleApprove(post.postId)}
             onReject={() => handleReject(post.postId)}
-            isAiReviewing={aiReviewMutation.isPending && aiReviewMutation.variables === post.postId}
             isApproving={approveMutation.isPending && approveMutation.variables === post.postId}
             isRejecting={
               rejectMutation.isPending && rejectMutation.variables?.postId === post.postId
             }
+            canManualReview={!hasActiveTicket && post.authorId !== hostId}
           />
         ))
       )}
@@ -481,9 +486,9 @@ const CertificationReviewTab = ({ challengeId }) => {
           {isFetchingNextPage ? "불러오는 중..." : "더 보기"}
         </button>
       )}
-      {(aiReviewMutation.isError || approveMutation.isError || rejectMutation.isError) && (
+      {(approveMutation.isError || rejectMutation.isError) && (
         <ErrorMessage
-          error={aiReviewMutation.error ?? approveMutation.error ?? rejectMutation.error}
+          error={approveMutation.error ?? rejectMutation.error}
         />
       )}
     </div>
@@ -697,7 +702,9 @@ const ChallengeManagePage = ({ challengeId }) => {
         </div>
       )}
 
-      {tab === "certifications" && <CertificationReviewTab challengeId={challengeId} />}
+      {tab === "certifications" && (
+        <CertificationReviewTab challengeId={challengeId} hostId={challenge.hostId} />
+      )}
 
       {tab === "settings" && <RoomSettingsTab challenge={challenge} challengeId={challengeId} />}
     </div>
