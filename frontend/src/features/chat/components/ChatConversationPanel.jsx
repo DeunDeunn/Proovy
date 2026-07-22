@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- S3 썸네일/프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, ImagePlus, Plus, Send, Users, X } from "lucide-react";
+import { BadgeCheck, ImagePlus, MessageCircle, Plus, Send, Users, X } from "lucide-react";
 
 import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
@@ -125,7 +125,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-surface">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-surface shadow-xl shadow-black/5">
       <div className="flex shrink-0 items-center gap-3 border-b border-gray-100 px-5 py-4">
         {isChallenge ? (
           room.challengeThumbnailUrl ? (
@@ -171,7 +171,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
                 aria-label="참여자 목록"
                 aria-expanded={isMemberListOpen}
                 onClick={() => setIsMemberListOpen((open) => !open)}
-                className="rounded-lg p-2 hover:bg-gray-100"
+                className="rounded-xl p-2 transition-colors hover:bg-gray-100"
               >
                 <Users size={18} />
               </button>
@@ -228,7 +228,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
             type="button"
             onClick={onClose}
             aria-label="채팅방 닫기"
-            className="rounded-lg p-2 hover:bg-gray-100"
+            className="rounded-xl p-2 transition-colors hover:bg-gray-100"
           >
             <X size={18} />
           </button>
@@ -265,7 +265,10 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
           <p className="py-4 text-center text-xs text-red-500">메시지를 불러오지 못했습니다.</p>
         )}
         {!isLoadingInitial && !error && messages.length === 0 && (
-          <p className="py-4 text-center text-xs text-gray-400">아직 주고받은 메시지가 없습니다.</p>
+          <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-2xl border border-gray-100 bg-surface text-gray-400 shadow-xl shadow-black/5">
+            <MessageCircle size={24} className="text-gray-300" />
+            <p className="text-sm">아직 주고받은 메시지가 없습니다.</p>
+          </div>
         )}
         {isLoadingMore && (
           <p className="py-1 text-center text-xs text-gray-400">이전 메시지 불러오는 중...</p>
@@ -315,23 +318,25 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
           aria-label="파일 첨부"
           disabled={!isConnected || attachmentMutation.isPending}
           onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={20} />
         </button>
-        <input
-          type="text"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="메시지 입력..."
-          className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
-        />
+        <div className="flex min-w-0 flex-1 items-center rounded-full bg-gray-50 px-4 py-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="메시지 입력..."
+            className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+          />
+        </div>
         <button
           type="button"
           aria-label="이미지 첨부"
           disabled={!isConnected || attachmentMutation.isPending}
           onClick={() => imageInputRef.current?.click()}
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ImagePlus size={18} />
         </button>

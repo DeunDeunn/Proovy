@@ -34,7 +34,7 @@ const ChatRoomList = ({ rooms, selectedRoomId, onSelectRoom }) => {
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               activeGroup === group
                 ? "bg-primary text-white"
-                : "border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
             }`}
           >
             {group}
@@ -42,7 +42,7 @@ const ChatRoomList = ({ rooms, selectedRoomId, onSelectRoom }) => {
         ))}
       </div>
 
-      <div className="mt-4 flex shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-surface px-3 py-2.5">
+      <div className="mt-4 flex shrink-0 items-center gap-2 rounded-xl border border-gray-100 bg-surface px-3 py-2.5 shadow-sm">
         <Search size={16} className="shrink-0 text-gray-400" />
         <input
           type="text"

@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans:
+    var(--font-pretendard), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
   --color-primary: #2563eb; /* 메인 파랑 (버튼, 활성 메뉴, 로고) */
   --color-primary-hover: #1d4ed8; /* 호버 시 진한 파랑 */
   --color-primary-light: #eff6ff; /* 활성 메뉴 배경, 연한 강조 */
