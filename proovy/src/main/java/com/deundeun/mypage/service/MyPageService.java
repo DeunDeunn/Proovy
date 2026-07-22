@@ -40,6 +40,7 @@ public class MyPageService {
 
         List<ChallengeSummaryResponse> participatingChallenges = myPageMapper.findParticipatingChallenges(userId);
         List<ChallengeSummaryResponse> hostingChallenges = myPageMapper.findHostingChallenges(userId);
+        List<ChallengeSummaryResponse> completedChallenges = myPageMapper.findCompletedChallenges(userId);
 
         return new MyPageResponse(
                 user.getId(),
@@ -51,6 +52,7 @@ public class MyPageService {
                 followerCount,
                 followingCount,
                 participatingChallenges,
-                hostingChallenges);
+                hostingChallenges,
+                completedChallenges);
     }
 }

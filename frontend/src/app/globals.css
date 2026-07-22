@@ -10,7 +10,7 @@
   --color-danger: #dc2626; /* 에러, 회원탈퇴 같은 위험 동작 */
 
   --color-surface: #ffffff; /* 카드, 사이드바 배경 */
-  --color-canvas: #f9fafb; /* 페이지 전체 배경 */
+  --color-canvas: var(--color-surface); /* 페이지 전체 배경 - 사이드바와 동일한 색 */
 }
 
 body {
@@ -19,5 +19,15 @@ body {
 }
 
 button:not(:disabled) {
+  cursor: pointer;
+}
+
+/* 날짜 입력의 브라우저 기본 달력 아이콘을 숨긴다 - 커스텀 아이콘을 왼쪽에 따로 두거나,
+   입력창 전체 클릭으로 showPicker()를 여는 곳에서 아이콘이 중복으로 보이지 않게 하기 위함 */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
   cursor: pointer;
 }

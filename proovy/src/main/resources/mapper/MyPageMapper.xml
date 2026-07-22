@@ -46,4 +46,26 @@
         ORDER BY c.created_at DESC, c.id DESC
     </select>
 
+    <!-- 내가 참여했거나 운영했던, 종료된(COMPLETED) 챌린지 -->
+    <select id="findCompletedChallenges" resultType="ChallengeSummaryResponse">
+        SELECT DISTINCT
+            c.id,
+            c.title,
+            cat.name AS category_name,
+            c.entry_fee,
+            (SELECT COUNT(*) FROM challenge_participants p2
+             WHERE p2.challenge_id = c.id AND p2.status = 'ACTIVE') AS current_participants,
+            c.max_participants,
+            c.start_date,
+            c.end_date,
+            c.status,
+            c.thumbnail_url
+        FROM challenges c
+        JOIN categories cat ON cat.id = c.category_id
+        LEFT JOIN challenge_participants p ON p.challenge_id = c.id AND p.user_id = #{userId}
+        WHERE c.status = 'COMPLETED'
+          AND (c.host_id = #{userId} OR (p.user_id = #{userId} AND p.status = 'ACTIVE'))
+        ORDER BY c.end_date DESC, c.id DESC
+    </select>
+
 </mapper>

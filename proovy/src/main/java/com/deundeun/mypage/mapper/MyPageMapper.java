@@ -12,4 +12,6 @@ public interface MyPageMapper {
     List<ChallengeSummaryResponse> findParticipatingChallenges(@Param("userId") Long userId);
 
     List<ChallengeSummaryResponse> findHostingChallenges(@Param("userId") Long userId);
+
+    List<ChallengeSummaryResponse> findCompletedChallenges(@Param("userId") Long userId);
 }

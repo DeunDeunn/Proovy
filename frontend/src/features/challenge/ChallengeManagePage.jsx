@@ -487,9 +487,7 @@ const CertificationReviewTab = ({ challengeId, hostId }) => {
         </button>
       )}
       {(approveMutation.isError || rejectMutation.isError) && (
-        <ErrorMessage
-          error={approveMutation.error ?? rejectMutation.error}
-        />
+        <ErrorMessage error={approveMutation.error ?? rejectMutation.error} />
       )}
     </div>
   );
@@ -575,7 +573,7 @@ const ChallengeManagePage = ({ challengeId }) => {
               {challenge.categoryName}
             </span>
             <span
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold text-white ${statusBadge.className}`}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge.className}`}
             >
               {statusBadge.label}
             </span>
