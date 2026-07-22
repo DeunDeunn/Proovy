@@ -1,6 +1,7 @@
 import { useRouter } from "next/navigation";
 import { BadgeCheck, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
+import ParticipantAvatarMenu from "@/features/chat/components/ParticipantAvatarMenu";
 import { formatChatTime, formatFileSize, getAvatarColor } from "@/features/chat/mockData";
 
 const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, isDeletePending }) => {
@@ -120,11 +121,13 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
       {!isOwn && (
         <div className="w-8 shrink-0">
           {showSenderInfo && (
-            <div
-              className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${avatarColor.bg} ${avatarColor.text}`}
-            >
-              {message.senderNickname.slice(0, 1)}
-            </div>
+            <ParticipantAvatarMenu userId={message.senderId} canStartChat={isChallenge}>
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${avatarColor.bg} ${avatarColor.text}`}
+              >
+                {message.senderNickname.slice(0, 1)}
+              </div>
+            </ParticipantAvatarMenu>
           )}
         </div>
       )}

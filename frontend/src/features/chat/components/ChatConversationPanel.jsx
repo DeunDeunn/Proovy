@@ -6,6 +6,7 @@ import { BadgeCheck, ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, 
 import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
 import MessageBubble from "@/features/chat/components/MessageBubble";
+import ParticipantAvatarMenu from "@/features/chat/components/ParticipantAvatarMenu";
 import {
   useChatRoomHistory,
   useChatRoomMembers,
@@ -175,11 +176,13 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
                     const memberAvatarColor = getAvatarColor(member.userId);
                     return (
                       <div key={member.userId} className="flex items-center gap-2 px-3 py-2">
-                        <span
-                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${memberAvatarColor.bg} ${memberAvatarColor.text}`}
-                        >
-                          {member.nickname.slice(0, 1)}
-                        </span>
+                        <ParticipantAvatarMenu userId={member.userId} canStartChat={member.userId !== me?.id}>
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${memberAvatarColor.bg} ${memberAvatarColor.text}`}
+                          >
+                            {member.nickname.slice(0, 1)}
+                          </span>
+                        </ParticipantAvatarMenu>
                         <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
                           {member.nickname}
                         </span>
