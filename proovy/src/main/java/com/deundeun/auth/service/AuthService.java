@@ -114,9 +114,15 @@ public class AuthService {
             return;
         }
 
-        int updated = userMapper.updateProfileImageUrl(userId, null);
+        // 읽은 oldUrl이 그대로일 때만 NULL로 갱신한다. 그 사이 다른 요청(예: 새 이미지 업로드)이
+        // 이미지를 바꿨다면 updated == 0이 되어, 그 변경을 덮어쓰거나 새 파일을 고아로 만들지 않는다.
+        int updated = userMapper.updateProfileImageUrlIfMatches(userId, oldUrl, null);
         if (updated == 0) {
-            throw new ApiException(ErrorCode.USER_NOT_FOUND);
+            if (userMapper.findById(userId) == null) {
+                throw new ApiException(ErrorCode.USER_NOT_FOUND);
+            }
+            // 동시성 충돌: 이미지가 이미 다른 값으로 바뀌어 있으므로 이번 삭제 요청은 조용히 무시한다.
+            return;
         }
         transactionalFileUploader.deleteOnCommit(oldUrl);
     }
