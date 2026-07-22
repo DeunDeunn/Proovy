@@ -10,10 +10,9 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useCategories, useCreateChallenge, useUpdateChallengeThumbnail } from "./hooks";
+import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 
 const DESCRIPTION_MAX_LENGTH = 500;
-const CERT_TIME_MIN = "02:00";
-const CERT_TIME_MAX = "23:00";
 
 const formatDate = (date) => {
   const yyyy = date.getFullYear();
@@ -32,8 +31,10 @@ const getMinStartDate = () => {
 // 종료일은 시작일보다 하루 이상 뒤여야 함
 const getMinEndDate = (startDate) => {
   if (!startDate) return undefined;
-  const dayAfterStart = new Date(startDate);
-  dayAfterStart.setDate(dayAfterStart.getDate() + 1);
+  // "yyyy-mm-dd"를 new Date(string)으로 바로 넘기면 UTC 자정으로 해석돼
+  // getDate()/setDate()의 로컬 기준과 어긋나 UTC보다 느린 시간대에서 하루 계산이 틀어진다
+  const [year, month, day] = startDate.split("-").map(Number);
+  const dayAfterStart = new Date(year, month - 1, day + 1);
   return formatDate(dayAfterStart);
 };
 

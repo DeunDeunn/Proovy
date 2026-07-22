@@ -140,6 +140,11 @@ public class ChallengeService {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_EDITABLE);
         }
 
+        // 시작일을 직접 바꾸는 경우, 개설 시와 동일하게 최소 내일 이후여야 한다 (개설 정책 우회 방지)
+        if (request.startDate() != null && !request.startDate().isAfter(LocalDate.now())) {
+            throw new ApiException(ErrorCode.START_DATE_TOO_SOON);
+        }
+
         // 부분 수정이므로 "요청값 + 기존값"을 병합한 최종 상태로 규칙을 검증한다
         LocalDate newStartDate = request.startDate() != null ? request.startDate() : challenge.getStartDate();
         LocalDate newEndDate = request.endDate() != null ? request.endDate() : challenge.getEndDate();
@@ -196,9 +201,18 @@ public class ChallengeService {
     /**
      * 모집 기간이 끝났는데 방장 혼자(참가자 없음)인 챌린지를 자동 취소한다 (스케줄러 전용).
      * 사용자가 직접 요청한 취소가 아니라 시스템이 트리거하는 것이라 방장 권한 확인이 필요 없다.
+     * findChallengesToAutoCancel() 조회 이후 실제 취소 사이에 새 참가자가 들어올 수 있으므로,
+     * 행을 다시 잠그고 조건을 재확인한 뒤에만 취소한다 (조회 시점의 challenge를 그대로 믿지 않는다).
      */
     @Transactional
-    public void autoCancelChallenge(Challenge challenge) {
+    public void autoCancelChallenge(Long challengeId) {
+        Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
+        if (challenge == null || challenge.getStatus() != ChallengeStatus.RECRUITING) {
+            return;
+        }
+        if (challengeMapper.countActiveParticipantsExceptHost(challengeId) > 0) {
+            return;
+        }
         cancelChallenge(challenge);
     }
 

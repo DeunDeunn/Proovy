@@ -19,6 +19,7 @@ import {
   useRejectCertificationPost,
 } from "@/features/certification/hooks";
 import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
+import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import {
   useCancelChallenge,
   useCategories,
@@ -34,9 +35,6 @@ const TABS = [
   { key: "settlement", label: "정산 관리", enabled: false },
   { key: "settings", label: "방 설정", enabled: true },
 ];
-
-const CERT_TIME_MIN = "02:00";
-const CERT_TIME_MAX = "23:00";
 
 const settingsInputClassName =
   "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400";
@@ -407,7 +405,6 @@ const PendingCertificationCard = ({
 
 const CertificationReviewTab = ({ challengeId }) => {
   const [aiResults, setAiResults] = useState({});
-  const [actingPostId, setActingPostId] = useState(null);
 
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     usePendingCertifications(challengeId);
@@ -418,25 +415,21 @@ const CertificationReviewTab = ({ challengeId }) => {
   const posts = data?.pages.flat() ?? [];
 
   const handleAiReview = (postId) => {
-    setActingPostId(postId);
     aiReviewMutation.mutate(postId, {
       onSuccess: (result) => {
         setAiResults((prev) => ({ ...prev, [postId]: result }));
       },
-      onSettled: () => setActingPostId(null),
     });
   };
 
   const handleApprove = (postId) => {
-    setActingPostId(postId);
-    approveMutation.mutate(postId, { onSettled: () => setActingPostId(null) });
+    approveMutation.mutate(postId);
   };
 
   const handleReject = (postId) => {
     const reason = window.prompt("반려 사유를 입력해주세요.");
     if (!reason) return;
-    setActingPostId(postId);
-    rejectMutation.mutate({ postId, reason }, { onSettled: () => setActingPostId(null) });
+    rejectMutation.mutate({ postId, reason });
   };
 
   if (isError) {
@@ -470,9 +463,11 @@ const CertificationReviewTab = ({ challengeId }) => {
             onAiReview={() => handleAiReview(post.postId)}
             onApprove={() => handleApprove(post.postId)}
             onReject={() => handleReject(post.postId)}
-            isAiReviewing={actingPostId === post.postId && aiReviewMutation.isPending}
-            isApproving={actingPostId === post.postId && approveMutation.isPending}
-            isRejecting={actingPostId === post.postId && rejectMutation.isPending}
+            isAiReviewing={aiReviewMutation.isPending && aiReviewMutation.variables === post.postId}
+            isApproving={approveMutation.isPending && approveMutation.variables === post.postId}
+            isRejecting={
+              rejectMutation.isPending && rejectMutation.variables?.postId === post.postId
+            }
           />
         ))
       )}

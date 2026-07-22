@@ -43,11 +43,17 @@ const ChallengeDetailPage = ({ challengeId }) => {
   const { data: me } = useMe();
   const { data: challenge, isLoading, isError, error } = useChallenge(challengeId);
 
-  // 설명이 3줄(line-clamp-3)을 넘겨서 실제로 잘렸을 때만 더보기/접기 버튼을 보여준다
+  // 설명이 3줄(line-clamp-3)을 넘겨서 실제로 잘렸을 때만 더보기/접기 버튼을 보여준다.
+  // 창 크기 조절/기기 회전으로 줄바꿈이 달라지면 잘림 여부도 바뀌므로 리사이즈 때도 다시 잰다
   useEffect(() => {
-    const el = descriptionRef.current;
-    if (!el) return;
-    setIsDescriptionClampable(el.scrollHeight > el.clientHeight + 1);
+    const recalc = () => {
+      const el = descriptionRef.current;
+      if (!el) return;
+      setIsDescriptionClampable(el.scrollHeight > el.clientHeight + 1);
+    };
+    recalc();
+    window.addEventListener("resize", recalc);
+    return () => window.removeEventListener("resize", recalc);
   }, [challenge?.description]);
   const { data: hostProfile } = useUserProfile(challenge?.hostId);
   const { data: wallet, isLoading: isWalletLoading } = useWallet({ enabled: !!me });

@@ -179,12 +179,13 @@ export const usePendingCertifications = (challengeId, { enabled = true } = {}) =
     },
   });
 
-const invalidatePendingCertifications = (queryClient, challengeId) => {
-  queryClient.invalidateQueries({ queryKey: ["pending-certifications", challengeId] });
-  queryClient.invalidateQueries({
-    queryKey: ["challenges", "detail", challengeId, "participants-manage"],
-  });
-};
+const invalidatePendingCertifications = (queryClient, challengeId) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["pending-certifications", challengeId] }),
+    queryClient.invalidateQueries({
+      queryKey: ["challenges", "detail", challengeId, "participants-manage"],
+    }),
+  ]);
 
 export const useApproveCertificationPost = (challengeId) => {
   const queryClient = useQueryClient();
