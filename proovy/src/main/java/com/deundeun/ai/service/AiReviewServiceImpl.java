@@ -16,7 +16,10 @@ import com.deundeun.ai.vo.AiTicketHistoryVo;
 import com.deundeun.ai.vo.AiTicketSubscriptionVo;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.notification.event.VerificationApprovedEvent;
+import com.deundeun.notification.event.VerificationRejectedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,8 @@ public class AiReviewServiceImpl implements AiReviewService {
             "AI 신뢰도가 0.85 미만이라 인증에 실패했습니다. 원래 AI 판단: %s. 원래 사유: %s";
     private static final String UNCERTAIN_REASON_FORMAT =
             "AI가 인증 여부를 명확히 확인하지 못해 인증에 실패했습니다. 원래 사유: %s";
+    private static final String HOST_REVIEW_FAILURE_REASON =
+            "AI 자동 검수를 완료하지 못해 인증이 반려되었습니다.";
     private static final String DEFAULT_HOST_RULE_FORMAT =
             "챌린지 개설 시 정한 인증 방식(%s)을 인증글 내용과 이미지가 충족하는지 확인한다.";
 
@@ -48,6 +53,7 @@ public class AiReviewServiceImpl implements AiReviewService {
     private final AiReviewPromptService aiReviewPromptService;
     private final AiReviewClient aiReviewClient;
     private final TransactionOperations transactionOperations;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public AiReviewResponse review(Long requesterId, Long postId) {
@@ -65,6 +71,21 @@ public class AiReviewServiceImpl implements AiReviewService {
         if (reservedReview != null) {
             executeReview(postId, reservedReview);
         }
+    }
+
+    @Override
+    public void rejectHostPostAfterReviewFailure(Long postId) {
+        transactionOperations.execute(status -> {
+            AiReviewContext context = aiReviewMapper.findReviewContextByPostId(postId);
+            if (context != null && context.getHostId().equals(context.getAuthorId())) {
+                int rejected = aiReviewMapper.rejectPendingHostPostAfterReviewFailure(
+                        postId, HOST_REVIEW_FAILURE_REASON);
+                if (rejected == 1) {
+                    eventPublisher.publishEvent(new VerificationRejectedEvent(context.getAuthorId(), postId));
+                }
+            }
+            return null;
+        });
     }
 
     private AiReviewResponse executeReview(Long postId, ReservedReview reservedReview) {
@@ -131,9 +152,11 @@ public class AiReviewServiceImpl implements AiReviewService {
             validateHost(requesterId, context.getHostId());
         }
         validatePending(context);
-        if (automaticReview && !hostPost
-                && !aiReviewMapper.existsActiveTicketSubscriptionByHostId(context.getHostId())) {
-            return null;
+        if (automaticReview && !hostPost) {
+            if (!aiReviewMapper.isAiReviewEnabledByChallengeId(context.getChallengeId())
+                    || !aiReviewMapper.existsActiveTicketSubscriptionByHostId(context.getHostId())) {
+                return null;
+            }
         }
         if (!automaticReview) {
             validateAiReviewEnabled(context.getChallengeId());
@@ -142,7 +165,7 @@ public class AiReviewServiceImpl implements AiReviewService {
 
         AiReviewRuleVo rule;
         if (automaticReview) {
-            rule = verificationMethodAutoRule(context);
+            rule = automaticReviewRule(context, hostPost);
         } else {
             rule = aiReviewRuleMapper.findAiReviewRuleByChallengeId(context.getChallengeId());
             validateRule(rule);
@@ -153,8 +176,10 @@ public class AiReviewServiceImpl implements AiReviewService {
         AiReviewResultVo existingResult = aiReviewMapper.findReviewResultByPostId(postId);
         if (existingResult != null) {
             AiReviewResultVo retryReservation = toProcessingResult(existingResult.getId(), context, rule);
-            if (!"FAILED".equals(existingResult.getStatus())
-                    || aiReviewMapper.resetFailedAiReviewResultToProcessing(retryReservation) == 0) {
+            boolean retryableResult = "FAILED".equals(existingResult.getStatus())
+                    || (automaticReview && hostPost && "COMPLETED".equals(existingResult.getStatus()));
+            if (!retryableResult
+                    || aiReviewMapper.resetAiReviewResultToProcessing(retryReservation) == 0) {
                 throw new ApiException(ErrorCode.AI_REVIEW_RESULT_ALREADY_EXISTS);
             }
             return new ReservedReview(existingResult.getId(), context, rule, ticketUseRequired);
@@ -180,12 +205,15 @@ public class AiReviewServiceImpl implements AiReviewService {
             boolean ticketUseRequired
     ) {
         AiReviewResultVo result = toCompletedResult(resultId, context, rule, aiResult);
-        applyAutoDecisionToPost(result);
+        boolean postStatusChanged = applyAutoDecisionToPost(result);
         if (ticketUseRequired) {
             recordTicketUse(result.getHostId());
         }
         if (aiReviewMapper.updateAiReviewResultCompleted(result) == 0) {
             throw new ApiException(ErrorCode.AI_REVIEW_RESULT_ALREADY_EXISTS);
+        }
+        if (postStatusChanged) {
+            publishReviewCompletedEvent(context.getAuthorId(), result);
         }
 
         AiReviewResultVo savedResult = aiReviewMapper.findReviewResultById(resultId);
@@ -229,14 +257,25 @@ public class AiReviewServiceImpl implements AiReviewService {
                 .build());
     }
 
-    private void applyAutoDecisionToPost(AiReviewResultVo result) {
+    private boolean applyAutoDecisionToPost(AiReviewResultVo result) {
         if (!"AUTO".equals(result.getReviewMode())
                 || AiReviewDecision.NEEDS_REVIEW.name().equals(result.getDecision())) {
-            return;
+            return false;
         }
         if (aiReviewMapper.updateCertificationPostStatus(
                 result.getVerificationPostId(), result.getNewPostStatus()) == 0) {
             throw new ApiException(ErrorCode.NOT_PENDING_POST);
+        }
+        return true;
+    }
+
+    private void publishReviewCompletedEvent(Long authorId, AiReviewResultVo result) {
+        if (AiReviewDecision.APPROVED.name().equals(result.getNewPostStatus())) {
+            eventPublisher.publishEvent(new VerificationApprovedEvent(
+                    authorId, result.getVerificationPostId()));
+        } else if (AiReviewDecision.REJECTED.name().equals(result.getNewPostStatus())) {
+            eventPublisher.publishEvent(new VerificationRejectedEvent(
+                    authorId, result.getVerificationPostId()));
         }
     }
 
@@ -311,6 +350,28 @@ public class AiReviewServiceImpl implements AiReviewService {
                 .ruleText(DEFAULT_HOST_RULE_FORMAT.formatted(verificationMethod))
                 .reviewMode("AUTO")
                 .active(true)
+                .build();
+    }
+
+    private AiReviewRuleVo automaticReviewRule(AiReviewContext context, boolean hostPost) {
+        AiReviewRuleVo configuredRule = aiReviewRuleMapper
+                .findAiReviewRuleByChallengeId(context.getChallengeId());
+        if (configuredRule == null) {
+            return verificationMethodAutoRule(context);
+        }
+        if (!hostPost || "AUTO".equals(configuredRule.getReviewMode())) {
+            return configuredRule;
+        }
+        // 방장 글은 설정이 검수 보조(MANUAL)여도 반드시 AI가 최종 승인/반려한다.
+        return AiReviewRuleVo.builder()
+                .id(configuredRule.getId())
+                .hostId(configuredRule.getHostId())
+                .challengeId(configuredRule.getChallengeId())
+                .ruleText(configuredRule.getRuleText())
+                .reviewMode("AUTO")
+                .active(configuredRule.isActive())
+                .createdAt(configuredRule.getCreatedAt())
+                .updatedAt(configuredRule.getUpdatedAt())
                 .build();
     }
 

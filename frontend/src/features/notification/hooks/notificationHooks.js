@@ -99,9 +99,16 @@ export const useNotificationRealtimeSync = ({ enabled = true } = {}) => {
   const queryClient = useQueryClient();
 
   useNotificationSubscription(
-    () => {
+    (notification) => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.lists() });
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount() });
+      if (notification?.targetType === "VERIFICATION_POST" && notification.targetId != null) {
+        queryClient.invalidateQueries({
+          queryKey: ["certification-post", notification.targetId],
+        });
+        queryClient.invalidateQueries({ queryKey: ["feed"] });
+        queryClient.invalidateQueries({ queryKey: ["challenge-feed"] });
+      }
     },
     { enabled }
   );

@@ -23,6 +23,8 @@ import com.deundeun.ai.vo.AiTicketHistoryVo;
 import com.deundeun.ai.vo.AiTicketSubscriptionVo;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.notification.event.VerificationApprovedEvent;
+import com.deundeun.notification.event.VerificationRejectedEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionOperations;
@@ -63,6 +66,9 @@ class AiReviewServiceImplTest {
 
     @Mock
     private TransactionOperations transactionOperations;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private AiReviewServiceImpl aiReviewService;
@@ -119,6 +125,7 @@ class AiReviewServiceImplTest {
         assertThat(response.getId()).isEqualTo(100L);
         assertThat(response.getDecision()).isEqualTo("APPROVED");
         verify(aiReviewMapper).updateCertificationPostStatus(postId, "APPROVED");
+        verify(eventPublisher).publishEvent(new VerificationApprovedEvent(hostId, postId));
         ArgumentCaptor<AiTicketHistoryVo> historyCaptor = ArgumentCaptor.forClass(AiTicketHistoryVo.class);
         verify(aiTicketMapper).insertTicketHistory(historyCaptor.capture());
         assertThat(historyCaptor.getValue().getHostId()).isEqualTo(hostId);
@@ -252,6 +259,7 @@ class AiReviewServiceImplTest {
         verify(aiReviewMapper).updateAiReviewResultCompleted(captor.capture());
         assertThat(captor.getValue().getNewPostStatus()).isEqualTo("PENDING");
         verify(aiReviewMapper, never()).updateCertificationPostStatus(any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -313,7 +321,7 @@ class AiReviewServiceImplTest {
         when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
         when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(rule);
         when(aiReviewMapper.findReviewResultByPostId(postId)).thenReturn(failedResult);
-        when(aiReviewMapper.resetFailedAiReviewResultToProcessing(any())).thenReturn(1);
+        when(aiReviewMapper.resetAiReviewResultToProcessing(any())).thenReturn(1);
         when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
         when(aiReviewPromptService.createPrompt(context, rule, imageUrls)).thenReturn("retry prompt");
         when(aiReviewClient.review("retry prompt", imageUrls)).thenReturn(aiResult);
@@ -324,7 +332,7 @@ class AiReviewServiceImplTest {
 
         assertThat(response.getId()).isEqualTo(401L);
         ArgumentCaptor<AiReviewResultVo> retryCaptor = ArgumentCaptor.forClass(AiReviewResultVo.class);
-        verify(aiReviewMapper).resetFailedAiReviewResultToProcessing(retryCaptor.capture());
+        verify(aiReviewMapper).resetAiReviewResultToProcessing(retryCaptor.capture());
         assertThat(retryCaptor.getValue().getId()).isEqualTo(401L);
         assertThat(retryCaptor.getValue().getReviewMode()).isEqualTo("MANUAL");
         assertThat(retryCaptor.getValue().getPreviousPostStatus()).isEqualTo("PENDING");
@@ -593,8 +601,56 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("방장의 티켓이 활성화되면 참가자 인증글을 자동 검수한다")
-    void reviewSubmittedPost_participantPostWithTicket_reviewsAutomatically() {
+    @DisplayName("수정된 방장 글은 기존 완료 결과를 초기화하고 다시 자동 검수한다")
+    void reviewSubmittedPost_editedHostPost_reusesCompletedResult() {
+        Long hostId = 1L;
+        Long postId = 605L;
+        Long challengeId = 60L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+        AiReviewAiResult aiResult = aiResult(AiReviewDecision.REJECTED, "인증 기준을 충족하지 못했습니다.", 0.95);
+        AiReviewResultVo completedResult = AiReviewResultVo.builder()
+                .id(705L)
+                .verificationPostId(postId)
+                .status("COMPLETED")
+                .build();
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewMapper.findReviewResultByPostId(postId)).thenReturn(completedResult);
+        when(aiReviewMapper.resetAiReviewResultToProcessing(any())).thenReturn(1);
+        when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
+        when(aiReviewPromptService.createPrompt(any(), any(), any())).thenReturn("edited host prompt");
+        when(aiReviewClient.review("edited host prompt", List.of("https://example.com/thumb.png")))
+                .thenReturn(aiResult);
+        when(aiReviewMapper.updateAiReviewResultCompleted(any())).thenReturn(1);
+        when(aiReviewMapper.findReviewResultById(705L)).thenReturn(
+                AiReviewResultVo.builder()
+                        .id(705L)
+                        .challengeId(challengeId)
+                        .hostId(hostId)
+                        .verificationPostId(postId)
+                        .reviewMode("AUTO")
+                        .decision("REJECTED")
+                        .confidence(BigDecimal.valueOf(0.95))
+                        .reason("인증 기준을 충족하지 못했습니다.")
+                        .rawResponse(aiResult.getRawResponse())
+                        .status("COMPLETED")
+                        .previousPostStatus("PENDING")
+                        .newPostStatus("REJECTED")
+                        .build());
+
+        aiReviewService.reviewSubmittedPost(postId);
+
+        ArgumentCaptor<AiReviewResultVo> retryCaptor = ArgumentCaptor.forClass(AiReviewResultVo.class);
+        verify(aiReviewMapper).resetAiReviewResultToProcessing(retryCaptor.capture());
+        assertThat(retryCaptor.getValue().getId()).isEqualTo(705L);
+        assertThat(retryCaptor.getValue().getReviewMode()).isEqualTo("AUTO");
+        verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
+        verify(aiReviewMapper).updateCertificationPostStatus(postId, "REJECTED");
+    }
+
+    @Test
+    @DisplayName("방 AI와 방장의 티켓이 모두 활성화되면 참가자 인증글을 자동 검수한다")
+    void reviewSubmittedPost_participantPostWithAiAndTicket_reviewsAutomatically() {
         Long hostId = 1L;
         Long postId = 602L;
         Long challengeId = 60L;
@@ -634,9 +690,28 @@ class AiReviewServiceImplTest {
         aiReviewService.reviewSubmittedPost(postId);
 
         verify(aiReviewMapper).updateCertificationPostStatus(postId, "APPROVED");
-        verify(aiReviewMapper, never()).isAiReviewEnabledByChallengeId(any());
+        verify(aiReviewMapper).isAiReviewEnabledByChallengeId(challengeId);
         verify(aiTicketMapper).findActiveSubscriptionByHostIdForUpdate(hostId);
         verify(aiTicketMapper).insertTicketHistory(any());
+    }
+
+    @Test
+    @DisplayName("방장의 티켓이 있어도 방 AI가 비활성이면 참가자 인증글을 자동 검수하지 않는다")
+    void reviewSubmittedPost_participantPostWithoutChallengeAi_skipsReview() {
+        Long postId = 606L;
+        Long challengeId = 60L;
+        AiReviewContext context = context(postId, challengeId, 1L, "PENDING");
+        ReflectionTestUtils.setField(context, "authorId", 2L);
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewMapper.isAiReviewEnabledByChallengeId(challengeId)).thenReturn(false);
+
+        aiReviewService.reviewSubmittedPost(postId);
+
+        verify(aiReviewMapper, never()).existsActiveTicketSubscriptionByHostId(any());
+        verify(aiReviewRuleMapper, never()).findAiReviewRuleByChallengeId(any());
+        verify(aiReviewClient, never()).review(any(), any());
+        verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
+        verify(aiTicketMapper, never()).insertTicketHistory(any());
     }
 
     @Test
@@ -653,6 +728,35 @@ class AiReviewServiceImplTest {
         verify(aiReviewRuleMapper, never()).findAiReviewRuleByChallengeId(any());
         verify(aiReviewClient, never()).review(any(), any());
         verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
+    }
+
+    @Test
+    @DisplayName("자동 검수 재시도가 모두 실패하면 방장 글을 반려한다")
+    void rejectHostPostAfterReviewFailure_rejectsPendingHostPost() {
+        Long postId = 603L;
+        AiReviewContext context = context(postId, 60L, 1L, "PENDING");
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewMapper.rejectPendingHostPostAfterReviewFailure(any(), any())).thenReturn(1);
+
+        aiReviewService.rejectHostPostAfterReviewFailure(postId);
+
+        verify(aiReviewMapper).rejectPendingHostPostAfterReviewFailure(
+                org.mockito.ArgumentMatchers.eq(postId),
+                org.mockito.ArgumentMatchers.contains("AI 자동 검수"));
+        verify(eventPublisher).publishEvent(new VerificationRejectedEvent(1L, postId));
+    }
+
+    @Test
+    @DisplayName("참가자 글의 AI 검수 실패는 자동 반려하지 않는다")
+    void rejectHostPostAfterReviewFailure_doesNotRejectParticipantPost() {
+        Long postId = 604L;
+        AiReviewContext context = context(postId, 60L, 1L, "PENDING");
+        ReflectionTestUtils.setField(context, "authorId", 2L);
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+
+        aiReviewService.rejectHostPostAfterReviewFailure(postId);
+
+        verify(aiReviewMapper, never()).rejectPendingHostPostAfterReviewFailure(any(), any());
     }
 
     private AiReviewContext context(Long postId, Long challengeId, Long hostId, String status) {
@@ -732,4 +836,3 @@ class AiReviewServiceImplTest {
                 .build();
     }
 }
-

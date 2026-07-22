@@ -10,6 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -34,10 +35,11 @@ class TicketActivatedAiReviewListenerTest {
     @Test
     @DisplayName("기존 대기 참가자 인증글을 오래된 순서대로 자동 검수한다")
     void handle_reviewsPendingParticipantPostsInOrder() {
-        when(aiReviewMapper.findPendingParticipantPostIdsByHostId(1L))
+        LocalDateTime activatedAt = LocalDateTime.of(2026, 7, 22, 12, 0);
+        when(aiReviewMapper.findPendingParticipantPostIdsBeforeTicketActivation(1L, activatedAt))
                 .thenReturn(List.of(10L, 11L));
 
-        listener.handle(new AiTicketActivatedEvent(1L));
+        listener.handle(new AiTicketActivatedEvent(1L, activatedAt));
 
         InOrder inOrder = inOrder(aiReviewService);
         inOrder.verify(aiReviewService).reviewSubmittedPost(10L);
@@ -47,12 +49,13 @@ class TicketActivatedAiReviewListenerTest {
     @Test
     @DisplayName("한 게시물 검수 실패가 다음 대기 게시물 검수를 막지 않는다")
     void handle_continuesAfterReviewFailure() {
-        when(aiReviewMapper.findPendingParticipantPostIdsByHostId(1L))
+        LocalDateTime activatedAt = LocalDateTime.of(2026, 7, 22, 12, 0);
+        when(aiReviewMapper.findPendingParticipantPostIdsBeforeTicketActivation(1L, activatedAt))
                 .thenReturn(List.of(10L, 11L));
         doThrow(new IllegalStateException("AI failure"))
                 .when(aiReviewService).reviewSubmittedPost(10L);
 
-        assertThatCode(() -> listener.handle(new AiTicketActivatedEvent(1L)))
+        assertThatCode(() -> listener.handle(new AiTicketActivatedEvent(1L, activatedAt)))
                 .doesNotThrowAnyException();
 
         verify(aiReviewService).reviewSubmittedPost(11L);

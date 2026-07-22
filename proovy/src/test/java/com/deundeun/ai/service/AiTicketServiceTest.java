@@ -159,7 +159,7 @@ class AiTicketServiceTest {
         verify(aiTicketMapper).insertTicketHistory(historyCaptor.capture());
         assertThat(historyCaptor.getValue().getHostId()).isEqualTo(userId);
         assertThat(historyCaptor.getValue().getSubscriptionId()).isEqualTo(10L);
-        verify(eventPublisher).publishEvent(new AiTicketActivatedEvent(userId));
+        verify(eventPublisher).publishEvent(new AiTicketActivatedEvent(userId, subscription.getStartedAt()));
         assertThat(historyCaptor.getValue().getType()).isEqualTo("PURCHASE");
 
         assertThat(response.getSubscriptionId()).isEqualTo(10L);

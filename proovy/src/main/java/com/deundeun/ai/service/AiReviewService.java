@@ -10,6 +10,8 @@ public interface AiReviewService {
 
     void reviewSubmittedPost(Long postId);
 
+    void rejectHostPostAfterReviewFailure(Long postId);
+
     AiPageResponse<AiReviewResultItemResponse> findReviewResultsByChallengeId(
             Long requesterId,
             Long challengeId,
