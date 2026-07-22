@@ -136,10 +136,13 @@ const HomePage = () => {
       : "조회 실패"
     : `${hostedPendingCertificationCount}건`;
 
-  // 미검수 인증이 있는 운영 챌린지가 딱 하나면 그 챌린지의 인증 관리로 직행하고,
-  // 여러 개거나 없으면 내 챌린지(운영 중) 목록으로 보내 사용자가 직접 고르게 한다.
+  // 미검수 인증이 있는 "진행 중(IN_PROGRESS)" 운영 챌린지가 딱 하나면 그 챌린지의
+  // 인증 관리로 직행하고, 여러 개거나 없으면 내 챌린지(운영 중) 목록으로 보내 사용자가
+  // 직접 고르게 한다. 상태 필터를 IN_PROGRESS로 맞춰, 화면에 표시되는 미검수 총 건수
+  // (today-progress, IN_PROGRESS 기준)와 이동 판단 기준을 일치시킨다.
   const pendingReviewChallenges = (myPageData?.hostingChallenges ?? []).filter(
-    (challenge) => (challenge.pendingCertificationCount ?? 0) > 0
+    (challenge) =>
+      challenge.status === "IN_PROGRESS" && (challenge.pendingCertificationCount ?? 0) > 0
   );
   const pendingReviewHref =
     pendingReviewChallenges.length === 1
@@ -219,7 +222,9 @@ const HomePage = () => {
             href={pendingReviewHref}
             className="mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-1.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
           >
-            미검수 인증 {hostedPendingCertificationCount}건 확인하기
+            {isTodayCertificationUnavailable
+              ? "미검수 인증 확인하기"
+              : `미검수 인증 ${hostedPendingCertificationCount}건 확인하기`}
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </aside>
