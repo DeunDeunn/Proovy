@@ -206,7 +206,7 @@ const CertificationPostEditForm = ({ post, postId }) => {
             )}
           </div>
 
-          <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:border-primary hover:text-primary">
+          <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:border-primary hover:text-primary">
             <ImagePlus size={18} />
             대표 이미지 변경
             <input
@@ -299,12 +299,13 @@ const CertificationPostEditForm = ({ post, postId }) => {
           <Button
             type="button"
             variant="outline"
+            className="!rounded-full"
             onClick={() => router.back()}
             disabled={isSubmitting}
           >
             취소
           </Button>
-          <Button type="submit" className="min-w-28" disabled={isSubmitting}>
+          <Button type="submit" className="min-w-28 !rounded-full" disabled={isSubmitting}>
             {isSubmitting ? "수정 중..." : "인증글 수정"}
           </Button>
         </div>
@@ -336,12 +337,14 @@ const CertificationPostEditForm = ({ post, postId }) => {
               <Button
                 type="button"
                 variant="outline"
+                className="!rounded-full"
                 onClick={() => setIsApprovalResetDialogOpen(false)}
               >
                 취소
               </Button>
               <Button
                 type="button"
+                className="!rounded-full"
                 onClick={() => {
                   setIsApprovalResetDialogOpen(false);
                   updatePost();

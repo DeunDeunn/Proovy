@@ -72,8 +72,10 @@ const ChallengeDetailPage = ({ challengeId }) => {
   const gradient = getCategoryGradient(challenge.categoryName);
 
   const isHost = me?.id != null && me.id === challenge.hostId;
-  const isParticipant = participants?.some((p) => p.userId === me?.id) ?? false;
-  const isInProgress = challenge.status === "IN_PROGRESS";
+  const isActiveParticipant =
+    participants?.some((p) => p.userId === me?.id && p.status === "ACTIVE") ?? false;
+  const isParticipant = isActiveParticipant;
+  const canUseCertification = challenge.status === "IN_PROGRESS" && isActiveParticipant;
   const isFull = challenge.currentParticipants >= challenge.maxParticipants;
   const hasEnoughCash = wallet?.availableBalance >= challenge.entryFee;
   const thumbnailUploadFailed = searchParams.get("thumbnailUpload") === "failed";
@@ -150,11 +152,11 @@ const ChallengeDetailPage = ({ challengeId }) => {
               </span>
             </div>
 
-            <div className="relative flex shrink-0">
+            <div className="flex shrink-0 flex-col gap-2">
               <button
                 type="button"
                 onClick={handleShare}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                   linkCopied
                     ? "border-primary bg-primary-light text-primary"
                     : "border-gray-300 text-gray-600 hover:bg-gray-50"
@@ -163,21 +165,21 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 <Share2 size={14} />
                 {linkCopied ? "링크가 복사됐어요" : "공유하기"}
               </button>
-              {isParticipant && isInProgress && (
-                <div className="absolute top-full right-0 z-10 mt-2 flex w-full flex-col gap-2">
+              {canUseCertification && (
+                <>
                   <Link
                     href={`/challenges/${challengeId}/feed`}
-                    className="flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+                    className="rounded-lg border border-primary px-3 py-2 text-center text-sm font-semibold text-primary hover:bg-primary-light"
                   >
                     챌린지 피드
                   </Link>
                   <Link
                     href={`/challenges/${challengeId}/certification-posts/new`}
-                    className="flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
+                    className="rounded-lg bg-primary px-3 py-2 text-center text-sm font-semibold text-white hover:bg-primary-hover"
                   >
-                    인증하기 +
+                    인증하기
                   </Link>
-                </div>
+                </>
               )}
             </div>
           </div>

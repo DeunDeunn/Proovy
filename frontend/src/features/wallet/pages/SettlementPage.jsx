@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- S3 썸네일 URL은 현재 next/image 설정 대상이 아니다. */
+
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
@@ -17,7 +19,15 @@ const SettlementCard = ({ settlement }) => {
   const content = (
     <Card className={settlement.isSuccess ? "transition-shadow hover:shadow-md" : ""}>
       <div className="flex items-center gap-4">
-        <div className="h-16 w-20 shrink-0 rounded-lg bg-gray-100" />
+        <div className="h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+          {settlement.thumbnailUrl && (
+            <img
+              src={settlement.thumbnailUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="min-w-0 truncate font-semibold text-gray-900">{settlement.title}</h3>

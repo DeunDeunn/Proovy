@@ -1,19 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
+import { BadgeCheck, ImagePlus, Plus, Send, Users, X } from "lucide-react";
 
 import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
 import MessageBubble from "@/features/chat/components/MessageBubble";
+import ParticipantAvatarMenu from "@/features/chat/components/ParticipantAvatarMenu";
 import {
   useChatRoomHistory,
+  useChatRoomMembers,
   useChatRoomSubscription,
   useDeleteChatMessage,
+  useMarkRoomRead,
   useSendChatAttachment,
 } from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
 import { useChatStore } from "@/features/chat/store";
+import { useDismissable } from "@/features/chat/useDismissable";
 
 const SCROLL_TOP_THRESHOLD = 80;
 
@@ -41,8 +45,15 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   const imageInputRef = useRef(null);
   const deleteMessageMutation = useDeleteChatMessage();
   const attachmentMutation = useSendChatAttachment(room.chatRoomId);
+  const { mutate: markRoomRead } = useMarkRoomRead();
 
   const isChallenge = room.chatRoomType === "CHALLENGE";
+  const { data: members } = useChatRoomMembers(room.chatRoomId, { enabled: isChallenge });
+  const [isMemberListOpen, setIsMemberListOpen] = useState(false);
+  const memberListRef = useRef(null);
+  const closeMemberList = useCallback(() => setIsMemberListOpen(false), []);
+  useDismissable(isMemberListOpen, memberListRef, closeMemberList);
+
   const displayName = getRoomDisplayName(room);
   const avatarColor = getAvatarColor(room.chatRoomId);
   const lastMessageId = messages[messages.length - 1]?.messageId;
@@ -51,6 +62,15 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ block: "end" });
   }, [lastMessageId]);
+
+  // 방을 열어둔 채로 새 메시지가 도착해도 읽음 커서를 계속 따라가도록 다시 읽음 처리한다.
+  // 입장 시 1회만 처리하면, 그 이후 들어오는 메시지에 대해 (1) 내 안 읽은 개수가 실제로는
+  // 보고 있는데도 계속 올라가고 (2) 상대방 화면에 내 메시지의 "읽음" 표시가 실시간으로
+  // 반영되지 않는 문제가 있었다.
+  useEffect(() => {
+    if (lastMessageId == null) return;
+    markRoomRead(room.chatRoomId);
+  }, [lastMessageId, room.chatRoomId, markRoomRead]);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -120,27 +140,63 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               </span>
             )}
           </div>
-          {isChallenge && (
-            <p className="mt-0.5 text-xs text-gray-400">참여자 {room.participantCount}명</p>
+          {isChallenge && members && (
+            <p className="mt-0.5 text-xs text-gray-400">참여자 {members.length}명</p>
           )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1 text-gray-400">
-          <button type="button" aria-label="대화 검색" className="rounded-lg p-2 hover:bg-gray-100">
-            <Search size={18} />
-          </button>
           {isChallenge && (
-            <button
-              type="button"
-              aria-label="참여자 목록"
-              className="rounded-lg p-2 hover:bg-gray-100"
-            >
-              <Users size={18} />
-            </button>
+            <div ref={memberListRef} className="relative">
+              <button
+                type="button"
+                aria-label="참여자 목록"
+                aria-expanded={isMemberListOpen}
+                onClick={() => setIsMemberListOpen((open) => !open)}
+                className="rounded-lg p-2 hover:bg-gray-100"
+              >
+                <Users size={18} />
+              </button>
+
+              {isMemberListOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-10 z-20 max-h-72 w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                >
+                  {!members && (
+                    <p className="px-3 py-2 text-xs text-gray-400">불러오는 중...</p>
+                  )}
+                  {members?.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-gray-400">참여자가 없습니다.</p>
+                  )}
+                  {members?.map((member) => {
+                    const memberAvatarColor = getAvatarColor(member.userId);
+                    return (
+                      <div key={member.userId} className="flex items-center gap-2 px-3 py-2">
+                        <ParticipantAvatarMenu userId={member.userId} canStartChat={member.userId !== me?.id}>
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${memberAvatarColor.bg} ${memberAvatarColor.text}`}
+                          >
+                            {member.nickname.slice(0, 1)}
+                          </span>
+                        </ParticipantAvatarMenu>
+                        <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                          {member.nickname}
+                        </span>
+                        {member.badgeApproved && (
+                          <BadgeCheck
+                            size={14}
+                            className="shrink-0 fill-primary stroke-white"
+                            aria-label="우수 인증자"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
-          <button type="button" aria-label="더보기" className="rounded-lg p-2 hover:bg-gray-100">
-            <MoreVertical size={18} />
-          </button>
           <button
             type="button"
             onClick={onClose}
@@ -233,13 +289,6 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
           placeholder="메시지 입력..."
           className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
         />
-        <button
-          type="button"
-          aria-label="이모지"
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
-        >
-          <Smile size={18} />
-        </button>
         <button
           type="button"
           aria-label="이미지 첨부"

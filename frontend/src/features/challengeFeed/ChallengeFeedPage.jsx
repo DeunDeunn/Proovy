@@ -257,6 +257,7 @@ const ReviewCertificationCard = ({
                   <Button
                     type="button"
                     variant="outline"
+                    className="!rounded-full"
                     onClick={onCancelReject}
                     disabled={isActionPending}
                   >
@@ -265,6 +266,7 @@ const ReviewCertificationCard = ({
                   <Button
                     type="button"
                     variant="danger"
+                    className="!rounded-full"
                     onClick={() => onReject(post.postId)}
                     disabled={isActionPending || !rejectReason.trim()}
                   >
@@ -277,6 +279,7 @@ const ReviewCertificationCard = ({
                 <Button
                   type="button"
                   variant="outline"
+                  className="!rounded-full"
                   onClick={() => onStartReject(post.postId)}
                   disabled={isActionPending}
                 >
@@ -284,6 +287,7 @@ const ReviewCertificationCard = ({
                 </Button>
                 <Button
                   type="button"
+                  className="!rounded-full"
                   onClick={() => onApprove(post.postId)}
                   disabled={isActionPending}
                 >
@@ -423,7 +427,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
                   role="tab"
                   aria-selected={isSelected}
                   onClick={() => setFilter(item.value)}
-                  className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                     isSelected
                       ? "border-primary bg-primary text-white shadow-sm"
                       : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300 hover:text-gray-800"
@@ -440,7 +444,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
           {!isReviewMode && (
             <Link
               href={`/challenges/${challengeId}/certification-posts/new`}
-              className="inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-hover"
+              className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-hover"
             >
               + 인증하기
             </Link>
@@ -449,6 +453,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
             <Button
               type="button"
               variant={isReviewMode ? "primary" : "outline"}
+              className="!rounded-full"
               onClick={toggleReviewMode}
               disabled={isReviewActionPending}
             >
@@ -466,7 +471,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
                     role="tab"
                     aria-selected={isSelected}
                     onClick={() => setSort(value)}
-                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                       isSelected
                         ? "border-primary bg-primary text-white shadow-sm"
                         : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300 hover:text-gray-800"
@@ -521,6 +526,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
                   <Button
                     type="button"
                     variant="outline"
+                    className="!rounded-full"
                     onClick={() => fetchNextPage()}
                     disabled={isFetchingNextPage || isReviewActionPending}
                   >
@@ -558,6 +564,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
               <Button
                 type="button"
                 variant="outline"
+                className="!rounded-full"
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
               >

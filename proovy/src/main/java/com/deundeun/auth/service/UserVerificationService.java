@@ -22,7 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserVerificationService {
 
-    private static final int MIN_SUCCESSFUL_CHALLENGES = 20;
+    private static final int MIN_SUCCESSFUL_CHALLENGES = 10;
 
     private final UserVerificationMapper userVerificationMapper;
     private final UserMapper userMapper;

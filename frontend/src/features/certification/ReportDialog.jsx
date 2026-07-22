@@ -58,7 +58,7 @@ const ReportDialog = ({ targetType, targetId, onClose }) => {
               운영자가 내용을 확인한 뒤 처리할 예정입니다.
             </p>
             <div className="mt-6 flex justify-end">
-              <Button type="button" onClick={onClose}>
+              <Button type="button" className="!rounded-full" onClick={onClose}>
                 확인
               </Button>
             </div>
@@ -78,7 +78,7 @@ const ReportDialog = ({ targetType, targetId, onClose }) => {
                 {reportReasons.map((item) => (
                   <label
                     key={item.value}
-                    className={`cursor-pointer rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors ${
+                    className={`cursor-pointer rounded-full border px-3 py-2.5 text-sm font-medium transition-colors ${
                       reason === item.value
                         ? "border-primary bg-primary-light text-primary"
                         : "border-gray-200 text-gray-700 hover:bg-gray-50"
@@ -128,12 +128,17 @@ const ReportDialog = ({ targetType, targetId, onClose }) => {
               <Button
                 type="button"
                 variant="outline"
+                className="!rounded-full"
                 onClick={onClose}
                 disabled={createReportMutation.isPending}
               >
                 취소
               </Button>
-              <Button type="submit" disabled={!reason || createReportMutation.isPending}>
+              <Button
+                type="submit"
+                className="!rounded-full"
+                disabled={!reason || createReportMutation.isPending}
+              >
                 {createReportMutation.isPending ? "접수 중..." : "신고 등록"}
               </Button>
             </div>

@@ -1,7 +1,11 @@
 package com.deundeun.chat.service;
 
+import com.deundeun.auth.domain.User;
+import com.deundeun.auth.mapper.UserMapper;
+import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.chat.domain.ChatMessage;
 import com.deundeun.chat.domain.ChatRoomMember;
+import com.deundeun.chat.dto.response.ChatRoomMemberResponse;
 import com.deundeun.chat.dto.response.ChatRoomReadResponse;
 import com.deundeun.chat.mapper.ChatMessageMapper;
 import com.deundeun.chat.mapper.ChatRoomMemberMapper;
@@ -14,6 +18,14 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -21,6 +33,8 @@ public class ChatRoomMemberService {
 
     private final ChatRoomMemberMapper chatRoomMemberMapper;
     private final ChatMessageMapper chatMessageMapper;
+    private final UserMapper userMapper;
+    private final UserVerificationMapper userVerificationMapper;
 
     private final ChatRoomMemberFinder chatRoomMemberFinder;
 
@@ -69,6 +83,28 @@ public class ChatRoomMemberService {
     public ChatRoomMember getChatRoomMember(Long chatRoomId, Long userId) {
         return chatRoomMemberMapper.findByChatRoomIdAndUserId(chatRoomId, userId)
             .orElseThrow(() -> new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN));
+    }
+
+    public List<ChatRoomMemberResponse> getMembers(Long chatRoomId, Long requesterId) {
+        ChatRoomMember requester = getChatRoomMember(chatRoomId, requesterId);
+        // getChatRoomMember는 나간(비활성) 레코드도 반환하므로, 방을 나간 사용자가
+        // 계속 참여자 목록을 조회하지 못하도록 활성 상태까지 확인한다.
+        if (!requester.isActive()) {
+            throw new ApiException(ErrorCode.CHAT_ROOM_FORBIDDEN);
+        }
+
+        List<ChatRoomMember> members = chatRoomMemberMapper.findActiveByChatRoomId(chatRoomId);
+        List<Long> userIds = members.stream().map(ChatRoomMember::getUserId).toList();
+
+        Map<Long, User> usersById = userMapper.findByIds(userIds).stream()
+            .collect(Collectors.toMap(User::getId, Function.identity()));
+        Set<Long> approvedUserIds = new HashSet<>(userVerificationMapper.findApprovedUserIds(userIds));
+
+        return userIds.stream()
+            .map(usersById::get)
+            .filter(Objects::nonNull)
+            .map(user -> ChatRoomMemberResponse.of(user, approvedUserIds.contains(user.getId())))
+            .toList();
     }
 
     private void insertNewMember(Long chatRoomId, Long userId) {
