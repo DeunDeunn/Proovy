@@ -106,6 +106,21 @@ public class AuthService {
         return new ProfileImageUpdateResponse(newUrl);
     }
 
+    @Transactional
+    public void deleteProfileImage(Long userId) {
+        User user = getUserOrThrow(userId);
+        String oldUrl = user.getProfileImageUrl();
+        if (oldUrl == null) {
+            return;
+        }
+
+        int updated = userMapper.updateProfileImageUrl(userId, null);
+        if (updated == 0) {
+            throw new ApiException(ErrorCode.USER_NOT_FOUND);
+        }
+        transactionalFileUploader.deleteOnCommit(oldUrl);
+    }
+
     // 프론트(JS String.trim())는 전각 공백(U+3000)·NBSP(U+00A0)까지 제거하지만
     // Java String.trim()은 ASCII 공백만 제거해 API를 직접 호출하면 공백이 남을 수 있다.
     // 프론트와 동일한 기준으로 앞뒤 공백류를 제거한다.

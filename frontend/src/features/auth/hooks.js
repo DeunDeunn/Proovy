@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   checkNicknameDuplicate,
+  deleteProfileImage,
   getMe,
   logout,
   updateNickname,
@@ -40,6 +41,18 @@ export const useUpdateProfileImage = () => {
 
   return useMutation({
     mutationFn: (file) => updateProfileImage(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["mypage"] });
+    },
+  });
+};
+
+export const useDeleteProfileImage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteProfileImage,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       queryClient.invalidateQueries({ queryKey: ["mypage"] });
