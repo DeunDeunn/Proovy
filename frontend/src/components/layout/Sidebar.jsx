@@ -62,8 +62,18 @@ const baseMypageMenus = [
 ];
 const withdrawMenu = { name: "회원탈퇴", href: "/mypage/withdraw" };
 
-const SidebarDropdown = ({ icon: Icon, label, items, pathname, open, onToggle, onItemAction }) => {
+const SidebarDropdown = ({
+  icon: Icon,
+  label,
+  items,
+  pathname,
+  forceOpen,
+  onToggle,
+  onItemAction,
+}) => {
   const isActive = items.some((m) => m.href === pathname);
+  // 현재 이 드롭다운 안의 페이지에 있으면(isActive) 다른 메뉴로 이동하기 전까지 계속 펼쳐둔다
+  const open = isActive || forceOpen;
 
   return (
     <div>
@@ -128,7 +138,8 @@ const Sidebar = () => {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [prevPathname, setPrevPathname] = useState(pathname);
 
-  // 하위 항목을 클릭해 다른 페이지로 이동했을 때는 항상 접히도록, pathname이 바뀌면 그 자리에서 리셋
+  // 수동으로 펼쳐둔 드롭다운은 다른 페이지로 이동하면 리셋한다.
+  // (그 드롭다운 안의 페이지로 이동한 거면 SidebarDropdown의 isActive가 계속 펼쳐진 상태로 유지시켜준다)
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     setOpenDropdown(null);
@@ -210,7 +221,7 @@ const Sidebar = () => {
                   label="지갑"
                   items={walletMenus}
                   pathname={pathname}
-                  open={openDropdown === "wallet"}
+                  forceOpen={openDropdown === "wallet"}
                   onToggle={() => toggleDropdown("wallet")}
                 />
 
@@ -237,7 +248,7 @@ const Sidebar = () => {
               label="마이페이지"
               items={mypageMenuItems}
               pathname={pathname}
-              open={openDropdown === "mypage"}
+              forceOpen={openDropdown === "mypage"}
               onToggle={() => toggleDropdown("mypage")}
             />
 
@@ -249,7 +260,7 @@ const Sidebar = () => {
                   label="관리자"
                   items={adminMenus}
                   pathname={pathname}
-                  open={openDropdown === "admin"}
+                  forceOpen={openDropdown === "admin"}
                   onToggle={() => toggleDropdown("admin")}
                 />
               </>
