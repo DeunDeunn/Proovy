@@ -38,6 +38,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChallengeService {
 
+    // 인증 가능 시간대 정책: 오전 2시 ~ 오후 11시 사이로만 설정 가능 (프론트 CERT_TIME_MIN/MAX와 동일)
+    private static final LocalTime CERT_TIME_MIN = LocalTime.of(2, 0);
+    private static final LocalTime CERT_TIME_MAX = LocalTime.of(23, 0);
+
     private final ChallengeMapper  challengeMapper;
     private final CategoryMapper  categoryMapper;
     private final ChallengeParticipantMapper challengeParticipantMapper;
@@ -49,11 +53,17 @@ public class ChallengeService {
     @Transactional
     public ChallengeCreateResponse create(Long hostId, ChallengeCreateRequest request) {
         // 규칙검증
+        if (!request.startDate().isAfter(LocalDate.now())) {
+            throw new ApiException(ErrorCode.START_DATE_TOO_SOON);
+        }
         if (!request.endDate().isAfter(request.startDate())) {
             throw new ApiException(ErrorCode.INVALID_CHALLENGE_PERIOD);
         }
         if (!request.certEndTime().isAfter(request.certStartTime())) {
             throw new ApiException(ErrorCode.INVALID_CERT_TIME_RANGE);
+        }
+        if (request.certStartTime().isBefore(CERT_TIME_MIN) || request.certEndTime().isAfter(CERT_TIME_MAX)) {
+            throw new ApiException(ErrorCode.CERT_TIME_OUT_OF_RANGE);
         }
         if (!categoryMapper.existsById(request.categoryId())) {
             throw new ApiException(ErrorCode.CATEGORY_NOT_FOUND);
@@ -127,10 +137,19 @@ public class ChallengeService {
         if (!challenge.getHostId().equals(userId)) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
+        // 모집중일 때만 수정 가능 (진행중/종료/취소된 챌린지는 제목/설명조차 수정 불가)
+        if (challenge.getStatus() != ChallengeStatus.RECRUITING) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
+        }
         // 참가자(방장 제외)가 있으면 제목/설명 외 핵심 조건은 수정 불가
         if (request.hasCoreChanges()
                 && challengeMapper.countActiveParticipantsExceptHost(challengeId) > 0) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_EDITABLE);
+        }
+
+        // 시작일을 직접 바꾸는 경우, 개설 시와 동일하게 최소 내일 이후여야 한다 (개설 정책 우회 방지)
+        if (request.startDate() != null && !request.startDate().isAfter(LocalDate.now())) {
+            throw new ApiException(ErrorCode.START_DATE_TOO_SOON);
         }
 
         // 부분 수정이므로 "요청값 + 기존값"을 병합한 최종 상태로 규칙을 검증한다
@@ -144,6 +163,9 @@ public class ChallengeService {
         LocalTime newCertEnd = request.certEndTime() != null ? request.certEndTime() : challenge.getCertEndTime();
         if (!newCertEnd.isAfter(newCertStart)) {
             throw new ApiException(ErrorCode.INVALID_CERT_TIME_RANGE);
+        }
+        if (newCertStart.isBefore(CERT_TIME_MIN) || newCertEnd.isAfter(CERT_TIME_MAX)) {
+            throw new ApiException(ErrorCode.CERT_TIME_OUT_OF_RANGE);
         }
 
         if (request.categoryId() != null && !categoryMapper.existsById(request.categoryId())) {
@@ -183,7 +205,34 @@ public class ChallengeService {
         if (challenge.getStatus() != ChallengeStatus.RECRUITING) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
         }
-        // 참가자 전원의 참가비 홀딩을 해제하고 채팅방에서도 내보낸 뒤 탈퇴 처리하고 챌린지를 취소한다
+        cancelChallenge(challenge);
+    }
+
+    /**
+     * 모집 기간이 끝났는데 방장 혼자(참가자 없음)인 챌린지를 자동 취소한다 (스케줄러 전용).
+     * 사용자가 직접 요청한 취소가 아니라 시스템이 트리거하는 것이라 방장 권한 확인이 필요 없다.
+     * findChallengesToAutoCancel() 조회 이후 실제 취소 사이에 새 참가자가 들어올 수 있으므로,
+     * 행을 다시 잠그고 조건을 재확인한 뒤에만 취소한다 (조회 시점의 challenge를 그대로 믿지 않는다).
+     */
+    @Transactional
+    public void autoCancelChallenge(Long challengeId) {
+        Challenge challenge = challengeMapper.findByIdForUpdate(challengeId);
+        if (challenge == null || challenge.getStatus() != ChallengeStatus.RECRUITING) {
+            return;
+        }
+        // 조회 이후 방장이 시작일을 미래로 미뤘을 수 있으니, findChallengesToAutoCancel()과 동일한 조건을 다시 확인한다
+        if (challenge.getStartDate().isAfter(LocalDate.now())) {
+            return;
+        }
+        if (challengeMapper.countActiveParticipantsExceptHost(challengeId) > 0) {
+            return;
+        }
+        cancelChallenge(challenge);
+    }
+
+    // 참가자 전원의 참가비 홀딩을 해제하고 채팅방에서도 내보낸 뒤 탈퇴 처리하고 챌린지를 취소한다
+    private void cancelChallenge(Challenge challenge) {
+        Long challengeId = challenge.getId();
         List<Long> activeUserIds = challengeParticipantMapper.findActiveUserIdsByChallengeId(challengeId);
         Long chatRoomId = chatRoomService.getChatRoomIdByChallengeId(challengeId);
         for (Long participantUserId : activeUserIds) {
@@ -256,6 +305,14 @@ public class ChallengeService {
     @Transactional(readOnly = true)
     public List<Challenge> findChallengesToComplete() {
         return challengeMapper.findChallengesToComplete();
+    }
+
+    /**
+     * 모집 기간이 끝났는데 방장 혼자(참가자 없음)인, 자동 취소 대상 챌린지 목록 (스케줄러 전용).
+     */
+    @Transactional(readOnly = true)
+    public List<Challenge> findChallengesToAutoCancel() {
+        return challengeMapper.findChallengesToAutoCancel();
     }
 
 }

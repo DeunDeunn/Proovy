@@ -60,4 +60,9 @@ public interface ChallengeMapper {
      */
     List<Challenge> findChallengesToComplete();
 
+    /**
+     * 모집 기간이 끝났는데 방장 혼자(참가자 없음)인 챌린지 목록 (스케줄러용, 자동 취소 대상).
+     */
+    List<Challenge> findChallengesToAutoCancel();
+
 }

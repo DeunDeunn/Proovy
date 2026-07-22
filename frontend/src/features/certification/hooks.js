@@ -3,6 +3,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  approveCertificationPost,
   createCertificationPost,
   createComment,
   createReport,
@@ -10,6 +11,9 @@ import {
   deleteComment,
   getCertificationPost,
   getComments,
+  getPendingCertifications,
+  rejectCertificationPost,
+  runAiReview,
   toggleCommentLike,
   toggleCertificationPostLike,
   updateComment,
@@ -17,6 +21,7 @@ import {
 } from "./api";
 
 const COMMENT_PAGE_SIZE = 20;
+const PENDING_CERTIFICATIONS_PAGE_SIZE = 20;
 
 export const useCertificationPost = (postId) =>
   useQuery({
@@ -155,5 +160,53 @@ export const useDeleteComment = (postId) => {
       queryClient.invalidateQueries({ queryKey: ["certification-comments", postId] });
       queryClient.invalidateQueries({ queryKey: ["certification-post", postId] });
     },
+  });
+};
+
+export const usePendingCertifications = (challengeId, { enabled = true } = {}) =>
+  useInfiniteQuery({
+    queryKey: ["pending-certifications", challengeId],
+    queryFn: ({ pageParam }) =>
+      getPendingCertifications(challengeId, {
+        cursor: pageParam,
+        size: PENDING_CERTIFICATIONS_PAGE_SIZE,
+      }),
+    initialPageParam: null,
+    enabled: !!challengeId && enabled,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || lastPage.length < PENDING_CERTIFICATIONS_PAGE_SIZE) return undefined;
+      return lastPage[lastPage.length - 1]?.postId;
+    },
+  });
+
+const invalidatePendingCertifications = (queryClient, challengeId) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["pending-certifications", challengeId] }),
+    queryClient.invalidateQueries({
+      queryKey: ["challenges", "detail", challengeId, "participants-manage"],
+    }),
+  ]);
+
+export const useApproveCertificationPost = (challengeId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (postId) => approveCertificationPost(postId),
+    onSuccess: () => invalidatePendingCertifications(queryClient, challengeId),
+  });
+};
+
+export const useRejectCertificationPost = (challengeId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ postId, reason }) => rejectCertificationPost(postId, reason),
+    onSuccess: () => invalidatePendingCertifications(queryClient, challengeId),
+  });
+};
+
+export const useAiReviewCertificationPost = (challengeId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (postId) => runAiReview(postId),
+    onSuccess: () => invalidatePendingCertifications(queryClient, challengeId),
   });
 };
