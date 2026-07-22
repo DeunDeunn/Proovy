@@ -14,18 +14,40 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class HostCertificationAiReviewListener {
 
+    private static final int MAX_REVIEW_ATTEMPTS = 3;
+
     private final AiReviewService aiReviewService;
 
     @Async("notificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(VerificationSubmittedEvent event) {
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_REVIEW_ATTEMPTS; attempt++) {
+            try {
+                aiReviewService.reviewSubmittedPost(event.verificationPostId());
+                return;
+            } catch (RuntimeException exception) {
+                lastFailure = exception;
+                log.warn(
+                        "인증글 자동 AI 검수 실패 - verificationPostId={}, attempt={}/{}",
+                        event.verificationPostId(),
+                        attempt,
+                        MAX_REVIEW_ATTEMPTS,
+                        exception
+                );
+            }
+        }
+
         try {
-            aiReviewService.reviewSubmittedPost(event.verificationPostId());
-        } catch (RuntimeException exception) {
+            aiReviewService.rejectHostPostAfterReviewFailure(event.verificationPostId());
+        } catch (RuntimeException fallbackException) {
+            if (lastFailure != null) {
+                fallbackException.addSuppressed(lastFailure);
+            }
             log.error(
-                    "인증글 자동 AI 검수 실패 - verificationPostId={}",
+                    "AI 검수 최종 실패 후 방장 인증글 자동 반려 실패 - verificationPostId={}",
                     event.verificationPostId(),
-                    exception
+                    fallbackException
             );
         }
     }

@@ -105,7 +105,7 @@ public class AiTicketService {
                 .subscriptionId(subscription.getId())
                 .type(TICKET_HISTORY_TYPE_PURCHASE)
                 .build());
-        eventPublisher.publishEvent(new AiTicketActivatedEvent(userId));
+        eventPublisher.publishEvent(new AiTicketActivatedEvent(userId, startedAt));
 
         return AiTicketPurchaseResponse.from(subscription, plan);
     }
