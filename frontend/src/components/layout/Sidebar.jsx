@@ -35,11 +35,24 @@ import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 const menus = [
   { name: "홈", href: "/", icon: Home },
   { name: "챌린지", href: "/challenges", icon: Trophy },
-  { name: "인증 피드", href: "/feeds", icon: MessageSquare },
+  {
+    name: "인증 피드",
+    href: "/feeds",
+    icon: MessageSquare,
+    // 인증글 상세는 /certification-posts/{id}로 별도 경로라서 하위 경로 매칭에 같이 포함시킨다
+    matchPrefixes: ["/feeds", "/certification-posts"],
+  },
   { name: "채팅", href: "/chat", icon: MessageCircle },
   { name: "알림", href: "/notifications", icon: Bell },
   { name: "내 챌린지", href: "/my-challenges", icon: Flag },
 ];
+
+// 메뉴의 href(또는 matchPrefixes)로 시작하는 하위 경로에 있어도 계속 활성 표시되게 한다.
+// "/"만 정확히 일치할 때만 활성 처리 (안 그러면 모든 경로가 "/"로 시작해서 항상 활성이 돼버림)
+const isMenuActive = (menu, pathname) =>
+  (menu.matchPrefixes ?? [menu.href]).some((prefix) =>
+    prefix === "/" ? pathname === "/" : pathname.startsWith(prefix)
+  );
 
 const walletMenus = [
   { name: "내 지갑", href: "/wallet" },
@@ -185,7 +198,7 @@ const Sidebar = () => {
             {menus
               .filter((menu) => !isAdmin || menu.href === "/")
               .map((menu) => {
-                const active = pathname === menu.href;
+                const active = isMenuActive(menu, pathname);
                 return (
                   <Link
                     key={menu.href}
