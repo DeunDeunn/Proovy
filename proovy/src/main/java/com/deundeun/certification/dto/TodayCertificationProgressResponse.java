@@ -8,6 +8,9 @@ public record TodayCertificationProgressResponse(
         int certifiedChallengeCount,
         int inProgressChallengeCount,
         long hostedTodayCertificationPostCount,
-        long hostedPendingCertificationPostCount
+        long hostedPendingCertificationPostCount,
+        // 미검수 인증이 있는 IN_PROGRESS 운영 챌린지가 딱 하나면 그 챌린지 ID, 아니면 null.
+        // 홈의 미검수 CTA가 단일 챌린지 인증 관리로 직행할지(값 존재), 목록으로 보낼지(null) 판단에 사용.
+        Long hostedPendingCertificationChallengeId
 ) {
 }

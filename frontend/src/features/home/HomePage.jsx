@@ -9,7 +9,6 @@ import {
   usePopularFeed,
   useTodayCertificationProgress,
 } from "./hooks";
-import { useMyPage } from "@/features/mypage/hooks";
 import ProfileAvatar from "@/components/ui/ProfileAvatar";
 import Loading from "@/components/ui/Loading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -113,7 +112,6 @@ const HomePage = () => {
     isLoading: isTodayCertificationLoading,
     isError: isTodayCertificationError,
   } = useTodayCertificationProgress();
-  const { data: myPageData } = useMyPage();
 
   const challenges = challengesData?.content ?? [];
   const popularFeeds = popularFeed ?? [];
@@ -136,18 +134,13 @@ const HomePage = () => {
       : "조회 실패"
     : `${hostedPendingCertificationCount}건`;
 
-  // 미검수 인증이 있는 "진행 중(IN_PROGRESS)" 운영 챌린지가 딱 하나면 그 챌린지의
-  // 인증 관리로 직행하고, 여러 개거나 없으면 내 챌린지(운영 중) 목록으로 보내 사용자가
-  // 직접 고르게 한다. 상태 필터를 IN_PROGRESS로 맞춰, 화면에 표시되는 미검수 총 건수
-  // (today-progress, IN_PROGRESS 기준)와 이동 판단 기준을 일치시킨다.
-  const pendingReviewChallenges = (myPageData?.hostingChallenges ?? []).filter(
-    (challenge) =>
-      challenge.status === "IN_PROGRESS" && (challenge.pendingCertificationCount ?? 0) > 0
-  );
-  const pendingReviewHref =
-    pendingReviewChallenges.length === 1
-      ? `/challenges/${pendingReviewChallenges[0].id}/manage?tab=certifications`
-      : "/my-challenges?tab=hosting";
+  // 표시 건수와 동일한 today-progress 응답 스냅샷으로 이동 대상을 결정한다.
+  // 미검수 인증이 있는 IN_PROGRESS 운영 챌린지가 딱 하나면 백엔드가 그 챌린지 ID를 내려주고
+  // (→ 인증 관리로 직행), 여러 개거나 없으면 null(→ 내 챌린지 운영 중 목록에서 직접 고르게).
+  const pendingReviewChallengeId = todayCertificationProgress?.hostedPendingCertificationChallengeId;
+  const pendingReviewHref = pendingReviewChallengeId
+    ? `/challenges/${pendingReviewChallengeId}/manage?tab=certifications`
+    : "/my-challenges?tab=hosting";
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-4 pb-2">

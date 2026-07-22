@@ -87,7 +87,17 @@
                   AND hosted_c.status = 'IN_PROGRESS'
                   AND p.certification_status = 'PENDING'
                   AND p.deleted_at IS NULL
-            ) AS hosted_pending_certification_post_count
+            ) AS hosted_pending_certification_post_count,
+            (
+                SELECT CASE WHEN COUNT(DISTINCT hosted_c.id) = 1 THEN MIN(hosted_c.id) END
+                FROM certification_posts p
+                JOIN challenge_participants hosted_cp ON hosted_cp.id = p.challenge_participant_id
+                JOIN challenges hosted_c ON hosted_c.id = hosted_cp.challenge_id
+                WHERE hosted_c.host_id = #{userId}
+                  AND hosted_c.status = 'IN_PROGRESS'
+                  AND p.certification_status = 'PENDING'
+                  AND p.deleted_at IS NULL
+            ) AS hosted_pending_certification_challenge_id
         FROM challenge_participants cp
         JOIN challenges c ON c.id = cp.challenge_id
         WHERE cp.user_id = #{userId}
