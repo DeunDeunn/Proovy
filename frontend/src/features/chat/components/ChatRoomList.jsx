@@ -34,7 +34,7 @@ const ChatRoomList = ({ rooms, selectedRoomId, onSelectRoom }) => {
             className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
               activeGroup === group
                 ? "bg-primary text-white"
-                : "border border-gray-300 text-gray-600 hover:bg-gray-50"
+                : "border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
             }`}
           >
             {group}
