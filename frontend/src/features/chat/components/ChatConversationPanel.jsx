@@ -129,7 +129,11 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
       <div className="flex shrink-0 items-center gap-3 border-b border-gray-100 px-5 py-4">
         {isChallenge ? (
           room.challengeThumbnailUrl ? (
-            <img src={room.challengeThumbnailUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+            <img
+              src={room.challengeThumbnailUrl}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-full object-cover"
+            />
           ) : (
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}
@@ -175,35 +179,47 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               {isMemberListOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-10 z-20 max-h-72 w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                  className="animate-[dropdown-in_120ms_ease-out] absolute right-0 top-10 z-20 max-h-72 w-56 origin-top-right overflow-y-auto rounded-2xl border border-gray-100 bg-white p-1.5 shadow-xl shadow-black/5"
                 >
-                  {!members && (
-                    <p className="px-3 py-2 text-xs text-gray-400">불러오는 중...</p>
-                  )}
+                  {!members && <p className="px-2.5 py-2 text-xs text-gray-400">불러오는 중...</p>}
                   {members?.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-gray-400">참여자가 없습니다.</p>
+                    <p className="px-2.5 py-2 text-xs text-gray-400">참여자가 없습니다.</p>
                   )}
-                  {members?.map((member) => (
-                    <div key={member.userId} className="flex items-center gap-2 px-3 py-2">
-                      <ParticipantAvatarMenu userId={member.userId} canStartChat={member.userId !== me?.id}>
-                        <ProfileAvatar
+                  {members?.map((member) => {
+                    const isMe = member.userId === me?.id;
+                    return (
+                      <div
+                        key={member.userId}
+                        className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors ${
+                          isMe ? "bg-primary-light" : "hover:bg-gray-50"
+                        }`}
+                      >
+                        <ParticipantAvatarMenu
+                          userId={member.userId}
                           nickname={member.nickname}
                           profileImageUrl={member.profileImageUrl}
-                          size="h-7 w-7"
-                        />
-                      </ParticipantAvatarMenu>
-                      <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
-                        {member.nickname}
-                      </span>
-                      {member.badgeApproved && (
-                        <BadgeCheck
-                          size={14}
-                          className="shrink-0 fill-primary stroke-white"
-                          aria-label="우수 인증자"
-                        />
-                      )}
-                    </div>
-                  ))}
+                          canStartChat={!isMe}
+                        >
+                          <ProfileAvatar
+                            nickname={member.nickname}
+                            profileImageUrl={member.profileImageUrl}
+                            size="h-7 w-7"
+                          />
+                        </ParticipantAvatarMenu>
+                        <span className="flex min-w-0 flex-1 items-center gap-1">
+                          <span className="truncate text-sm text-gray-700">{member.nickname}</span>
+                          {isMe && <span className="shrink-0 text-xs text-gray-400">(나)</span>}
+                          {member.badgeApproved && (
+                            <BadgeCheck
+                              size={14}
+                              className="shrink-0 fill-primary stroke-white"
+                              aria-label="우수 인증자"
+                            />
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -226,11 +242,15 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
       )}
 
       {deleteError && (
-        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">{deleteError}</p>
+        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">
+          {deleteError}
+        </p>
       )}
 
       {attachmentError && (
-        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">{attachmentError}</p>
+        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">
+          {attachmentError}
+        </p>
       )}
 
       <div
@@ -264,7 +284,8 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               isChallenge={isChallenge}
               onDelete={handleDeleteMessage}
               isDeletePending={
-                deleteMessageMutation.isPending && deleteMessageMutation.variables === message.messageId
+                deleteMessageMutation.isPending &&
+                deleteMessageMutation.variables === message.messageId
               }
             />
           );
@@ -276,7 +297,12 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         onSubmit={handleSubmit}
         className="flex shrink-0 items-center gap-2 border-t border-gray-100 px-4 py-3"
       >
-        <input ref={fileInputRef} type="file" className="hidden" onChange={handleAttachmentSelected} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleAttachmentSelected}
+        />
         <input
           ref={imageInputRef}
           type="file"

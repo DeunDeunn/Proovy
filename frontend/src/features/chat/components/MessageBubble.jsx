@@ -121,7 +121,12 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
       {!isOwn && (
         <div className="w-8 shrink-0">
           {showSenderInfo && (
-            <ParticipantAvatarMenu userId={message.senderId} canStartChat={isChallenge}>
+            <ParticipantAvatarMenu
+              userId={message.senderId}
+              nickname={message.senderNickname}
+              profileImageUrl={message.senderProfileImage}
+              canStartChat={isChallenge}
+            >
               <ProfileAvatar
                 nickname={message.senderNickname}
                 profileImageUrl={message.senderProfileImage}
