@@ -8,6 +8,7 @@ import com.deundeun.certification.dto.LikeToggleResponse;
 import com.deundeun.certification.dto.CreateCertificationPostResponse;
 import com.deundeun.certification.dto.PendingCertificationResponse;
 import com.deundeun.certification.dto.RejectCertificationPostRequest;
+import com.deundeun.certification.dto.TodayCertificationProgressResponse;
 import com.deundeun.certification.dto.UpdateCertificationPostRequest;
 import com.deundeun.certification.service.CertificationService;
 import com.deundeun.global.common.ApiResponse;
@@ -139,6 +140,13 @@ public class CertificationController {
     public ApiResponse<CertificationStreakResponse> getMyCertificationStreak(@PathVariable Long challengeId) {
         Long userId = CurrentUser.getUserId();
         return ApiResponse.success(certificationService.getMyCertificationStreak(challengeId, userId));
+    }
+
+    // 홈 오늘 인증 현황: 오늘 인증을 등록한 진행 중 챌린지 수 / 전체 진행 중 챌린지 수.
+    @GetMapping("/api/v1/certification-posts/today-progress")
+    public ApiResponse<TodayCertificationProgressResponse> getTodayCertificationProgress() {
+        Long userId = CurrentUser.getUserId();
+        return ApiResponse.success(certificationService.getTodayCertificationProgress(userId));
     }
 
     // #4 타인 피드 (그 사람 APPROVED, 비공개 챌린지 글은 뷰어가 참가자일 때만, 필터 없음)
