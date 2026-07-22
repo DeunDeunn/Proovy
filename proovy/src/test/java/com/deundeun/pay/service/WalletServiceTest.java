@@ -102,11 +102,11 @@ class WalletServiceTest {
                 .status(CashTransactionStatus.COMPLETED)
                 .createdAt(LocalDateTime.of(2026, 7, 11, 12, 0))
                 .build();
-        when(cashTransactionMapper.selectByWalletId(10L, null, 0, 10))
+        when(cashTransactionMapper.selectByWalletId(10L, null, null, 0, 10))
                 .thenReturn(List.of(transaction));
-        when(cashTransactionMapper.countByWalletId(10L, null)).thenReturn(23L);
+        when(cashTransactionMapper.countByWalletId(10L, null, null)).thenReturn(23L);
 
-        TransactionHistoryResponse response = walletService.getTransactionHistory(userId, null, 0, 10);
+        TransactionHistoryResponse response = walletService.getTransactionHistory(userId, null, null, 0, 10);
 
         assertThat(response.getContent()).hasSize(1);
         assertThat(response.getContent().getFirst().getId()).isEqualTo(5L);

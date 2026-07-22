@@ -38,8 +38,10 @@ public class WalletController {
     @GetMapping("/api/wallets/transactions")
     public ApiResponse<TransactionHistoryResponse> getMyTransactions(
             @RequestParam(required = false) CashTransactionType type,
+            @RequestParam(required = false) Long referenceId,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
         Long userId = CurrentUser.getUserId();
-        return ApiResponse.success(walletService.getTransactionHistory(userId, type, page, TRANSACTIONS_PAGE_SIZE));
+        return ApiResponse.success(
+                walletService.getTransactionHistory(userId, type, referenceId, page, TRANSACTIONS_PAGE_SIZE));
     }
 }

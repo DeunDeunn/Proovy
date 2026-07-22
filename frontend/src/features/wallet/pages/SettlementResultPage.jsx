@@ -31,27 +31,28 @@ const SettlementResultPage = ({ challengeId }) => {
     error: settlementError,
   } = useSettlementResult(challengeId);
   const { data: challenge, isLoading: challengeLoading } = useChallenge(challengeId);
-  const { data: me } = useMe();
+  const { data: me, isLoading: meLoading } = useMe();
 
   // 정산으로 인해 내 지갑에 반영된 참가비/방장 보상 관련 거래를 찾아 "내 결과"를 판단
   // (SettlementResultResponse는 참가자 전체 집계만 담고 있어 개인 성공/실패/방장 여부가 없음)
+  // referenceId(=challengeId)로 필터링해서, 다른 챌린지의 거래가 많아 페이지네이션에 밀려도 놓치지 않게 한다.
   const {
     data: successTx,
     isLoading: successTxLoading,
     error: successTxError,
-  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_SUCCESS" });
+  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_SUCCESS", referenceId: challengeId });
   const {
     data: failTx,
     isLoading: failTxLoading,
     error: failTxError,
-  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_FAIL" });
+  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_FAIL", referenceId: challengeId });
   const {
     data: hostFeeTx,
     isLoading: hostFeeTxLoading,
     error: hostFeeTxError,
-  } = useTransactions({ type: "HOST_FEE" });
+  } = useTransactions({ type: "HOST_FEE", referenceId: challengeId });
 
-  const myResultLoading = successTxLoading || failTxLoading || hostFeeTxLoading;
+  const myResultLoading = successTxLoading || failTxLoading || hostFeeTxLoading || meLoading;
   const myResultError = successTxError || failTxError || hostFeeTxError;
 
   if (settlementLoading || challengeLoading) return <Loading label="정산 결과를 불러오는 중..." />;
