@@ -69,6 +69,7 @@ const DeleteCertificationPostDialog = ({ error, isDeleting, onClose, onDelete })
             data-delete-dialog-action="cancel"
             type="button"
             variant="outline"
+            className="!rounded-full"
             onClick={onClose}
             disabled={isDeleting}
           >
@@ -78,6 +79,7 @@ const DeleteCertificationPostDialog = ({ error, isDeleting, onClose, onDelete })
             data-delete-dialog-action="delete"
             type="button"
             variant="danger"
+            className="!rounded-full"
             onClick={onDelete}
             disabled={isDeleting}
           >

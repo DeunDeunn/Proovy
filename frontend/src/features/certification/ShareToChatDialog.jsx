@@ -87,7 +87,7 @@ const ShareToChatDialog = ({ certificationId, onClose }) => {
             onClick={onClose}
             disabled={shareMutation.isPending}
             aria-label="닫기"
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed"
+            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed"
           >
             <X size={18} />
           </button>
@@ -114,7 +114,7 @@ const ShareToChatDialog = ({ certificationId, onClose }) => {
                 type="button"
                 onClick={() => handleShare(room.chatRoomId)}
                 disabled={shareMutation.isPending}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w-full items-center gap-3 rounded-full px-3 py-2.5 text-left hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}

@@ -290,7 +290,7 @@ const CertificationPostDetailPage = ({ postId }) => {
                         role="menuitem"
                         onClick={toggleFollow}
                         disabled={!authorProfile || isFollowActionPending}
-                        className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-gray-300 ${authorProfile?.following ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-primary text-white hover:bg-primary-dark"}`}
+                        className={`rounded-full px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-gray-300 ${authorProfile?.following ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-primary text-white hover:bg-primary-dark"}`}
                       >
                         {authorProfile?.following
                           ? "팔로우 중"
@@ -302,7 +302,7 @@ const CertificationPostDetailPage = ({ postId }) => {
                         type="button"
                         role="menuitem"
                         onClick={() => router.push(`/users/${post.authorId}`)}
-                        className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                        className="rounded-full border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                       >
                         상대 피드로 이동
                       </button>
@@ -351,7 +351,7 @@ const CertificationPostDetailPage = ({ postId }) => {
                               role="menuitem"
                               onClick={() => router.push(`/certification-posts/${postId}/edit`)}
                               disabled={deletePostMutation.isPending}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                              className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
                             >
                               <Pencil size={15} aria-hidden="true" />
                               수정
@@ -364,7 +364,7 @@ const CertificationPostDetailPage = ({ postId }) => {
                                 setIsDeleteDialogOpen(true);
                               }}
                               disabled={deletePostMutation.isPending}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                              className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400"
                             >
                               <Trash2 size={15} aria-hidden="true" />
                               {deletePostMutation.isPending ? "삭제 중..." : "삭제"}
@@ -378,7 +378,7 @@ const CertificationPostDetailPage = ({ postId }) => {
                               setIsPostMenuOpen(false);
                               setIsReportDialogOpen(true);
                             }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                            className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                           >
                             <Flag size={15} aria-hidden="true" />
                             신고
