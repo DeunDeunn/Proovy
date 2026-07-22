@@ -4,8 +4,8 @@
 
 import {
   BadgeCheck,
-  ChevronDown,
   Clock3,
+  Flame,
   Heart,
   ImageOff,
   MessageCircle,
@@ -33,6 +33,11 @@ const filters = [
   { value: "all", label: "전체" },
   { value: "mine", label: "내 인증" },
   { value: "today", label: "오늘" },
+];
+
+const sorts = [
+  { value: "latest", label: "최신순", icon: Clock3 },
+  { value: "popular", label: "인기순", icon: Flame },
 ];
 
 const formatCreatedAt = (value) => {
@@ -265,6 +270,7 @@ const PendingCertificationCard = ({
 
 const ChallengeFeedPage = ({ challengeId }) => {
   const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("latest");
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [rejectTargetId, setRejectTargetId] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -291,7 +297,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
     isError: isFeedError,
     isFetchingNextPage,
     isLoading: isFeedLoading,
-  } = useChallengeFeed(challengeId, filter);
+  } = useChallengeFeed(challengeId, filter, sort);
   const {
     data: pendingData,
     error: pendingError,
@@ -413,6 +419,14 @@ const ChallengeFeedPage = ({ challengeId }) => {
         )}
 
         <div className="flex items-center gap-2" aria-label="피드 정렬">
+          {!isReviewMode && (
+            <Link
+              href={`/challenges/${challengeId}/certification-posts/new`}
+              className="inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-hover"
+            >
+              + 인증하기
+            </Link>
+          )}
           {canReview && (
             <Button
               type="button"
@@ -424,15 +438,28 @@ const ChallengeFeedPage = ({ challengeId }) => {
             </Button>
           )}
           {!isReviewMode && (
-            <button
-              type="button"
-              title="현재 최신순으로 정렬되어 있습니다."
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-surface px-4 py-2 text-sm font-semibold text-gray-600 shadow-sm"
-            >
-              <Clock3 size={17} aria-hidden="true" />
-              최신순
-              <ChevronDown size={16} aria-hidden="true" />
-            </button>
+            <div className="flex gap-2" role="tablist" aria-label="피드 정렬">
+              {sorts.map(({ value, label, icon: Icon }) => {
+                const isSelected = sort === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    onClick={() => setSort(value)}
+                    className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                      isSelected
+                        ? "border-primary bg-primary text-white shadow-sm"
+                        : "border-gray-200 bg-surface text-gray-600 hover:border-gray-300 hover:text-gray-800"
+                    }`}
+                  >
+                    <Icon size={17} aria-hidden="true" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
