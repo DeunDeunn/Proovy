@@ -174,6 +174,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @DeleteMapping("/profile/image")
+    public ResponseEntity<ApiResponse<Void>> deleteProfileImage(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        authService.deleteProfileImage(userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserMeResponse>> me(@AuthenticationPrincipal CustomUserDetails userDetails) {
         UserMeResponse response = authService.getMe(userDetails.getUserId());

@@ -76,4 +76,11 @@
         UPDATE users SET profile_image_url = #{profileImageUrl} WHERE id = #{id} AND deleted_at IS NULL
     </update>
 
+    <!-- 삭제 시점에 읽은 값(expectedUrl)이 그대로일 때만 갱신해, 그 사이 다른 요청이 이미지를
+         바꿨다면(동시성 충돌) 덮어쓰지 않도록 한다. -->
+    <update id="updateProfileImageUrlIfMatches">
+        UPDATE users SET profile_image_url = #{profileImageUrl}
+        WHERE id = #{id} AND deleted_at IS NULL AND profile_image_url = #{expectedUrl}
+    </update>
+
 </mapper>
