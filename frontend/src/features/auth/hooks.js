@@ -29,7 +29,14 @@ export const useUpdateNickname = () => {
 
   return useMutation({
     mutationFn: (nickname) => updateNickname(nickname),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      // invalidateQueries만으로는 백그라운드 리페치가 끝나기 전에 화면 전환(예: 첫 닉네임
+      // 설정 후 router.replace("/"))이 먼저 일어나, ProfileGuard가 아직 낡은 profileIncomplete:
+      // true 캐시를 보고 다시 /auth/complete-profile로 되돌려보낼 수 있다. 서버가 확정한
+      // 닉네임을 캐시에 즉시(동기적으로) 반영해 그 경합을 없앤다.
+      queryClient.setQueryData(["auth", "me"], (old) =>
+        old ? { ...old, nickname: response.nickname, profileIncomplete: false } : old
+      );
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       queryClient.invalidateQueries({ queryKey: ["mypage"] });
     },
