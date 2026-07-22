@@ -1,7 +1,7 @@
 "use client";
 
 import { ShoppingBag } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -33,6 +33,12 @@ const TicketStorePage = () => {
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
   const totalBalance = (wallet?.chargedBalance ?? 0) + (wallet?.rewardBalance ?? 0);
 
+  const closeBalanceDialog = useCallback(() => {
+    setIsBalanceDialogOpen(false);
+    purchaseTriggerRef.current?.focus();
+    purchaseTriggerRef.current = null;
+  }, []);
+
   useEffect(() => {
     isPurchasePendingRef.current = purchaseMutation.isPending;
   }, [purchaseMutation.isPending]);
@@ -40,13 +46,46 @@ const TicketStorePage = () => {
   useEffect(() => {
     if (!isBalanceDialogOpen) return undefined;
 
-    balanceDialogRef.current?.focus();
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const dialog = balanceDialogRef.current;
+    const getFocusableElements = () =>
+      Array.from(dialog?.querySelectorAll(focusableSelector) ?? []).filter(
+        (element) => element.offsetParent !== null,
+      );
+
+    const focusableElements = getFocusableElements();
+    (focusableElements[0] ?? dialog)?.focus();
+
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") setIsBalanceDialogOpen(false);
+      if (event.key === "Escape") {
+        closeBalanceDialog();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const elements = getFocusableElements();
+      if (!elements.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+
+      const firstElement = elements[0];
+      const lastElement = elements[elements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isBalanceDialogOpen]);
+  }, [closeBalanceDialog, isBalanceDialogOpen]);
 
   useEffect(() => {
     if (!selectedPlan) return undefined;
@@ -100,12 +139,12 @@ const TicketStorePage = () => {
 
   const openPurchaseDialog = (plan) => {
     purchaseMutation.reset();
+    purchaseTriggerRef.current = document.activeElement;
     if (totalBalance < plan.price) {
       setIsBalanceDialogOpen(true);
       return;
     }
 
-    purchaseTriggerRef.current = document.activeElement;
     setSelectedPlan(plan);
   };
 
@@ -194,7 +233,7 @@ const TicketStorePage = () => {
               캐시를 충전한 후 다시 구매해주세요.
             </p>
             <div className="mt-6 flex justify-end">
-              <Button onClick={() => setIsBalanceDialogOpen(false)}>확인</Button>
+              <Button onClick={closeBalanceDialog}>확인</Button>
             </div>
           </div>
         </div>
