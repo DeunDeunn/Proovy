@@ -753,10 +753,10 @@ class CertificationServiceTest {
     @DisplayName("getTodayCertificationProgress")
     class TodayCertificationProgress {
         @Test
-        @DisplayName("[C-47] 오늘 인증한 진행 중 챌린지 수와 전체 수를 반환한다")
+        @DisplayName("[C-47] 참여 인증 진행도와 운영 챌린지의 오늘 등록·미검수 글 수를 반환한다")
         void returnsTodayCertificationProgress() {
             TodayCertificationProgressResponse progress =
-                    new TodayCertificationProgressResponse(2, 3);
+                    new TodayCertificationProgressResponse(2, 3, 4, 5, 7L);
             when(certificationMapper.findTodayCertificationProgress(USER_ID)).thenReturn(progress);
 
             TodayCertificationProgressResponse result =
@@ -764,6 +764,9 @@ class CertificationServiceTest {
 
             assertThat(result.certifiedChallengeCount()).isEqualTo(2);
             assertThat(result.inProgressChallengeCount()).isEqualTo(3);
+            assertThat(result.hostedTodayCertificationPostCount()).isEqualTo(4);
+            assertThat(result.hostedPendingCertificationPostCount()).isEqualTo(5);
+            assertThat(result.hostedPendingCertificationChallengeId()).isEqualTo(7L);
         }
     }
 

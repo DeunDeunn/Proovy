@@ -38,7 +38,7 @@
     </update>
 
     <!-- 최상위 댓글 목록 (커서 무한스크롤·최신순).
-         삭제된 댓글은 "대댓글이 하나라도 있을 때만" 껍데기로 포함 (스레드 유지) -->
+         삭제된 댓글도 항상 껍데기로 포함(deleted=true·contents 숨김) → "삭제된 댓글입니다" 표시 -->
     <select id="findTopLevelComments" resultType="CommentRow">
         SELECT c.id                                          AS comment_id,
                c.user_id                                     AS author_id,
@@ -70,14 +70,6 @@
         <where>
             c.post_id = #{postId}
             AND c.parent_comment_id IS NULL
-            AND (
-                c.deleted_at IS NULL
-                OR EXISTS (
-                    SELECT 1 FROM comments r
-                    WHERE r.parent_comment_id = c.id
-                      AND r.deleted_at IS NULL
-                )
-            )
             <if test="cursor != null">
                 AND c.id &lt; #{cursor}
             </if>
@@ -86,7 +78,7 @@
         LIMIT #{size}
     </select>
 
-    <!-- 주어진 부모들의 대댓글 (오래된순, 삭제된 대댓글 제외) -->
+    <!-- 주어진 부모들의 대댓글 (오래된순). 삭제된 대댓글도 껍데기로 포함 -->
     <select id="findReplies" resultType="CommentRow">
         SELECT c.id                AS comment_id,
                c.user_id           AS author_id,
@@ -102,8 +94,8 @@
                    WHERE cl.comment_id = c.id
                      AND cl.user_id = #{viewerId}
                )                     AS liked,
-               false               AS deleted,
-               (c.modified_at IS NOT NULL) AS edited,
+               (c.deleted_at IS NOT NULL)                    AS deleted,
+               (c.modified_at IS NOT NULL AND c.deleted_at IS NULL) AS edited,
                c.parent_comment_id,
                c.created_at
         FROM comments c
@@ -115,8 +107,7 @@
             ORDER BY applied_at DESC, id DESC
             LIMIT 1
         ) latest_verification ON true
-        WHERE c.deleted_at IS NULL
-          AND c.parent_comment_id IN
+        WHERE c.parent_comment_id IN
               <foreach item="pid" collection="parentIds" open="(" separator="," close=")">
                   #{pid}
               </foreach>
@@ -162,17 +153,10 @@
         WHERE id = #{commentId}
     </select>
 
-    <!-- 댓글 수 +1 -->
+    <!-- 댓글 수 +1 (삭제해도 감소시키지 않음 → 삭제 댓글도 카운트에 포함) -->
     <update id="incrementCommentCount">
         UPDATE certification_posts
         SET comment_count = comment_count + 1
-        WHERE id = #{postId}
-    </update>
-
-    <!-- 댓글 수 -1 (0 미만 방지) -->
-    <update id="decrementCommentCount">
-        UPDATE certification_posts
-        SET comment_count = GREATEST(comment_count - 1, 0)
         WHERE id = #{postId}
     </update>
 
