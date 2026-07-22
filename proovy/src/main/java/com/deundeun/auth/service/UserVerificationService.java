@@ -10,9 +10,13 @@ import com.deundeun.auth.mapper.UserMapper;
 import com.deundeun.auth.mapper.UserVerificationMapper;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
+import com.deundeun.notification.event.BadgeApprovedEvent;
+import com.deundeun.notification.event.BadgeRejectedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -26,6 +30,7 @@ public class UserVerificationService {
 
     private final UserVerificationMapper userVerificationMapper;
     private final UserMapper userMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void apply(Long userId) {
         User user = getUserOrThrow(userId);
@@ -74,6 +79,7 @@ public class UserVerificationService {
         return UserVerificationListResponse.of(content, page, size, totalElements);
     }
 
+    @Transactional
     public void review(Long id, UserVerificationStatus newStatus, String rejectionReason) {
         if (newStatus != UserVerificationStatus.APPROVED && newStatus != UserVerificationStatus.REJECTED) {
             throw new ApiException(ErrorCode.INVALID_REQUEST);
@@ -91,6 +97,12 @@ public class UserVerificationService {
         int updated = userVerificationMapper.updateStatus(id, newStatus, approvedAt, reason);
         if (updated == 0) {
             throw new ApiException(ErrorCode.VERIFICATION_ALREADY_PROCESSED);
+        }
+
+        if (newStatus == UserVerificationStatus.APPROVED) {
+            eventPublisher.publishEvent(new BadgeApprovedEvent(verification.getUserId(), verification.getId()));
+        } else {
+            eventPublisher.publishEvent(new BadgeRejectedEvent(verification.getUserId(), verification.getId()));
         }
     }
 
