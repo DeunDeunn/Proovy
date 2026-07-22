@@ -548,7 +548,7 @@ class AiReviewServiceImplTest {
 
     @Test
     @DisplayName("방장 인증글은 AI 활성화와 티켓 없이 자동 검수된다")
-    void reviewHostPost_hostPost_reviewsWithoutAiActivationOrTicket() {
+    void reviewSubmittedPost_hostPost_reviewsWithoutAiActivationOrTicket() {
         Long hostId = 1L;
         Long postId = 601L;
         Long challengeId = 60L;
@@ -556,7 +556,6 @@ class AiReviewServiceImplTest {
         AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "인증 방식을 충족했습니다.", 0.95);
 
         when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
-        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(null);
         when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
         when(aiReviewPromptService.createPrompt(any(), any(), any())).thenReturn("host prompt");
         when(aiReviewClient.review("host prompt", List.of("https://example.com/thumb.png")))
@@ -584,7 +583,7 @@ class AiReviewServiceImplTest {
                         .build()
         );
 
-        aiReviewService.reviewHostPost(postId);
+        aiReviewService.reviewSubmittedPost(postId);
 
         verify(aiReviewMapper).updateCertificationPostStatus(postId, "APPROVED");
         verify(aiReviewMapper, never()).isAiReviewEnabledByChallengeId(any());
@@ -594,14 +593,62 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("참가자 인증글 등록 이벤트는 방장 자동 검수에서 제외된다")
-    void reviewHostPost_participantPost_skipsReview() {
+    @DisplayName("방장의 티켓이 활성화되면 참가자 인증글을 자동 검수한다")
+    void reviewSubmittedPost_participantPostWithTicket_reviewsAutomatically() {
+        Long hostId = 1L;
+        Long postId = 602L;
+        Long challengeId = 60L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+        ReflectionTestUtils.setField(context, "authorId", 2L);
+        AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "인증 방식을 충족했습니다.", 0.95);
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewMapper.existsActiveTicketSubscriptionByHostId(hostId)).thenReturn(true);
+        when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
+        when(aiReviewPromptService.createPrompt(any(), any(), any())).thenReturn("participant prompt");
+        when(aiReviewClient.review("participant prompt", List.of("https://example.com/thumb.png")))
+                .thenReturn(aiResult);
+        doAnswer(invocation -> {
+            AiReviewResultVo result = invocation.getArgument(0);
+            ReflectionTestUtils.setField(result, "id", 702L);
+            return 1;
+        }).when(aiReviewMapper).insertProcessingAiReviewResult(any());
+        when(aiReviewMapper.updateAiReviewResultCompleted(any())).thenReturn(1);
+        when(aiReviewMapper.findReviewResultById(702L)).thenReturn(
+                AiReviewResultVo.builder()
+                        .id(702L)
+                        .challengeId(challengeId)
+                        .hostId(hostId)
+                        .verificationPostId(postId)
+                        .reviewMode("AUTO")
+                        .decision("APPROVED")
+                        .confidence(BigDecimal.valueOf(0.95))
+                        .reason("인증 방식을 충족했습니다.")
+                        .rawResponse(aiResult.getRawResponse())
+                        .status("COMPLETED")
+                        .previousPostStatus("PENDING")
+                        .newPostStatus("APPROVED")
+                        .build()
+        );
+
+        aiReviewService.reviewSubmittedPost(postId);
+
+        verify(aiReviewMapper).updateCertificationPostStatus(postId, "APPROVED");
+        verify(aiReviewMapper, never()).isAiReviewEnabledByChallengeId(any());
+        verify(aiTicketMapper).findActiveSubscriptionByHostIdForUpdate(hostId);
+        verify(aiTicketMapper).insertTicketHistory(any());
+    }
+
+    @Test
+    @DisplayName("티켓이 없는 방장의 참가자 인증글은 자동 검수하지 않는다")
+    void reviewSubmittedPost_participantPostWithoutTicket_skipsReview() {
         Long postId = 602L;
         AiReviewContext context = context(postId, 60L, 1L, "PENDING");
         ReflectionTestUtils.setField(context, "authorId", 2L);
         when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewMapper.existsActiveTicketSubscriptionByHostId(1L)).thenReturn(false);
 
-        aiReviewService.reviewHostPost(postId);
+        aiReviewService.reviewSubmittedPost(postId);
 
         verify(aiReviewRuleMapper, never()).findAiReviewRuleByChallengeId(any());
         verify(aiReviewClient, never()).review(any(), any());

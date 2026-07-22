@@ -8,7 +8,7 @@ public interface AiReviewService {
 
     AiReviewResponse review(Long requesterId, Long postId);
 
-    void reviewHostPost(Long postId);
+    void reviewSubmittedPost(Long postId);
 
     AiPageResponse<AiReviewResultItemResponse> findReviewResultsByChallengeId(
             Long requesterId,
