@@ -137,6 +137,7 @@ const Sidebar = () => {
   const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
 
   const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
+  const isAdmin = me?.role === "ADMIN";
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -160,58 +161,64 @@ const Sidebar = () => {
 
       {/* 메인 메뉴: 드롭다운이 펼쳐져도 아래 버튼/프로필 위치가 안 밀리게 이 영역만 따로 스크롤 */}
       <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-        {menus.map((menu) => {
-          const active = pathname === menu.href;
-          return (
+        {menus
+          .filter((menu) => !isAdmin || menu.href === "/")
+          .map((menu) => {
+            const active = pathname === menu.href;
+            return (
+              <Link
+                key={menu.href}
+                href={menu.href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+                  active
+                    ? "bg-primary-light font-semibold text-primary"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <menu.icon size={18} />
+                {menu.name}
+                {menu.href === "/notifications" && unreadNotificationCount > 0 && (
+                  <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
+                    {unreadNotificationCount}
+                  </span>
+                )}
+                {menu.href === "/chat" && me && unreadChatCount > 0 && (
+                  <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
+                    {unreadChatCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+
+        {!isAdmin && (
+          <>
+            <div className="my-1 border-t border-gray-200" />
+
+            <SidebarDropdown
+              icon={Wallet}
+              label="지갑"
+              items={walletMenus}
+              pathname={pathname}
+              open={openDropdown === "wallet"}
+              onToggle={() => toggleDropdown("wallet")}
+            />
+
+            <div className="my-1 border-t border-gray-200" />
+
             <Link
-              key={menu.href}
-              href={menu.href}
+              href="/mypage/tickets/store"
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
-                active
+                pathname === "/mypage/tickets/store"
                   ? "bg-primary-light font-semibold text-primary"
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <menu.icon size={18} />
-              {menu.name}
-              {menu.href === "/notifications" && unreadNotificationCount > 0 && (
-                <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
-                  {unreadNotificationCount}
-                </span>
-              )}
-              {menu.href === "/chat" && me && unreadChatCount > 0 && (
-                <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">
-                  {unreadChatCount}
-                </span>
-              )}
+              <ShoppingBag size={18} />
+              스토어
             </Link>
-          );
-        })}
-
-        <div className="my-1 border-t border-gray-200" />
-
-        <SidebarDropdown
-          icon={Wallet}
-          label="지갑"
-          items={walletMenus}
-          pathname={pathname}
-          open={openDropdown === "wallet"}
-          onToggle={() => toggleDropdown("wallet")}
-        />
-
-        <div className="my-1 border-t border-gray-200" />
-
-        <Link
-          href="/mypage/tickets/store"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
-            pathname === "/mypage/tickets/store"
-              ? "bg-primary-light font-semibold text-primary"
-              : "text-gray-600 hover:bg-gray-50"
-          }`}
-        >
-          <ShoppingBag size={18} />
-          스토어
-        </Link>
+          </>
+        )}
 
         <div className="my-1 border-t border-gray-200" />
 
@@ -224,7 +231,7 @@ const Sidebar = () => {
           onToggle={() => toggleDropdown("mypage")}
         />
 
-        {me?.role === "ADMIN" && (
+        {isAdmin && (
           <>
             <div className="my-1 border-t border-gray-200" />
             <SidebarDropdown
@@ -239,8 +246,8 @@ const Sidebar = () => {
         )}
       </nav>
 
-      {/* 로그인 안 한 사용자는 어차피 개설할 수 없으니 로그인했을 때만 노출 */}
-      {me && (
+      {/* 로그인 안 한 사용자는 어차피 개설할 수 없고, 관리자 메뉴에서는 일반 기능을 숨기므로 그때만 노출 */}
+      {me && !isAdmin && (
         <Link
           href="/challenges/new"
           className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
