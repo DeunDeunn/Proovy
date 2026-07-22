@@ -32,7 +32,7 @@ app:
 
 cookie:
   secure: ${COOKIE_SECURE}
-  domain: ${COOKIE_DOMAIN}
+  domain: ${COOKIE_DOMAIN:}
 
 naverpay:
   api-domain: ${NAVERPAY_API_DOMAIN}

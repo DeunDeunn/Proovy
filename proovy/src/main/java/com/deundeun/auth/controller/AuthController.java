@@ -58,12 +58,9 @@ public class AuthController {
         String refreshToken = extractCookie(request, "refreshToken");
         AuthService.TokenPair tokens = authService.reissueTokens(refreshToken);
 
-        ResponseCookie accessCookie = buildCookie("accessToken", tokens.accessToken(), accessTokenExpiration / 1000);
-        ResponseCookie refreshCookie = buildCookie("refreshToken", tokens.refreshToken(), refreshTokenExpiration / 1000);
-
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
-        headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        addCookieTo(headers, "accessToken", tokens.accessToken(), accessTokenExpiration / 1000);
+        addCookieTo(headers, "refreshToken", tokens.refreshToken(), refreshTokenExpiration / 1000);
 
         return ResponseEntity.ok()
                 .headers(headers)
@@ -87,12 +84,9 @@ public class AuthController {
     }
 
     private HttpHeaders expireAuthCookies() {
-        ResponseCookie accessCookie = buildCookie("accessToken", "", 0);
-        ResponseCookie refreshCookie = buildCookie("refreshToken", "", 0);
-
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.SET_COOKIE, accessCookie.toString());
-        headers.add(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        addCookieTo(headers, "accessToken", "", 0);
+        addCookieTo(headers, "refreshToken", "", 0);
         return headers;
     }
 
@@ -111,6 +105,35 @@ public class AuthController {
         return builder.build();
     }
 
+    private void addCookieTo(HttpHeaders headers, String name, String value, long maxAgeSeconds) {
+        // 도메인 쿠키로 전환하기 전 host-only로 심겨 있던 예전 쿠키가 같이 남아 중복 전송되지 않도록 먼저 만료시킨다
+        if (!cookieDomain.isBlank()) {
+            ResponseCookie hostOnlyExpire = ResponseCookie.from(name, "")
+                    .httpOnly(true)
+                    .secure(cookieSecure)
+                    .sameSite("Lax")
+                    .path("/")
+                    .maxAge(0)
+                    .build();
+            headers.add(HttpHeaders.SET_COOKIE, hostOnlyExpire.toString());
+        }
+        headers.add(HttpHeaders.SET_COOKIE, buildCookie(name, value, maxAgeSeconds).toString());
+    }
+
+    private void addCookieTo(HttpServletResponse response, String name, String value, long maxAgeSeconds) {
+        if (!cookieDomain.isBlank()) {
+            ResponseCookie hostOnlyExpire = ResponseCookie.from(name, "")
+                    .httpOnly(true)
+                    .secure(cookieSecure)
+                    .sameSite("Lax")
+                    .path("/")
+                    .maxAge(0)
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, hostOnlyExpire.toString());
+        }
+        response.addHeader(HttpHeaders.SET_COOKIE, buildCookie(name, value, maxAgeSeconds).toString());
+    }
+
     private static final Set<String> REAUTH_PROVIDERS = Set.of("google", "kakao");
 
     @GetMapping("/{provider}/reauth")
@@ -123,8 +146,7 @@ public class AuthController {
 
         authService.startReauth(userDetails.getUserId());
 
-        ResponseCookie reauthCookie = buildCookie("reauthUid", String.valueOf(userDetails.getUserId()), 600);
-        response.addHeader(HttpHeaders.SET_COOKIE, reauthCookie.toString());
+        addCookieTo(response, "reauthUid", String.valueOf(userDetails.getUserId()), 600);
 
         response.sendRedirect("/api/oauth2/authorization/" + provider);
     }
