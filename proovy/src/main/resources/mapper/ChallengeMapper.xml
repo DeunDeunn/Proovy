@@ -207,6 +207,12 @@
         SET status = 'IN_PROGRESS'
         WHERE status = 'RECRUITING'
           AND start_date &lt;= CURRENT_DATE
+          AND EXISTS (
+              SELECT 1 FROM challenge_participants p
+              WHERE p.challenge_id = challenges.id
+                AND p.status = 'ACTIVE'
+                AND p.user_id != challenges.host_id
+          )
     </update>
 
     <select id="findChallengesToComplete" resultType="Challenge">
@@ -214,6 +220,20 @@
         FROM challenges
         WHERE status = 'IN_PROGRESS'
           AND end_date &lt; CURRENT_DATE
+    </select>
+
+    <!-- 모집 기간이 끝났는데 방장 혼자(참가자 없음)면 자동 취소 대상 -->
+    <select id="findChallengesToAutoCancel" resultType="Challenge">
+        SELECT <include refid="challengeColumns"/>
+        FROM challenges c
+        WHERE c.status = 'RECRUITING'
+          AND c.start_date &lt;= CURRENT_DATE
+          AND NOT EXISTS (
+              SELECT 1 FROM challenge_participants p
+              WHERE p.challenge_id = c.id
+                AND p.status = 'ACTIVE'
+                AND p.user_id != c.host_id
+          )
     </select>
 
 </mapper>

@@ -1,7 +1,7 @@
 "use client";
 
 import { ShoppingBag } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -15,22 +15,77 @@ import {
   useAiTicketPlans,
   usePurchaseAiTicket,
 } from "@/features/ai/hooks";
+import { useWallet } from "@/features/wallet/hooks";
 
 const TicketStorePage = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [isBalanceDialogOpen, setIsBalanceDialogOpen] = useState(false);
   const dialogRef = useRef(null);
+  const balanceDialogRef = useRef(null);
   const purchaseTriggerRef = useRef(null);
   const isPurchasePendingRef = useRef(false);
   const { data: plans, isLoading: plansLoading, error: plansError } = useAiTicketPlans();
   const { data: activeTicket, isLoading: activeLoading, error: activeError } =
     useActiveAiTicket();
+  const { data: wallet, isLoading: walletLoading, error: walletError } = useWallet();
   const purchaseMutation = usePurchaseAiTicket();
 
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
+  const totalBalance = (wallet?.chargedBalance ?? 0) + (wallet?.rewardBalance ?? 0);
+
+  const closeBalanceDialog = useCallback(() => {
+    setIsBalanceDialogOpen(false);
+    purchaseTriggerRef.current?.focus();
+    purchaseTriggerRef.current = null;
+  }, []);
 
   useEffect(() => {
     isPurchasePendingRef.current = purchaseMutation.isPending;
   }, [purchaseMutation.isPending]);
+
+  useEffect(() => {
+    if (!isBalanceDialogOpen) return undefined;
+
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const dialog = balanceDialogRef.current;
+    const getFocusableElements = () =>
+      Array.from(dialog?.querySelectorAll(focusableSelector) ?? []).filter(
+        (element) => element.offsetParent !== null,
+      );
+
+    const focusableElements = getFocusableElements();
+    (focusableElements[0] ?? dialog)?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        closeBalanceDialog();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const elements = getFocusableElements();
+      if (!elements.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+
+      const firstElement = elements[0];
+      const lastElement = elements[elements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [closeBalanceDialog, isBalanceDialogOpen]);
 
   useEffect(() => {
     if (!selectedPlan) return undefined;
@@ -83,7 +138,13 @@ const TicketStorePage = () => {
   }, [selectedPlan]);
 
   const openPurchaseDialog = (plan) => {
+    purchaseMutation.reset();
     purchaseTriggerRef.current = document.activeElement;
+    if (totalBalance < plan.price) {
+      setIsBalanceDialogOpen(true);
+      return;
+    }
+
     setSelectedPlan(plan);
   };
 
@@ -94,8 +155,12 @@ const TicketStorePage = () => {
     });
   };
 
-  if (plansLoading || activeLoading) return <Loading label="AI 티켓 스토어를 불러오는 중..." />;
-  if (plansError || activeError) return <ErrorMessage error={plansError || activeError} />;
+  if (plansLoading || activeLoading || walletLoading) {
+    return <Loading label="AI 티켓 스토어를 불러오는 중..." />;
+  }
+  if (plansError || activeError || walletError) {
+    return <ErrorMessage error={plansError || activeError || walletError} />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -147,6 +212,30 @@ const TicketStorePage = () => {
       {purchaseMutation.error && (
         <div className="mt-4">
           <ErrorMessage error={purchaseMutation.error} />
+        </div>
+      )}
+
+      {isBalanceDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div
+            ref={balanceDialogRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="balance-dialog-title"
+            aria-describedby="balance-dialog-description"
+            tabIndex={-1}
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+          >
+            <h2 id="balance-dialog-title" className="text-lg font-bold text-gray-900">
+              잔액이 부족합니다
+            </h2>
+            <p id="balance-dialog-description" className="mt-2 text-sm text-gray-500">
+              캐시를 충전한 후 다시 구매해주세요.
+            </p>
+            <div className="mt-6 flex justify-end">
+              <Button onClick={closeBalanceDialog}>확인</Button>
+            </div>
+          </div>
         </div>
       )}
 

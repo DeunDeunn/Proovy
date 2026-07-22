@@ -22,12 +22,7 @@ import { useMe } from "@/features/auth/hooks";
 import { useChallenge } from "@/features/challenge/hooks";
 import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 
-import {
-  useApproveCertificationPost,
-  useChallengeFeed,
-  usePendingCertifications,
-  useRejectCertificationPost,
-} from "./hooks";
+import { useApproveCertificationPost, useChallengeFeed, useRejectCertificationPost } from "./hooks";
 
 const filters = [
   { value: "all", label: "전체" },
@@ -160,7 +155,7 @@ const ChallengeFeedCard = ({
   </Card>
 );
 
-const PendingCertificationCard = ({
+const ReviewCertificationCard = ({
   post,
   isRejecting,
   rejectReason,
@@ -170,103 +165,138 @@ const PendingCertificationCard = ({
   onCancelReject,
   onRejectReasonChange,
   onReject,
-}) => (
-  <Card className="overflow-hidden p-0">
-    <Link
-      href={`/certification-posts/${post.postId}`}
-      aria-label="검수 대기 인증글 상세 보기"
-      className="group block"
-    >
-      {post.thumbnailUrl ? (
-        <img
-          src={post.thumbnailUrl}
-          alt={`${post.authorNickname ?? "사용자"}의 인증 이미지`}
-          className="aspect-video w-full bg-gray-100 object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-        />
-      ) : (
-        <div className="flex aspect-video items-center justify-center bg-gray-100 text-gray-400 transition-colors group-hover:bg-gray-200">
-          <ImageOff size={32} aria-hidden="true" />
-          <span className="sr-only">인증 이미지 없음</span>
-        </div>
-      )}
-    </Link>
+}) => {
+  const isPending = post.status === "PENDING";
+  const isRejected = post.status === "REJECTED";
 
-    <div className="p-5">
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <ProfileAvatar nickname={post.authorNickname} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-900">
-              {post.authorNickname ?? "알 수 없는 사용자"}
-            </p>
-            <p className="mt-1 text-xs text-gray-400">{formatCreatedAt(post.createdAt)}</p>
+  return (
+    <Card className="overflow-hidden p-0">
+      <Link
+        href={`/certification-posts/${post.postId}`}
+        aria-label="검수 대상 인증글 상세 보기"
+        className="group block"
+      >
+        {post.thumbnailUrl ? (
+          <img
+            src={post.thumbnailUrl}
+            alt={`${post.authorNickname ?? "사용자"}의 인증 이미지`}
+            className="aspect-video w-full bg-gray-100 object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+          />
+        ) : (
+          <div className="flex aspect-video items-center justify-center bg-gray-100 text-gray-400 transition-colors group-hover:bg-gray-200">
+            <ImageOff size={32} aria-hidden="true" />
+            <span className="sr-only">인증 이미지 없음</span>
           </div>
-        </div>
-        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-          승인 대기
-        </span>
-      </div>
+        )}
+      </Link>
 
-      <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
-        {post.contents || "작성한 인증 내용이 없습니다."}
-      </p>
-
-      <div className="mt-5 border-t border-gray-100 pt-4">
-        {isRejecting ? (
-          <div>
-            <label
-              htmlFor={`reject-reason-${post.postId}`}
-              className="text-sm font-medium text-gray-800"
-            >
-              반려 사유
-            </label>
-            <textarea
-              id={`reject-reason-${post.postId}`}
-              value={rejectReason}
-              onChange={(event) => onRejectReasonChange(event.target.value)}
-              placeholder="반려 사유를 작성해주세요."
-              rows={3}
-              disabled={isActionPending}
-              className="mt-2 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50"
+      <div className="p-5">
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <ProfileAvatar
+              nickname={post.authorNickname}
+              profileImageUrl={post.authorProfileImageUrl}
             />
-            <div className="mt-3 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onCancelReject}
-                disabled={isActionPending}
-              >
-                취소
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={() => onReject(post.postId)}
-                disabled={isActionPending || !rejectReason.trim()}
-              >
-                {isActionPending ? "처리 중..." : "반려 확정"}
-              </Button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-sm font-semibold text-gray-900">
+                  {post.authorNickname ?? "알 수 없는 사용자"}
+                </p>
+                {post.authorBadgeApproved && (
+                  <span className="inline-flex shrink-0 text-sky-500" title="인증 회원">
+                    <BadgeCheck size={16} aria-hidden="true" />
+                    <span className="sr-only">인증 회원</span>
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-gray-400">{formatCreatedAt(post.createdAt)}</p>
             </div>
           </div>
-        ) : (
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onStartReject(post.postId)}
-              disabled={isActionPending}
-            >
-              반려
-            </Button>
-            <Button type="button" onClick={() => onApprove(post.postId)} disabled={isActionPending}>
-              {isActionPending ? "처리 중..." : "승인"}
-            </Button>
+          {isPending ? (
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+              승인 대기
+            </span>
+          ) : (
+            <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+              {isRejected ? "반려" : "검수 상태 확인 필요"}
+            </span>
+          )}
+        </div>
+
+        <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">
+          {post.contents || "작성한 인증 내용이 없습니다."}
+        </p>
+
+        {isRejected && (
+          <div className="mt-5 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
+            <span className="font-semibold">반려 사유: </span>
+            {post.rejectionReason || "등록된 반려 사유가 없습니다."}
+          </div>
+        )}
+
+        {isPending && (
+          <div className="mt-5 border-t border-gray-100 pt-4">
+            {isRejecting ? (
+              <div>
+                <label
+                  htmlFor={`reject-reason-${post.postId}`}
+                  className="text-sm font-medium text-gray-800"
+                >
+                  반려 사유
+                </label>
+                <textarea
+                  id={`reject-reason-${post.postId}`}
+                  value={rejectReason}
+                  onChange={(event) => onRejectReasonChange(event.target.value)}
+                  placeholder="반려 사유를 작성해주세요."
+                  rows={3}
+                  disabled={isActionPending}
+                  className="mt-2 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50"
+                />
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onCancelReject}
+                    disabled={isActionPending}
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={() => onReject(post.postId)}
+                    disabled={isActionPending || !rejectReason.trim()}
+                  >
+                    {isActionPending ? "처리 중..." : "반려 확정"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onStartReject(post.postId)}
+                  disabled={isActionPending}
+                >
+                  반려
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => onApprove(post.postId)}
+                  disabled={isActionPending}
+                >
+                  {isActionPending ? "처리 중..." : "승인"}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
-    </div>
-  </Card>
-);
+    </Card>
+  );
+};
 
 const ChallengeFeedPage = ({ challengeId }) => {
   const [filter, setFilter] = useState("all");
@@ -289,6 +319,8 @@ const ChallengeFeedPage = ({ challengeId }) => {
   } = useChallenge(challengeId);
   const isHost = me?.id != null && challenge?.hostId != null && me.id === challenge.hostId;
   const canReview = isHost || me?.role === "ADMIN";
+  const activeFilter = isReviewMode ? "review" : filter;
+  const activeSort = isReviewMode ? "latest" : sort;
   const {
     data,
     error: feedError,
@@ -297,21 +329,11 @@ const ChallengeFeedPage = ({ challengeId }) => {
     isError: isFeedError,
     isFetchingNextPage,
     isLoading: isFeedLoading,
-  } = useChallengeFeed(challengeId, filter, sort);
-  const {
-    data: pendingData,
-    error: pendingError,
-    fetchNextPage: fetchNextPendingPage,
-    hasNextPage: hasNextPendingPage,
-    isError: isPendingError,
-    isFetchingNextPage: isFetchingNextPendingPage,
-    isLoading: isPendingLoading,
-  } = usePendingCertifications(challengeId, isReviewMode && canReview);
+  } = useChallengeFeed(challengeId, activeFilter, activeSort);
   const approveMutation = useApproveCertificationPost(challengeId);
   const rejectMutation = useRejectCertificationPost(challengeId);
 
   const posts = data?.pages.flat() ?? [];
-  const pendingPosts = pendingData?.pages.flat() ?? [];
   const isReviewActionPending = approveMutation.isPending || rejectMutation.isPending;
 
   const resetRejectForm = () => {
@@ -362,11 +384,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
     );
   };
 
-  if (
-    isChallengeLoading ||
-    (!isReviewMode && isFeedLoading) ||
-    (isReviewMode && isPendingLoading)
-  ) {
+  if (isChallengeLoading || isFeedLoading) {
     return (
       <Loading
         label={isReviewMode ? "검수 대기 인증글을 불러오는 중..." : "챌린지 피드를 불러오는 중..."}
@@ -471,19 +489,19 @@ const ChallengeFeedPage = ({ challengeId }) => {
               <ErrorMessage error={reviewActionError} />
             </div>
           )}
-          {isPendingError ? (
-            <ErrorMessage error={pendingError} />
-          ) : pendingPosts.length === 0 ? (
+          {isFeedError ? (
+            <ErrorMessage error={feedError} />
+          ) : posts.length === 0 ? (
             <Card>
               <p className="py-12 text-center text-sm text-gray-500">
-                검수 대기 중인 인증글이 없습니다.
+                승인 대기 인증글이 없습니다.
               </p>
             </Card>
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {pendingPosts.map((post) => (
-                  <PendingCertificationCard
+                {posts.map((post) => (
+                  <ReviewCertificationCard
                     key={post.postId}
                     post={post}
                     isRejecting={rejectTargetId === post.postId}
@@ -498,15 +516,15 @@ const ChallengeFeedPage = ({ challengeId }) => {
                 ))}
               </div>
 
-              {hasNextPendingPage && (
+              {hasNextPage && (
                 <div className="mt-6 flex justify-center">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => fetchNextPendingPage()}
-                    disabled={isFetchingNextPendingPage || isReviewActionPending}
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage || isReviewActionPending}
                   >
-                    {isFetchingNextPendingPage ? "불러오는 중..." : "더 보기"}
+                    {isFetchingNextPage ? "불러오는 중..." : "더 보기"}
                   </Button>
                 </div>
               )}

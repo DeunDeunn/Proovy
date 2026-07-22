@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- S3 외부 프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Award, Camera, ChevronDown, ChevronUp, Share2 } from "lucide-react";
@@ -34,12 +34,27 @@ const InfoRow = ({ label, value }) => (
 
 const ChallengeDetailPage = ({ challengeId }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [isDescriptionClampable, setIsDescriptionClampable] = useState(false);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const searchParams = useSearchParams();
+  const descriptionRef = useRef(null);
 
   const { data: me } = useMe();
   const { data: challenge, isLoading, isError, error } = useChallenge(challengeId);
+
+  // 설명이 3줄(line-clamp-3)을 넘겨서 실제로 잘렸을 때만 더보기/접기 버튼을 보여준다.
+  // 창 크기 조절/기기 회전으로 줄바꿈이 달라지면 잘림 여부도 바뀌므로 리사이즈 때도 다시 잰다
+  useEffect(() => {
+    const recalc = () => {
+      const el = descriptionRef.current;
+      if (!el) return;
+      setIsDescriptionClampable(el.scrollHeight > el.clientHeight + 1);
+    };
+    recalc();
+    window.addEventListener("resize", recalc);
+    return () => window.removeEventListener("resize", recalc);
+  }, [challenge?.description]);
   const { data: hostProfile } = useUserProfile(challenge?.hostId);
   const { data: wallet, isLoading: isWalletLoading } = useWallet({ enabled: !!me });
   const { data: participants } = useChallengeParticipants(challengeId);
@@ -58,6 +73,7 @@ const ChallengeDetailPage = ({ challengeId }) => {
 
   const isHost = me?.id != null && me.id === challenge.hostId;
   const isParticipant = participants?.some((p) => p.userId === me?.id) ?? false;
+  const isInProgress = challenge.status === "IN_PROGRESS";
   const isFull = challenge.currentParticipants >= challenge.maxParticipants;
   const hasEnoughCash = wallet?.availableBalance >= challenge.entryFee;
   const thumbnailUploadFailed = searchParams.get("thumbnailUpload") === "failed";
@@ -147,7 +163,7 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 <Share2 size={14} />
                 {linkCopied ? "링크가 복사됐어요" : "공유하기"}
               </button>
-              {isParticipant && (
+              {isParticipant && isInProgress && (
                 <div className="absolute top-full right-0 z-10 mt-2 flex w-full flex-col gap-2">
                   <Link
                     href={`/challenges/${challengeId}/feed`}
@@ -220,20 +236,23 @@ const ChallengeDetailPage = ({ challengeId }) => {
           <div className="rounded-xl border border-gray-200 p-5">
             <h2 className="text-sm font-bold text-gray-900">챌린지 소개</h2>
             <p
+              ref={descriptionRef}
               className={`mt-2 text-sm text-gray-600 whitespace-pre-line ${
                 showFullDescription ? "" : "line-clamp-3"
               }`}
             >
               {challenge.description}
             </p>
-            <button
-              type="button"
-              onClick={() => setShowFullDescription((prev) => !prev)}
-              className="mt-3 flex w-full items-center justify-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700"
-            >
-              {showFullDescription ? "접기" : "더보기"}
-              {showFullDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+            {isDescriptionClampable && (
+              <button
+                type="button"
+                onClick={() => setShowFullDescription((prev) => !prev)}
+                className="mt-3 flex w-full items-center justify-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700"
+              >
+                {showFullDescription ? "접기" : "더보기"}
+                {showFullDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            )}
           </div>
         </div>
 

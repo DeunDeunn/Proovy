@@ -15,6 +15,7 @@ import com.deundeun.certification.enums.ApprovalType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
@@ -73,6 +74,9 @@ public interface CertificationMapper {
 
    // 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용). 인증 0건 참가자는 결과에 없음
    List<ParticipantSuccessCount> countApprovedDaysByParticipantIds(@Param("participantIds") List<Long> participantIds);
+
+   // 한 참가자의 승인된 인증 날짜 목록 (중복 제거, 최신순). 삭제된 글도 성공 실적으로 포함한다.
+   List<LocalDate> findApprovedCertificationDates(Long challengeParticipantId);
 
    // 특정 챌린지의 승인대기 인증글 목록 (방장 검수용, 커서 무한스크롤·오래된 순)
    List<PendingCertificationResponse> findPendingCertifications(@Param("challengeId") Long challengeId,
