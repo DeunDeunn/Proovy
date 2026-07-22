@@ -4,16 +4,39 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera } from "lucide-react";
+import { Calendar, Camera, ClipboardCheck, ShieldCheck, Tag } from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useCategories, useCreateChallenge, useUpdateChallengeThumbnail } from "./hooks";
+import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 
 const DESCRIPTION_MAX_LENGTH = 500;
-const CERT_TIME_MIN = "02:00";
-const CERT_TIME_MAX = "23:00";
+
+const formatDate = (date) => {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+// 시작일은 최소 내일부터 선택 가능 (오늘 시작은 불가) - 로컬 타임존 기준으로 계산
+const getMinStartDate = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return formatDate(tomorrow);
+};
+
+// 종료일은 시작일보다 하루 이상 뒤여야 함
+const getMinEndDate = (startDate) => {
+  if (!startDate) return undefined;
+  // "yyyy-mm-dd"를 new Date(string)으로 바로 넘기면 UTC 자정으로 해석돼
+  // getDate()/setDate()의 로컬 기준과 어긋나 UTC보다 느린 시간대에서 하루 계산이 틀어진다
+  const [year, month, day] = startDate.split("-").map(Number);
+  const dayAfterStart = new Date(year, month - 1, day + 1);
+  return formatDate(dayAfterStart);
+};
 
 const inputClassName =
   "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary";
@@ -42,10 +65,24 @@ const initialForm = {
   feedVisibility: "PUBLIC",
 };
 
-const SummaryRow = ({ label, value }) => (
+const SummaryRow = ({ label, value, highlight }) => (
   <div className="flex items-center justify-between py-2 text-sm">
     <span className="text-gray-500">{label}</span>
-    <span className="font-medium text-gray-800">{value}</span>
+    <span className={highlight ? "font-bold text-primary" : "font-medium text-gray-800"}>
+      {value}
+    </span>
+  </div>
+);
+
+const SectionHeading = ({ icon: Icon, title, description }) => (
+  <div className="mb-5 flex items-center gap-3">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
+      <Icon size={18} />
+    </div>
+    <div>
+      <h2 className="text-base font-bold text-gray-900">{title}</h2>
+      {description && <p className="text-xs text-gray-400">{description}</p>}
+    </div>
   </div>
 );
 
@@ -113,6 +150,7 @@ const ChallengeCreatePage = () => {
     form.title.trim() !== "" && form.categoryId !== "" && Number(form.entryFee) >= 1000;
   const isStep2Valid =
     form.startDate !== "" &&
+    form.startDate >= getMinStartDate() &&
     form.endDate !== "" &&
     form.endDate > form.startDate &&
     Number(form.maxParticipants) > 0;
@@ -192,7 +230,7 @@ const ChallengeCreatePage = () => {
 
       {step === 1 && (
         <Card>
-          <h2 className="mb-4 text-base font-bold text-gray-900">기본 설정</h2>
+          <SectionHeading icon={Tag} title="기본 설정" description="챌린지의 얼굴이 될 정보예요." />
           <div className="space-y-4">
             <div>
               <label htmlFor="create-title" className={labelClassName}>
@@ -235,15 +273,20 @@ const ChallengeCreatePage = () => {
               <label htmlFor="create-entry-fee" className={labelClassName}>
                 참가비 (1,000원 이상)
               </label>
-              <input
-                id="create-entry-fee"
-                type="number"
-                min={1000}
-                step={1000}
-                value={form.entryFee}
-                onChange={setField("entryFee")}
-                className={inputClassName}
-              />
+              <div className="relative">
+                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-gray-400">
+                  ₩
+                </span>
+                <input
+                  id="create-entry-fee"
+                  type="number"
+                  min={1000}
+                  step={1000}
+                  value={form.entryFee}
+                  onChange={setField("entryFee")}
+                  className={`${inputClassName} pl-7`}
+                />
+              </div>
             </div>
 
             <div>
@@ -278,7 +321,11 @@ const ChallengeCreatePage = () => {
 
       {step === 2 && (
         <Card>
-          <h2 className="mb-4 text-base font-bold text-gray-900">상세 설정</h2>
+          <SectionHeading
+            icon={Calendar}
+            title="상세 설정"
+            description="언제, 몇 명과 함께할지 정해주세요."
+          />
           <div className="space-y-4">
             <div>
               <label htmlFor="create-description" className={labelClassName}>
@@ -304,6 +351,7 @@ const ChallengeCreatePage = () => {
                 <input
                   aria-label="시작일"
                   type="date"
+                  min={getMinStartDate()}
                   value={form.startDate}
                   onChange={setField("startDate")}
                   className={`${inputClassName} min-w-0`}
@@ -312,6 +360,7 @@ const ChallengeCreatePage = () => {
                 <input
                   aria-label="종료일"
                   type="date"
+                  min={getMinEndDate(form.startDate)}
                   value={form.endDate}
                   onChange={setField("endDate")}
                   className={`${inputClassName} min-w-0`}
@@ -319,6 +368,9 @@ const ChallengeCreatePage = () => {
               </div>
               {periodDays && (
                 <p className="mt-1 text-xs text-gray-400">총 {periodDays}일간 진행돼요.</p>
+              )}
+              {form.startDate && form.startDate < getMinStartDate() && (
+                <p className="mt-1 text-xs text-danger">시작일은 최소 내일부터 선택할 수 있어요.</p>
               )}
               {form.startDate && form.endDate && form.endDate <= form.startDate && (
                 <p className="mt-1 text-xs text-danger">종료일은 시작일보다 나중이어야 해요.</p>
@@ -344,7 +396,11 @@ const ChallengeCreatePage = () => {
 
       {step === 3 && (
         <Card>
-          <h2 className="mb-4 text-base font-bold text-gray-900">인증 설정</h2>
+          <SectionHeading
+            icon={ShieldCheck}
+            title="인증 설정"
+            description="참가자들이 어떻게 인증할지 정해주세요."
+          />
           <div className="space-y-4">
             <div>
               <label htmlFor="create-verification-method" className={labelClassName}>
@@ -362,19 +418,8 @@ const ChallengeCreatePage = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="create-daily-cert-limit" className={labelClassName}>
-                  하루 인증 횟수
-                </label>
-                <select
-                  id="create-daily-cert-limit"
-                  value={form.dailyCertLimit}
-                  onChange={setField("dailyCertLimit")}
-                  className={inputClassName}
-                >
-                  <option value={1}>1회</option>
-                  <option value={2}>2회</option>
-                  <option value={3}>3회</option>
-                </select>
+                <span className={labelClassName}>하루 인증 횟수</span>
+                <p className={`${inputClassName} bg-gray-50 text-gray-500`}>1회 (고정)</p>
               </div>
               <div>
                 <label className={labelClassName}>인증 가능 시간</label>
@@ -408,23 +453,6 @@ const ChallengeCreatePage = () => {
               </p>
             )}
 
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3.5 py-3">
-              <div>
-                <p className="text-sm font-medium text-gray-800">AI 자동검수 사용</p>
-                <p className="mt-0.5 text-xs text-gray-400">AI가 인증 사진을 자동으로 검수해요.</p>
-              </div>
-              <label className="relative inline-flex cursor-pointer items-center">
-                <input
-                  type="checkbox"
-                  checked={form.aiReviewEnabled}
-                  onChange={setField("aiReviewEnabled")}
-                  className="peer sr-only"
-                />
-                <span className="h-6 w-11 rounded-full bg-gray-300 transition-colors peer-checked:bg-primary" />
-                <span className="absolute left-1 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
-              </label>
-            </div>
-
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">성공 기준</span>
               <span className="font-medium text-gray-800">80% 이상 인증 시 성공 (고정)</span>
@@ -450,13 +478,20 @@ const ChallengeCreatePage = () => {
 
       {step === 4 && (
         <Card>
-          <h2 className="mb-2 text-base font-bold text-gray-900">확인</h2>
-          <p className="mb-2 text-xs text-gray-400">아래 내용으로 챌린지를 개설해요.</p>
+          <SectionHeading
+            icon={ClipboardCheck}
+            title="확인"
+            description="아래 내용으로 챌린지를 개설해요."
+          />
           <div className="divide-y divide-gray-100">
             <SummaryRow label="제목" value={form.title} />
             <SummaryRow label="카테고리" value={selectedCategoryName ?? "-"} />
             <SummaryRow label="챌린지 사진" value={thumbnailFile ? "선택됨" : "선택 안 함"} />
-            <SummaryRow label="참가비" value={`₩ ${Number(form.entryFee).toLocaleString()}`} />
+            <SummaryRow
+              label="참가비"
+              value={`₩ ${Number(form.entryFee).toLocaleString()}`}
+              highlight
+            />
             <SummaryRow
               label="진행 기간"
               value={periodDays ? `${form.startDate} ~ ${form.endDate} (${periodDays}일)` : "-"}
@@ -468,7 +503,6 @@ const ChallengeCreatePage = () => {
               label="인증 가능 시간"
               value={`${form.certStartTime} ~ ${form.certEndTime}`}
             />
-            <SummaryRow label="AI 자동검수" value={form.aiReviewEnabled ? "사용" : "미사용"} />
             <SummaryRow label="성공 기준" value="80% (고정)" />
             <SummaryRow
               label="피드 공개 범위"
