@@ -45,19 +45,23 @@ const VERIFICATION_STATUS_META = {
 };
 const DEFAULT_VERIFICATION_META = { text: "우수 사용자 인증을 신청해보세요", action: "신청하기" };
 
-const ChallengeSummarySection = ({ title, count, challenges, emptyText }) => {
+const ChallengeSummarySection = ({
+  title,
+  count,
+  challenges,
+  emptyText,
+  showPendingCertificationBadge = false,
+}) => {
   const [page, setPage] = useState(0);
   const totalPages = Math.max(Math.ceil(challenges.length / CHALLENGE_PAGE_SIZE), 1);
-  // 다른 챌린지를 나가는 등으로 목록이 줄어들면 이전에 보던 page 값이 범위를 벗어날 수 있어
-  // (예: 2페이지를 보던 중 목록이 5개 이하로 줄면), 렌더링 시점에 유효한 범위로 보정한다.
   const currentPage = Math.min(page, totalPages - 1);
   const pageItems = challenges.slice(
     currentPage * CHALLENGE_PAGE_SIZE,
     currentPage * CHALLENGE_PAGE_SIZE + CHALLENGE_PAGE_SIZE
   );
 
-  const goPrev = () => setPage((p) => Math.max(p - 1, 0));
-  const goNext = () => setPage((p) => Math.min(p + 1, totalPages - 1));
+  const goPrev = () => setPage((current) => Math.max(current - 1, 0));
+  const goNext = () => setPage((current) => Math.min(current + 1, totalPages - 1));
 
   return (
     <Card>
@@ -79,7 +83,11 @@ const ChallengeSummarySection = ({ title, count, challenges, emptyText }) => {
         <>
           <div className="grid grid-cols-5 gap-3">
             {pageItems.map((challenge) => (
-              <ChallengeCard key={challenge.id} challenge={challenge} />
+              <ChallengeCard
+                key={challenge.id}
+                challenge={challenge}
+                showPendingCertificationBadge={showPendingCertificationBadge}
+              />
             ))}
           </div>
 
@@ -306,6 +314,7 @@ const MyPage = () => {
           count={me.hostingChallenges.length}
           challenges={me.hostingChallenges}
           emptyText="운영 중인 챌린지가 없어요"
+          showPendingCertificationBadge
         />
       </div>
 

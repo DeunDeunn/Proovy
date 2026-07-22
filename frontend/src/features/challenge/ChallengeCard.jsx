@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 
+import Badge from "@/components/ui/Badge";
 import { formatChallengePeriod } from "@/lib/date";
 import { statusBadgeMap } from "./categoryVisuals";
 
-const ChallengeCard = ({ challenge }) => {
+const ChallengeCard = ({ challenge, showPendingCertificationBadge = false }) => {
   const statusBadge = statusBadgeMap[challenge.status] ?? statusBadgeMap.RECRUITING;
+  const pendingCertificationCount = challenge.pendingCertificationCount ?? 0;
 
   return (
     <Link
@@ -34,13 +36,18 @@ const ChallengeCard = ({ challenge }) => {
             {challenge.categoryName}
           </span>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-end justify-between gap-3">
           <p className="text-sm font-semibold text-gray-800">
             ₩ {(challenge.entryFee ?? 0).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500">
-            {challenge.currentParticipants} / {challenge.maxParticipants}명
-          </p>
+          <div className="flex flex-col items-end gap-1">
+            <p className="text-xs text-gray-500">
+              {challenge.currentParticipants} / {challenge.maxParticipants}명
+            </p>
+            {showPendingCertificationBadge && pendingCertificationCount > 0 && (
+              <Badge variant="danger">미검수 {pendingCertificationCount}건</Badge>
+            )}
+          </div>
         </div>
         <p className="text-xs text-gray-500">
           {formatChallengePeriod(challenge.startDate, challenge.endDate)}

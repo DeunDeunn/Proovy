@@ -55,7 +55,7 @@
           AND created_at::date = CURRENT_DATE
     </select>
 
-    <!-- 홈 오늘 인증 현황: 진행 중 챌린지 중 오늘 인증글을 등록한 챌린지 수 / 전체 수 -->
+    <!-- 홈 오늘 인증 현황: 내 참여 인증 진행도 + 내가 운영 중인 챌린지의 오늘 등록/미검수 글 수 -->
     <select id="findTodayCertificationProgress" resultType="TodayCertificationProgressResponse">
         SELECT
             COUNT(*) FILTER (
@@ -66,7 +66,28 @@
                       AND p.created_at::date = CURRENT_DATE
                 )
             ) AS certified_challenge_count,
-            COUNT(*) AS in_progress_challenge_count
+            COUNT(*) AS in_progress_challenge_count,
+            (
+                SELECT COUNT(*)
+                FROM certification_posts p
+                JOIN challenge_participants hosted_cp ON hosted_cp.id = p.challenge_participant_id
+                JOIN challenges hosted_c ON hosted_c.id = hosted_cp.challenge_id
+                WHERE hosted_c.host_id = #{userId}
+                  AND hosted_c.status = 'IN_PROGRESS'
+                  AND p.deleted_at IS NULL
+                  AND p.created_at &gt;= date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')
+                  AND p.created_at &lt; date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') + INTERVAL '1 day'
+            ) AS hosted_today_certification_post_count,
+            (
+                SELECT COUNT(*)
+                FROM certification_posts p
+                JOIN challenge_participants hosted_cp ON hosted_cp.id = p.challenge_participant_id
+                JOIN challenges hosted_c ON hosted_c.id = hosted_cp.challenge_id
+                WHERE hosted_c.host_id = #{userId}
+                  AND hosted_c.status = 'IN_PROGRESS'
+                  AND p.certification_status = 'PENDING'
+                  AND p.deleted_at IS NULL
+            ) AS hosted_pending_certification_post_count
         FROM challenge_participants cp
         JOIN challenges c ON c.id = cp.challenge_id
         WHERE cp.user_id = #{userId}

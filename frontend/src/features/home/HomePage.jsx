@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useWallet } from "@/features/wallet/hooks";
 import { useChallenges } from "@/features/challenge/hooks";
 import ChallengeCard from "@/features/challenge/ChallengeCard";
 import {
@@ -10,14 +9,17 @@ import {
   usePopularFeed,
   useTodayCertificationProgress,
 } from "./hooks";
+import { useMyPage } from "@/features/mypage/hooks";
 import ProfileAvatar from "@/components/ui/ProfileAvatar";
 import Loading from "@/components/ui/Loading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { formatRelativeTime } from "@/lib/date";
 import {
   ArrowRight,
+  ClipboardCheck,
   CheckCircle2,
-  CircleDollarSign,
+  CircleHelp,
+  FileText,
   Flame,
   Gift,
   Heart,
@@ -27,15 +29,18 @@ import {
   UsersRound,
 } from "lucide-react";
 
-const StatRow = ({ icon: Icon, iconClassName, label, value }) => (
-  <div className="flex items-center gap-3 border-b border-gray-100 py-3 last:border-b-0">
-    <span
-      className={`flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 ${iconClassName}`}
-    >
-      <Icon size={19} strokeWidth={2.5} aria-hidden="true" />
+const CertificationStatCard = ({ icon: Icon, iconClassName, label, value, badge }) => (
+  <div className="relative rounded-2xl border border-gray-200 bg-white p-2">
+    <span className={`flex h-6 w-6 items-center justify-center rounded-full ${iconClassName}`}>
+      <Icon size={14} strokeWidth={2.5} aria-hidden="true" />
     </span>
-    <span className="text-sm font-medium text-gray-700">{label}</span>
-    <strong className="ml-auto text-sm text-gray-900">{value}</strong>
+    {badge != null && (
+      <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
+        {badge}
+      </span>
+    )}
+    <p className="mt-1 text-xs font-medium text-gray-500">{label}</p>
+    <strong className="mt-0 block text-base font-bold text-gray-900">{value}</strong>
   </div>
 );
 
@@ -87,12 +92,6 @@ const homeFeatures = [
 
 const HomePage = () => {
   const {
-    data: wallet,
-    isLoading: isWalletLoading,
-    isError: isWalletError,
-    error: walletError,
-  } = useWallet();
-  const {
     data: challengesData,
     isLoading: isChallengesLoading,
     isError: isChallengesError,
@@ -114,10 +113,38 @@ const HomePage = () => {
     isLoading: isTodayCertificationLoading,
     isError: isTodayCertificationError,
   } = useTodayCertificationProgress();
+  const { data: myPageData } = useMyPage();
 
   const challenges = challengesData?.content ?? [];
   const popularFeeds = popularFeed ?? [];
-  const isWalletUnauthenticated = isWalletError && walletError?.code === "C004";
+  const isTodayCertificationUnavailable = isTodayCertificationLoading || isTodayCertificationError;
+  const todayCertificationValue = isTodayCertificationLoading
+    ? "불러오는 중"
+    : isTodayCertificationError
+      ? "조회 실패"
+      : `${todayCertificationProgress?.certifiedChallengeCount ?? 0}/${todayCertificationProgress?.inProgressChallengeCount ?? 0}`;
+  const hostedTodayCertificationValue = isTodayCertificationUnavailable
+    ? isTodayCertificationLoading
+      ? "불러오는 중"
+      : "조회 실패"
+    : `${todayCertificationProgress?.hostedTodayCertificationPostCount ?? 0}건`;
+  const hostedPendingCertificationCount =
+    todayCertificationProgress?.hostedPendingCertificationPostCount ?? 0;
+  const hostedPendingCertificationValue = isTodayCertificationUnavailable
+    ? isTodayCertificationLoading
+      ? "불러오는 중"
+      : "조회 실패"
+    : `${hostedPendingCertificationCount}건`;
+
+  // 미검수 인증이 있는 운영 챌린지가 딱 하나면 그 챌린지의 인증 관리로 직행하고,
+  // 여러 개거나 없으면 내 챌린지(운영 중) 목록으로 보내 사용자가 직접 고르게 한다.
+  const pendingReviewChallenges = (myPageData?.hostingChallenges ?? []).filter(
+    (challenge) => (challenge.pendingCertificationCount ?? 0) > 0
+  );
+  const pendingReviewHref =
+    pendingReviewChallenges.length === 1
+      ? `/challenges/${pendingReviewChallenges[0].id}/manage?tab=certifications`
+      : "/my-challenges?tab=hosting";
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-4 pb-2">
@@ -140,51 +167,60 @@ const HomePage = () => {
           </Link>
         </div>
 
-        <aside className="rounded-3xl border border-gray-200 bg-surface p-5">
-          <h2 className="text-base font-bold text-gray-900">오늘의 인증 현황</h2>
-          <div className="mt-2">
-            <StatRow
-              icon={CheckCircle2}
-              iconClassName="bg-blue-50 text-primary"
-              label="오늘 인증"
-              value={
-                isTodayCertificationLoading
-                  ? "불러오는 중..."
-                  : isTodayCertificationError
-                    ? "조회 실패"
-                    : `${todayCertificationProgress?.certifiedChallengeCount ?? 0}/${todayCertificationProgress?.inProgressChallengeCount ?? 0}`
-              }
-            />
-            <StatRow
-              icon={Flame}
-              iconClassName="bg-orange-50 text-orange-500"
-              label="연속 성공일"
-              value={
-                isStreakLoading
-                  ? "불러오는 중..."
-                  : isStreakError
-                    ? "조회 실패"
-                    : `${maxCertificationStreak ?? 0}일`
-              }
-            />
-            {isWalletLoading ? (
-              <Loading label="포인트 불러오는 중..." />
-            ) : isWalletError && !isWalletUnauthenticated ? (
-              <ErrorMessage error={walletError} />
-            ) : (
-              <StatRow
-                icon={CircleDollarSign}
-                iconClassName="bg-blue-50 text-primary"
-                label="보유 포인트"
-                value={`${(wallet?.availableBalance ?? 0).toLocaleString()}P`}
-              />
-            )}
+        <aside className="rounded-3xl border border-gray-200 bg-surface p-3">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-base font-bold text-gray-900">오늘의 인증 현황</h2>
+            <CircleHelp size={18} className="text-gray-400" aria-label="오늘의 인증 현황 안내" />
           </div>
+
+          <section className="mt-2">
+            <h3 className="text-sm font-bold text-primary">나의 인증</h3>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <CertificationStatCard
+                icon={CheckCircle2}
+                iconClassName="bg-blue-50 text-primary"
+                label="오늘 인증"
+                value={todayCertificationValue}
+              />
+              <CertificationStatCard
+                icon={Flame}
+                iconClassName="bg-orange-50 text-orange-500"
+                label="연속 성공일"
+                value={
+                  isStreakLoading
+                    ? "불러오는 중"
+                    : isStreakError
+                      ? "조회 실패"
+                      : `${maxCertificationStreak ?? 0}일`
+                }
+              />
+            </div>
+          </section>
+
+          <section className="mt-1.5 border-t border-gray-100 pt-1.5">
+            <h3 className="text-sm font-bold text-primary">운영 챌린지</h3>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <CertificationStatCard
+                icon={FileText}
+                iconClassName="bg-emerald-50 text-emerald-500"
+                label="오늘 올라온 인증"
+                value={hostedTodayCertificationValue}
+              />
+              <CertificationStatCard
+                icon={ClipboardCheck}
+                iconClassName="bg-orange-50 text-orange-500"
+                label="미검수 인증"
+                value={hostedPendingCertificationValue}
+                badge={!isTodayCertificationUnavailable && hostedPendingCertificationCount > 0 ? hostedPendingCertificationCount : null}
+              />
+            </div>
+          </section>
           <Link
-            href="/wallet/charge"
-            className="mt-4 flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
+            href={pendingReviewHref}
+            className="mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-1.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
           >
-            포인트 충전하기
+            미검수 인증 {hostedPendingCertificationCount}건 확인하기
+            <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </aside>
       </section>

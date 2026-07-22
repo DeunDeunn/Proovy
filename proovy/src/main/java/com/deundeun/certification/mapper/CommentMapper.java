@@ -48,9 +48,6 @@ public interface CommentMapper {
     // 댓글 좋아요 집계
     long findCommentLikeCount(Long commentId);
 
-    // 댓글 수 +1
+    // 댓글 수 +1 (삭제해도 감소시키지 않음 → 삭제 댓글도 카운트에 포함)
     void incrementCommentCount(Long postId);
-
-    // 댓글 수 -1 (0 미만 방지)
-    void decrementCommentCount(Long postId);
 }

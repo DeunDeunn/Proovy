@@ -545,7 +545,17 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
 
               {(comment.replies ?? []).length > 0 && (
                 <div className="mt-3 space-y-3 border-l-2 border-gray-100 pl-3">
-                  {comment.replies.map((reply) => (
+                  {comment.replies.map((reply) =>
+                    reply.deleted ? (
+                      <div key={reply.commentId} className="flex items-start gap-2">
+                        <CornerDownRight
+                          size={14}
+                          className="mt-0.5 shrink-0 text-gray-400"
+                          aria-hidden="true"
+                        />
+                        <p className="text-sm text-gray-400">삭제된 댓글입니다.</p>
+                      </div>
+                    ) : (
                     <div key={reply.commentId} className="flex items-start gap-2">
                       <CornerDownRight
                         size={14}

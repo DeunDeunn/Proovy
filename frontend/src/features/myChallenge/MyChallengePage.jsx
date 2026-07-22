@@ -26,8 +26,8 @@ const TabButton = ({ label, count, selected, onClick }) => (
   </button>
 );
 
-const MyChallengePage = () => {
-  const [tab, setTab] = useState("participating");
+const MyChallengePage = ({ initialTab }) => {
+  const [tab, setTab] = useState(initialTab === "hosting" ? "hosting" : "participating");
   const { data, isLoading, isError, error } = useMyPage();
 
   const participatingChallenges = data?.participatingChallenges ?? [];
@@ -68,7 +68,11 @@ const MyChallengePage = () => {
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {challenges.map((challenge) => (
-            <ChallengeCard key={challenge.id} challenge={challenge} />
+            <ChallengeCard
+              key={challenge.id}
+              challenge={challenge}
+              showPendingCertificationBadge={tab === "hosting"}
+            />
           ))}
         </div>
       )}

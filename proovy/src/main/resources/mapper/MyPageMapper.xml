@@ -15,7 +15,8 @@
             c.start_date,
             c.end_date,
             c.status,
-            c.thumbnail_url
+            c.thumbnail_url,
+            0 AS pending_certification_count
         FROM challenge_participants p
         JOIN challenges c ON c.id = p.challenge_id
         JOIN categories cat ON cat.id = c.category_id
@@ -38,7 +39,15 @@
             c.start_date,
             c.end_date,
             c.status,
-            c.thumbnail_url
+            c.thumbnail_url,
+            (
+                SELECT COUNT(*)
+                FROM certification_posts cp
+                JOIN challenge_participants p ON p.id = cp.challenge_participant_id
+                WHERE p.challenge_id = c.id
+                  AND cp.certification_status = 'PENDING'
+                  AND cp.deleted_at IS NULL
+            ) AS pending_certification_count
         FROM challenges c
         JOIN categories cat ON cat.id = c.category_id
         WHERE c.host_id = #{userId}
