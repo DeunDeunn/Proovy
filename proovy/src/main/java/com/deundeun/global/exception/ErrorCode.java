@@ -157,6 +157,7 @@ public enum ErrorCode {
     NO_COMMENT_PERMISSION(HttpStatus.FORBIDDEN, "CF022", "댓글에 대한 권한이 없습니다."),
     CANNOT_LIKE_COMMENT_UNAPPROVED(HttpStatus.CONFLICT, "CF023", "승인된 인증글의 댓글에만 좋아요할 수 있습니다."),
     INVALID_KEPT_IMAGE(HttpStatus.BAD_REQUEST, "CF024", "유지할 수 없는 이미지입니다."),
+    HOST_POST_MANUAL_REVIEW_FORBIDDEN(HttpStatus.FORBIDDEN, "CF025", "방장의 인증글은 AI만 검수할 수 있습니다."),
 
     //파일 업로드
     FILE_EMPTY(HttpStatus.BAD_REQUEST, "F001", "업로드할 파일이 비어 있습니다."),

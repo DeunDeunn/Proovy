@@ -20,7 +20,8 @@ public class TicketActivatedAiReviewListener {
     @Async("notificationExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(AiTicketActivatedEvent event) {
-        for (Long postId : aiReviewMapper.findPendingParticipantPostIdsByHostId(event.hostId())) {
+        for (Long postId : aiReviewMapper.findPendingParticipantPostIdsBeforeTicketActivation(
+                event.hostId(), event.activatedAt())) {
             try {
                 aiReviewService.reviewSubmittedPost(postId);
             } catch (RuntimeException exception) {

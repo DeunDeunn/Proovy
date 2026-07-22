@@ -386,7 +386,7 @@ const PendingCertificationCard = ({
   </div>
 );
 
-const CertificationReviewTab = ({ challengeId, hostId }) => {
+const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     usePendingCertifications(challengeId);
   const {
@@ -399,6 +399,7 @@ const CertificationReviewTab = ({ challengeId, hostId }) => {
 
   const posts = data?.pages.flat() ?? [];
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
+  const usesAutomaticReview = aiReviewEnabled === true && hasActiveTicket;
 
   const handleApprove = (postId) => {
     approveMutation.mutate(postId);
@@ -431,16 +432,24 @@ const CertificationReviewTab = ({ challengeId, hostId }) => {
       <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4">
         <div>
           <p className="text-sm font-semibold text-gray-900">
-            {hasActiveTicket ? "AI 티켓 활성화 중" : "AI 티켓 비활성화"}
+            {usesAutomaticReview
+              ? "AI 자동 검수 활성화"
+              : aiReviewEnabled
+                ? "AI 티켓 비활성화"
+                : "방장 수동 검수"}
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            {hasActiveTicket
+            {usesAutomaticReview
               ? "참가자의 인증 게시물을 AI가 자동으로 검수합니다."
               : "참가자의 인증 게시물을 방장이 직접 검수합니다."}
           </p>
         </div>
         {isTicketLoading ? (
           <span className="text-xs text-gray-400">티켓 확인 중...</span>
+        ) : usesAutomaticReview ? (
+          <span className="shrink-0 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
+            자동 검수 사용 중
+          </span>
         ) : !hasActiveTicket ? (
           <Link
             href="/mypage/tickets/store"
@@ -449,8 +458,8 @@ const CertificationReviewTab = ({ challengeId, hostId }) => {
             티켓 활성화
           </Link>
         ) : (
-          <span className="shrink-0 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
-            자동 검수 사용 중
+          <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+            수동 검수 사용 중
           </span>
         )}
       </div>
@@ -472,7 +481,7 @@ const CertificationReviewTab = ({ challengeId, hostId }) => {
             isRejecting={
               rejectMutation.isPending && rejectMutation.variables?.postId === post.postId
             }
-            canManualReview={!hasActiveTicket && post.authorId !== hostId}
+            canManualReview={!usesAutomaticReview && post.authorId !== hostId}
           />
         ))
       )}
@@ -702,7 +711,11 @@ const ChallengeManagePage = ({ challengeId, initialTab }) => {
       )}
 
       {tab === "certifications" && (
-        <CertificationReviewTab challengeId={challengeId} hostId={challenge.hostId} />
+        <CertificationReviewTab
+          challengeId={challengeId}
+          hostId={challenge.hostId}
+          aiReviewEnabled={challenge.aiReviewEnabled}
+        />
       )}
 
       {tab === "settings" && <RoomSettingsTab challenge={challenge} challengeId={challengeId} />}

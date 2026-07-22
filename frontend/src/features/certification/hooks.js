@@ -28,6 +28,13 @@ export const useCertificationPost = (postId) =>
     queryKey: ["certification-post", postId],
     queryFn: () => getCertificationPost(postId),
     enabled: !!postId,
+    refetchInterval: (query) => {
+      const post = query.state.data;
+      const reviewStatus = post?.aiReview?.status;
+      const waitingForAi =
+        post?.status === "PENDING" && post?.aiReviewExpected === true && reviewStatus !== "FAILED";
+      return waitingForAi ? 2000 : false;
+    },
   });
 
 export const useCreateCertificationPost = (challengeId) =>
