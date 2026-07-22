@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, ImagePlus, MoreVertical, Plus, Search, Send, Smile, Users, X } from "lucide-react";
+import { BadgeCheck, ImagePlus, Plus, Send, Users, X } from "lucide-react";
 
 import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
@@ -146,9 +146,6 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         </div>
 
         <div className="flex shrink-0 items-center gap-1 text-gray-400">
-          <button type="button" aria-label="대화 검색" className="rounded-lg p-2 hover:bg-gray-100">
-            <Search size={18} />
-          </button>
           {isChallenge && (
             <div ref={memberListRef} className="relative">
               <button
@@ -200,9 +197,6 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               )}
             </div>
           )}
-          <button type="button" aria-label="더보기" className="rounded-lg p-2 hover:bg-gray-100">
-            <MoreVertical size={18} />
-          </button>
           <button
             type="button"
             onClick={onClose}
@@ -295,13 +289,6 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
           placeholder="메시지 입력..."
           className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
         />
-        <button
-          type="button"
-          aria-label="이모지"
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
-        >
-          <Smile size={18} />
-        </button>
         <button
           type="button"
           aria-label="이미지 첨부"
