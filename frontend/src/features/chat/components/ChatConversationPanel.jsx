@@ -10,6 +10,7 @@ import {
   useChatRoomHistory,
   useChatRoomSubscription,
   useDeleteChatMessage,
+  useMarkRoomRead,
   useSendChatAttachment,
 } from "@/features/chat/hooks/chatHooks";
 import { getAvatarColor, getRoomDisplayName } from "@/features/chat/mockData";
@@ -41,6 +42,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   const imageInputRef = useRef(null);
   const deleteMessageMutation = useDeleteChatMessage();
   const attachmentMutation = useSendChatAttachment(room.chatRoomId);
+  const { mutate: markRoomRead } = useMarkRoomRead();
 
   const isChallenge = room.chatRoomType === "CHALLENGE";
   const displayName = getRoomDisplayName(room);
@@ -51,6 +53,15 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ block: "end" });
   }, [lastMessageId]);
+
+  // 방을 열어둔 채로 새 메시지가 도착해도 읽음 커서를 계속 따라가도록 다시 읽음 처리한다.
+  // 입장 시 1회만 처리하면, 그 이후 들어오는 메시지에 대해 (1) 내 안 읽은 개수가 실제로는
+  // 보고 있는데도 계속 올라가고 (2) 상대방 화면에 내 메시지의 "읽음" 표시가 실시간으로
+  // 반영되지 않는 문제가 있었다.
+  useEffect(() => {
+    if (lastMessageId == null) return;
+    markRoomRead(room.chatRoomId);
+  }, [lastMessageId, room.chatRoomId, markRoomRead]);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
