@@ -2,12 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import {
-  approveCertificationPost,
-  getChallengeFeed,
-  getPendingCertifications,
-  rejectCertificationPost,
-} from "./api";
+import { approveCertificationPost, getChallengeFeed, rejectCertificationPost } from "./api";
 
 const PAGE_SIZE = 20;
 
@@ -34,24 +29,8 @@ export const useChallengeFeed = (challengeId, filter, sort) =>
     },
   });
 
-export const usePendingCertifications = (challengeId, enabled) =>
-  useInfiniteQuery({
-    queryKey: ["pending-certifications", challengeId],
-    queryFn: ({ pageParam }) =>
-      getPendingCertifications(challengeId, { cursor: pageParam, size: PAGE_SIZE }),
-    initialPageParam: null,
-    enabled: Boolean(challengeId) && enabled,
-    getNextPageParam: (lastPage) => {
-      if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
-      return lastPage[lastPage.length - 1]?.postId;
-    },
-  });
-
 const invalidateReviewQueries = (queryClient, challengeId) =>
-  Promise.all([
-    queryClient.invalidateQueries({ queryKey: ["pending-certifications", challengeId] }),
-    queryClient.invalidateQueries({ queryKey: ["challenge-feed", challengeId] }),
-  ]);
+  queryClient.invalidateQueries({ queryKey: ["challenge-feed", challengeId] });
 
 export const useApproveCertificationPost = (challengeId) => {
   const queryClient = useQueryClient();

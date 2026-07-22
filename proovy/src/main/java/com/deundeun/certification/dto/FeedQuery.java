@@ -20,4 +20,5 @@ public class FeedQuery {
     private boolean includeAllStatus;      //내 피드만
     private boolean publicOnly;            //전체 피드만
     private boolean applyViewerVisibility; //타인 피드만
+    private boolean reviewMode;            //챌린지 방장·관리자 검수 피드만
 }

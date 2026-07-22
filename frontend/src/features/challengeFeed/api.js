@@ -14,11 +14,6 @@ export const getChallengeFeed = (
     },
   });
 
-export const getPendingCertifications = (challengeId, { cursor, size = 20 } = {}) =>
-  api.get(`/v1/challenge/${challengeId}/pending-certifications`, {
-    params: { cursor, size },
-  });
-
 export const approveCertificationPost = (postId) =>
   api.patch(`/v1/certification-post/${postId}/approve`);
 
