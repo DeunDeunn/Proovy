@@ -44,7 +44,7 @@ public class TicketService implements WalletTicketService {
                 .walletId(wallet.getId())
                 .type(CashTransactionType.AI_TICKET_PURCHASE)
                 .amount(amount)
-                .balanceAfter(wallet.getChargedBalance() - amount)
+                .balanceAfter(wallet.getAvailableBalance() - amount)
                 .status(CashTransactionStatus.COMPLETED)
                 .referenceId(referenceId)
                 .build();
