@@ -5,7 +5,11 @@ import Image from "next/image";
 import { useWallet } from "@/features/wallet/hooks";
 import { useChallenges } from "@/features/challenge/hooks";
 import ChallengeCard from "@/features/challenge/ChallengeCard";
-import { useMyMaxCertificationStreak, usePopularFeed } from "./hooks";
+import {
+  useMyMaxCertificationStreak,
+  usePopularFeed,
+  useTodayCertificationProgress,
+} from "./hooks";
 import ProfileAvatar from "@/components/ui/ProfileAvatar";
 import Loading from "@/components/ui/Loading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -105,9 +109,15 @@ const HomePage = () => {
     isLoading: isStreakLoading,
     isError: isStreakError,
   } = useMyMaxCertificationStreak();
+  const {
+    data: todayCertificationProgress,
+    isLoading: isTodayCertificationLoading,
+    isError: isTodayCertificationError,
+  } = useTodayCertificationProgress();
 
   const challenges = challengesData?.content ?? [];
   const popularFeeds = popularFeed ?? [];
+  const isWalletUnauthenticated = isWalletError && walletError?.code === "C004";
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-4 pb-2">
@@ -137,7 +147,13 @@ const HomePage = () => {
               icon={CheckCircle2}
               iconClassName="bg-blue-50 text-primary"
               label="오늘 인증"
-              value="1/1"
+              value={
+                isTodayCertificationLoading
+                  ? "불러오는 중..."
+                  : isTodayCertificationError
+                    ? "조회 실패"
+                    : `${todayCertificationProgress?.certifiedChallengeCount ?? 0}/${todayCertificationProgress?.inProgressChallengeCount ?? 0}`
+              }
             />
             <StatRow
               icon={Flame}
@@ -153,7 +169,7 @@ const HomePage = () => {
             />
             {isWalletLoading ? (
               <Loading label="포인트 불러오는 중..." />
-            ) : isWalletError ? (
+            ) : isWalletError && !isWalletUnauthenticated ? (
               <ErrorMessage error={walletError} />
             ) : (
               <StatRow
