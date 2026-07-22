@@ -25,7 +25,7 @@ const NotificationCard = ({ notification, onRead, onDelete }) => {
       className={`group relative flex w-full items-start gap-4 rounded-xl border p-4 pr-9 transition-colors ${
         unread
           ? "border-primary-light bg-primary-light"
-          : "border-gray-200 bg-surface hover:bg-gray-50"
+          : "border-gray-100 bg-surface hover:bg-gray-50"
       }`}
     >
       <button
@@ -50,7 +50,7 @@ const NotificationCard = ({ notification, onRead, onDelete }) => {
             {formatRelativeTime(new Date(notification.createdAt))}
           </span>
           <span
-            className={`h-2 w-2 rounded-full ${unread ? "bg-primary" : "border border-gray-300"}`}
+            className={`h-2 w-2 rounded-full ${unread ? "bg-primary" : "border border-gray-200"}`}
           />
         </div>
       </button>

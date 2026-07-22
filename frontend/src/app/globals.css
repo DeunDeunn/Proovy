@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans:
+    var(--font-pretendard), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
   --color-primary: #2563eb; /* 메인 파랑 (버튼, 활성 메뉴, 로고) */
   --color-primary-hover: #1d4ed8; /* 호버 시 진한 파랑 */
   --color-primary-light: #eff6ff; /* 활성 메뉴 배경, 연한 강조 */
@@ -20,6 +24,17 @@ body {
 
 button:not(:disabled) {
   cursor: pointer;
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 /* 날짜 입력의 브라우저 기본 달력 아이콘을 숨긴다 - 커스텀 아이콘을 왼쪽에 따로 두거나,

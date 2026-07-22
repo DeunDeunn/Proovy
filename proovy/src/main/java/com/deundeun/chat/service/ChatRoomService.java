@@ -189,7 +189,7 @@ public class ChatRoomService {
             return List.of();
         }
 
-        Map<Long, String> challengeTitlesById = findChallengeTitles(items);
+        Map<Long, Challenge> challengesById = findChallenges(items);
         Map<Long, User> usersById = findRelevantUsers(items, userId);
         Set<Long> approvedUserIds = findApprovedUserIds(usersById.keySet());
         Map<Long, Integer> unreadCountsByRoomId = chatUnreadCounter.countBatch(
@@ -198,17 +198,21 @@ public class ChatRoomService {
                 item -> item.lastReadMessageId() != null ? item.lastReadMessageId() : 0L)));
 
         return items.stream()
-            .map(item -> ChatRoomSummaryResponse.of(
-                item,
-                challengeTitlesById.get(item.challengeId()),
-                findDirectChatPartner(item, userId, usersById, approvedUserIds),
-                resolveNickname(usersById, item.lastMessageSenderId()),
-                unreadCountsByRoomId.getOrDefault(item.chatRoomId(), 0)
-            ))
+            .map(item -> {
+                Challenge challenge = challengesById.get(item.challengeId());
+                return ChatRoomSummaryResponse.of(
+                    item,
+                    challenge != null ? challenge.getTitle() : null,
+                    challenge != null ? challenge.getThumbnailUrl() : null,
+                    findDirectChatPartner(item, userId, usersById, approvedUserIds),
+                    resolveNickname(usersById, item.lastMessageSenderId()),
+                    unreadCountsByRoomId.getOrDefault(item.chatRoomId(), 0)
+                );
+            })
             .toList();
     }
 
-    private Map<Long, String> findChallengeTitles(List<ChatRoomListItem> items) {
+    private Map<Long, Challenge> findChallenges(List<ChatRoomListItem> items) {
         List<Long> challengeIds = items.stream()
             .map(ChatRoomListItem::challengeId)
             .filter(Objects::nonNull)
@@ -220,7 +224,7 @@ public class ChatRoomService {
         }
 
         return challengeMapper.findByIds(challengeIds).stream()
-            .collect(Collectors.toMap(Challenge::getId, Challenge::getTitle));
+            .collect(Collectors.toMap(Challenge::getId, challenge -> challenge));
     }
 
     private Map<Long, User> findRelevantUsers(List<ChatRoomListItem> items, Long userId) {

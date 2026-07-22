@@ -304,7 +304,7 @@ class ChatRoomServiceTest {
             20L, null,
             25L, 3L, "오늘 인증 완료했습니다!", ChatMessageType.TEXT, null, null
         );
-        Challenge challenge = Challenge.builder().id(7L).title("매일 아침 7시 기상").build();
+        Challenge challenge = Challenge.builder().id(7L).title("매일 아침 7시 기상").thumbnailUrl("https://cdn/thumb.png").build();
         User sender = User.builder().id(3L).nickname("민기").build();
 
         when(chatRoomMemberMapper.findRoomsByUserId(userId, 0, 20)).thenReturn(List.of(item));
@@ -317,6 +317,7 @@ class ChatRoomServiceTest {
 
         ChatRoomSummaryResponse summary = response.content().get(0);
         assertThat(summary.challengeTitle()).isEqualTo("매일 아침 7시 기상");
+        assertThat(summary.challengeThumbnailUrl()).isEqualTo("https://cdn/thumb.png");
         assertThat(summary.directChatPartner()).isNull();
         assertThat(summary.lastMessage().senderNickname()).isEqualTo("민기");
         assertThat(summary.unreadCount()).isEqualTo(5);
