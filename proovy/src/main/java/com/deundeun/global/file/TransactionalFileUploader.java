@@ -66,6 +66,25 @@ public class TransactionalFileUploader {
         return newUrl;
     }
 
+    /**
+     * 더 이상 쓰이지 않게 된 파일을 지운다(프로필 이미지 삭제 등, 새로 올리는 파일은 없는 경우).
+     * 트랜잭션이 커밋된 뒤에만 실제로 지운다 — 롤백되면 아무 일도 일어나지 않는다.
+     */
+    public void deleteOnCommit(String url) {
+        if (url == null) {
+            return;
+        }
+        requireActiveTransaction();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                    fileStorageService.delete(url);
+                }
+            }
+        });
+    }
+
     private void registerDeleteOnRollback(String url) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override

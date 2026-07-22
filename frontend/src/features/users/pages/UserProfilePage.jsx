@@ -10,6 +10,7 @@ import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
+import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 
 import { useFollow, useUnfollow, useUserFeed, useUserProfile } from "../hooks";
@@ -63,6 +64,7 @@ const UserProfilePage = ({ userId }) => {
   const { data: profile, isLoading, isError, error } = useUserProfile(userId);
   const followMutation = useFollow(userId);
   const unfollowMutation = useUnfollow(userId);
+  const { startChat, isPending: isChatPending, error: chatError } = useStartDirectChat();
   const {
     data: feedData,
     error: feedError,
@@ -89,16 +91,20 @@ const UserProfilePage = ({ userId }) => {
     }
   };
 
+  const handleMessageClick = () => {
+    startChat(userId);
+  };
+
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-4">
         <img
           src={profile.profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
           alt={`${profile.nickname} 프로필 이미지`}
           className="h-16 w-16 rounded-full border border-gray-200 object-cover"
         />
 
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex flex-1 flex-col gap-2">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-gray-900">{profile.nickname}</span>
             {profile.verified && (
@@ -117,29 +123,35 @@ const UserProfilePage = ({ userId }) => {
               <strong className="font-semibold">{profile.followingCount}</strong> 팔로잉
             </Link>
           </div>
-        </div>
 
-        {isMeLoading ? null : isOwnProfile ? (
-          <Link
-            href="/mypage"
-            className="cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            내 마이페이지
-          </Link>
-        ) : (
-          <Button
-            variant={profile.following ? "outline" : "primary"}
-            onClick={handleFollowToggle}
-            disabled={followPending}
-          >
-            {profile.following ? "팔로잉" : "팔로우"}
-          </Button>
-        )}
+          {isMeLoading ? null : isOwnProfile ? (
+            <Link
+              href="/mypage"
+              className="cursor-pointer self-start rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              내 마이페이지
+            </Link>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant={profile.following ? "outline" : "primary"}
+                onClick={handleFollowToggle}
+                disabled={followPending}
+              >
+                {profile.following ? "팔로잉" : "팔로우"}
+              </Button>
+              <Button variant="outline" onClick={handleMessageClick} disabled={isChatPending}>
+                메시지
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {(followMutation.isError || unfollowMutation.isError) && (
         <ErrorMessage error={followMutation.error ?? unfollowMutation.error} />
       )}
+      {chatError && <ErrorMessage error={chatError} />}
 
       <div className="mt-2">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">인증피드</h2>

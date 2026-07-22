@@ -4,13 +4,14 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Award, Camera, Check, Pencil, X } from "lucide-react";
+import { Award, Camera, Check, Pencil, Trash2, X } from "lucide-react";
 
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import {
   useCheckNicknameDuplicate,
+  useDeleteProfileImage,
   useUpdateNickname,
   useUpdateProfileImage,
 } from "@/features/auth/hooks";
@@ -86,6 +87,7 @@ const MyPage = () => {
 
   const fileInputRef = useRef(null);
   const updateProfileImage = useUpdateProfileImage();
+  const deleteProfileImage = useDeleteProfileImage();
 
   const [isEditingNickname, setIsEditingNickname] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
@@ -109,6 +111,10 @@ const MyPage = () => {
     e.target.value = "";
     if (!file) return;
     updateProfileImage.mutate(file);
+  };
+
+  const handleDeleteImage = () => {
+    deleteProfileImage.mutate();
   };
 
   const startEditingNickname = () => {
@@ -161,6 +167,17 @@ const MyPage = () => {
           >
             <Camera size={12} />
           </button>
+          {me.profileImageUrl && (
+            <button
+              type="button"
+              onClick={handleDeleteImage}
+              disabled={deleteProfileImage.isPending}
+              title="기본 이미지로 되돌리기"
+              className="absolute -bottom-1 -left-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
         </div>
 
@@ -244,6 +261,7 @@ const MyPage = () => {
       </div>
 
       {updateProfileImage.isError && <ErrorMessage error={updateProfileImage.error} />}
+      {deleteProfileImage.isError && <ErrorMessage error={deleteProfileImage.error} />}
 
       {/* 챌린지 요약 */}
       <div className="grid grid-cols-2 gap-4">

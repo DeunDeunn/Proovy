@@ -13,6 +13,8 @@ export const updateProfileImage = (file) => {
   return api.patch("/auth/profile/image", formData);
 };
 
+export const deleteProfileImage = () => api.delete("/auth/profile/image");
+
 export const logout = () => api.post("/auth/logout");
 
 export const withdraw = () => api.delete("/auth/account");
