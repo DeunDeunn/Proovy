@@ -11,6 +11,8 @@ export const getChatRooms = ({ page = 0, size = 20 } = {}) =>
 
 export const markChatRoomRead = (chatRoomId) => api.patch(`/chats/rooms/${chatRoomId}/read`);
 
+export const getChatRoomMembers = (chatRoomId) => api.get(`/chats/rooms/${chatRoomId}/members`);
+
 export const deleteChatMessage = (messageId) => api.delete(`/chats/messages/${messageId}`);
 
 export const sendChatAttachment = (chatRoomId, { messageType, content, file }) => {
