@@ -26,6 +26,16 @@ public class ChallengeStatusScheduler {
 
     @Scheduled(cron = "0 5 0 * * *", zone = "Asia/Seoul")
     public void transitionChallengeStatuses() {
+        for (Challenge challenge : challengeService.findChallengesToAutoCancel()) {
+            try {
+                challengeService.autoCancelChallenge(challenge);
+            } catch (Exception e) {
+                // 한 챌린지의 자동 취소 실패가 나머지 챌린지 처리를 막지 않게 한다.
+                // 여기서 취소 안 된 챌린지는 상태가 그대로 RECRUITING이라 다음 스케줄러 실행에서 다시 시도된다.
+                log.error("챌린지 자동 취소 실패: challengeId={}", challenge.getId(), e);
+            }
+        }
+
         challengeService.startDueChallenges();
 
         for (Challenge challenge : challengeService.findChallengesToComplete()) {

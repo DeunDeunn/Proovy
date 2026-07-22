@@ -4,20 +4,496 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import Loading from "@/components/ui/Loading";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useMe } from "@/features/auth/hooks";
+import {
+  useAiReviewCertificationPost,
+  useApproveCertificationPost,
+  usePendingCertifications,
+  useRejectCertificationPost,
+} from "@/features/certification/hooks";
 import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
-import { useChallenge, useChallengeParticipantsManage, useKickParticipant } from "./hooks";
+import {
+  useCancelChallenge,
+  useCategories,
+  useChallenge,
+  useChallengeParticipantsManage,
+  useKickParticipant,
+  useUpdateChallenge,
+} from "./hooks";
 
 const TABS = [
   { key: "participants", label: "참가자 관리", enabled: true },
-  { key: "certifications", label: "인증 관리", enabled: false },
+  { key: "certifications", label: "인증 관리", enabled: true },
   { key: "settlement", label: "정산 관리", enabled: false },
-  { key: "settings", label: "방 설정", enabled: false },
+  { key: "settings", label: "방 설정", enabled: true },
 ];
+
+const CERT_TIME_MIN = "02:00";
+const CERT_TIME_MAX = "23:00";
+
+const settingsInputClassName =
+  "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400";
+const settingsLabelClassName = "mb-1 block text-xs text-gray-500";
+
+const RoomSettingsTab = ({ challenge, challengeId }) => {
+  const router = useRouter();
+  const { data: categories } = useCategories();
+  const updateMutation = useUpdateChallenge(challengeId);
+  const cancelMutation = useCancelChallenge(challengeId);
+
+  const [form, setForm] = useState({
+    title: challenge.title,
+    description: challenge.description ?? "",
+    categoryId: String(challenge.categoryId ?? ""),
+    entryFee: challenge.entryFee,
+    verificationMethod: challenge.verificationMethod ?? "",
+    startDate: challenge.startDate,
+    endDate: challenge.endDate,
+    maxParticipants: challenge.maxParticipants,
+    certStartTime: challenge.certStartTime?.slice(0, 5) ?? "06:00",
+    certEndTime: challenge.certEndTime?.slice(0, 5) ?? "22:00",
+    feedVisibility: challenge.feedVisibility,
+  });
+
+  // 모집중일 때만 수정 가능 (진행중/종료/취소되면 제목/설명조차 수정 불가)
+  const isRecruiting = challenge.status === "RECRUITING";
+  // 모집중이어도 방장 본인 외 활동 중인 참가자가 있으면 참가비/기간/정원/인증방법 등 핵심 조건은 수정 불가
+  const isCoreEditable = isRecruiting && (challenge.currentParticipants ?? 1) <= 1;
+
+  const setField = (field) => (e) => {
+    const { value } = e.target;
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const isPeriodValid = form.startDate && form.endDate && form.endDate > form.startDate;
+  const isCertTimeValid =
+    form.certEndTime > form.certStartTime &&
+    form.certStartTime >= CERT_TIME_MIN &&
+    form.certEndTime <= CERT_TIME_MAX;
+  const isFormValid =
+    isRecruiting &&
+    form.title.trim() !== "" &&
+    (!isCoreEditable || (isPeriodValid && isCertTimeValid));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+
+    updateMutation.mutate({
+      title: form.title,
+      description: form.description,
+      ...(isCoreEditable && {
+        categoryId: Number(form.categoryId),
+        entryFee: Number(form.entryFee),
+        verificationMethod: form.verificationMethod,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        maxParticipants: Number(form.maxParticipants),
+        certStartTime: form.certStartTime,
+        certEndTime: form.certEndTime,
+        feedVisibility: form.feedVisibility,
+      }),
+    });
+  };
+
+  const handleCancelChallenge = () => {
+    if (
+      window.confirm("정말 챌린지를 닫을까요? 참가자 전원의 참가비가 환불되고 챌린지가 취소돼요.")
+    ) {
+      cancelMutation.mutate(challengeId, {
+        onSuccess: () => router.push(`/challenges/${challengeId}`),
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card>
+        <p className="mb-4 text-sm text-gray-500">
+          {!isRecruiting
+            ? "모집이 끝난 챌린지는 수정할 수 없어요."
+            : isCoreEditable
+              ? "아직 참가자가 없어서 모든 항목을 수정할 수 있어요."
+              : "참가자가 있어 제목/설명만 수정할 수 있어요."}
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="settings-title" className={settingsLabelClassName}>
+              챌린지 제목
+            </label>
+            <input
+              id="settings-title"
+              type="text"
+              value={form.title}
+              onChange={setField("title")}
+              disabled={!isRecruiting}
+              className={settingsInputClassName}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="settings-description" className={settingsLabelClassName}>
+              챌린지 설명
+            </label>
+            <textarea
+              id="settings-description"
+              rows={3}
+              value={form.description}
+              onChange={setField("description")}
+              disabled={!isRecruiting}
+              className={`${settingsInputClassName} resize-none`}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="settings-category" className={settingsLabelClassName}>
+                카테고리
+              </label>
+              <select
+                id="settings-category"
+                value={form.categoryId}
+                onChange={setField("categoryId")}
+                disabled={!isCoreEditable}
+                className={settingsInputClassName}
+              >
+                {categories?.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="settings-entry-fee" className={settingsLabelClassName}>
+                참가비
+              </label>
+              <input
+                id="settings-entry-fee"
+                type="number"
+                min={1000}
+                step={1000}
+                value={form.entryFee}
+                onChange={setField("entryFee")}
+                disabled={!isCoreEditable}
+                className={settingsInputClassName}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="settings-verification-method" className={settingsLabelClassName}>
+              인증 방법
+            </label>
+            <input
+              id="settings-verification-method"
+              type="text"
+              value={form.verificationMethod}
+              onChange={setField("verificationMethod")}
+              disabled={!isCoreEditable}
+              className={settingsInputClassName}
+            />
+          </div>
+
+          <div>
+            <label className={settingsLabelClassName}>진행 기간</label>
+            <div className="flex items-center gap-2">
+              <input
+                aria-label="시작일"
+                type="date"
+                value={form.startDate}
+                onChange={setField("startDate")}
+                disabled={!isCoreEditable}
+                className={`${settingsInputClassName} min-w-0`}
+              />
+              <span className="shrink-0 text-gray-400">~</span>
+              <input
+                aria-label="종료일"
+                type="date"
+                value={form.endDate}
+                onChange={setField("endDate")}
+                disabled={!isCoreEditable}
+                className={`${settingsInputClassName} min-w-0`}
+              />
+            </div>
+            {isCoreEditable && !isPeriodValid && (
+              <p className="mt-1 text-xs text-danger">종료일은 시작일보다 나중이어야 해요.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="settings-max-participants" className={settingsLabelClassName}>
+                모집 정원
+              </label>
+              <input
+                id="settings-max-participants"
+                type="number"
+                min={1}
+                value={form.maxParticipants}
+                onChange={setField("maxParticipants")}
+                disabled={!isCoreEditable}
+                className={settingsInputClassName}
+              />
+            </div>
+            <div>
+              <label htmlFor="settings-feed-visibility" className={settingsLabelClassName}>
+                피드 공개 범위
+              </label>
+              <select
+                id="settings-feed-visibility"
+                value={form.feedVisibility}
+                onChange={setField("feedVisibility")}
+                disabled={!isCoreEditable}
+                className={settingsInputClassName}
+              >
+                <option value="PUBLIC">전체 공개</option>
+                <option value="PARTICIPANTS_ONLY">참가자만 공개</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={settingsLabelClassName}>인증 가능 시간</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                min={CERT_TIME_MIN}
+                max={CERT_TIME_MAX}
+                value={form.certStartTime}
+                onChange={setField("certStartTime")}
+                disabled={!isCoreEditable}
+                className={`${settingsInputClassName} min-w-0`}
+              />
+              <span className="shrink-0 text-gray-400">~</span>
+              <input
+                type="time"
+                min={CERT_TIME_MIN}
+                max={CERT_TIME_MAX}
+                value={form.certEndTime}
+                onChange={setField("certEndTime")}
+                disabled={!isCoreEditable}
+                className={`${settingsInputClassName} min-w-0`}
+              />
+            </div>
+            {isCoreEditable && !isCertTimeValid && (
+              <p className="mt-1 text-xs text-danger">
+                인증 종료 시간은 시작 시간보다 나중이어야 하고, 오전 2시 ~ 오후 11시 사이여야 해요.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {updateMutation.isError && (
+          <div className="mt-4">
+            <ErrorMessage error={updateMutation.error} />
+          </div>
+        )}
+        {updateMutation.isSuccess && (
+          <p className="mt-4 text-sm font-medium text-success">저장됐어요.</p>
+        )}
+
+        <div className="mt-6 flex justify-end">
+          <Button type="submit" disabled={!isFormValid || updateMutation.isPending}>
+            {updateMutation.isPending ? "저장하는 중..." : "저장하기"}
+          </Button>
+        </div>
+      </Card>
+
+      {isRecruiting && (
+        <Card className="border-red-200">
+          <h3 className="text-sm font-bold text-danger">위험 구역</h3>
+          <p className="mt-1 text-xs text-gray-500">
+            챌린지를 닫으면 참가자 전원의 참가비가 환불되고 되돌릴 수 없어요. 모집중일 때만
+            가능해요.
+          </p>
+          {cancelMutation.isError && (
+            <div className="mt-3">
+              <ErrorMessage error={cancelMutation.error} />
+            </div>
+          )}
+          <div className="mt-3">
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleCancelChallenge}
+              disabled={cancelMutation.isPending}
+            >
+              {cancelMutation.isPending ? "닫는 중..." : "챌린지 닫기"}
+            </Button>
+          </div>
+        </Card>
+      )}
+    </form>
+  );
+};
+
+const AI_DECISION_LABEL = {
+  APPROVED: "승인 추천",
+  REJECTED: "반려 추천",
+  NEEDS_REVIEW: "추가 검토 필요",
+};
+
+const PendingCertificationCard = ({
+  post,
+  aiResult,
+  onAiReview,
+  onApprove,
+  onReject,
+  isAiReviewing,
+  isApproving,
+  isRejecting,
+}) => (
+  <div className="flex gap-4 rounded-xl border border-gray-200 p-4">
+    <img
+      src={post.thumbnailUrl}
+      alt=""
+      className="h-24 w-24 shrink-0 rounded-lg bg-gray-100 object-cover"
+    />
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-medium text-gray-800">{post.authorNickname}</p>
+        <span className="shrink-0 text-xs text-gray-400">
+          {post.createdAt?.slice(0, 16).replace("T", " ")}
+        </span>
+      </div>
+      <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.contents}</p>
+
+      {aiResult && (
+        <div className="mt-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-600">
+          <span className="font-semibold text-primary">
+            AI {AI_DECISION_LABEL[aiResult.decision] ?? aiResult.decision}
+          </span>{" "}
+          (신뢰도 {Math.round((aiResult.confidence ?? 0) * 100)}%) — {aiResult.reason}
+        </div>
+      )}
+
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={onAiReview}
+          disabled={isAiReviewing}
+          className="rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isAiReviewing ? "AI 검수 중..." : "AI 자동 검수"}
+        </button>
+        <button
+          type="button"
+          onClick={onApprove}
+          disabled={isApproving}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isApproving ? "승인 중..." : "승인"}
+        </button>
+        <button
+          type="button"
+          onClick={onReject}
+          disabled={isRejecting}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isRejecting ? "반려 중..." : "반려"}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const CertificationReviewTab = ({ challengeId }) => {
+  const [aiResults, setAiResults] = useState({});
+  const [actingPostId, setActingPostId] = useState(null);
+
+  const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    usePendingCertifications(challengeId);
+  const aiReviewMutation = useAiReviewCertificationPost(challengeId);
+  const approveMutation = useApproveCertificationPost(challengeId);
+  const rejectMutation = useRejectCertificationPost(challengeId);
+
+  const posts = data?.pages.flat() ?? [];
+
+  const handleAiReview = (postId) => {
+    setActingPostId(postId);
+    aiReviewMutation.mutate(postId, {
+      onSuccess: (result) => {
+        setAiResults((prev) => ({ ...prev, [postId]: result }));
+      },
+      onSettled: () => setActingPostId(null),
+    });
+  };
+
+  const handleApprove = (postId) => {
+    setActingPostId(postId);
+    approveMutation.mutate(postId, { onSettled: () => setActingPostId(null) });
+  };
+
+  const handleReject = (postId) => {
+    const reason = window.prompt("반려 사유를 입력해주세요.");
+    if (!reason) return;
+    setActingPostId(postId);
+    rejectMutation.mutate({ postId, reason }, { onSettled: () => setActingPostId(null) });
+  };
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-gray-200 p-5">
+        <ErrorMessage error={error} />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-gray-200">
+        <Loading label="검수 대기 목록 불러오는 중..." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {posts.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+          검수 대기 중인 인증글이 없어요.
+        </div>
+      ) : (
+        posts.map((post) => (
+          <PendingCertificationCard
+            key={post.postId}
+            post={post}
+            aiResult={aiResults[post.postId]}
+            onAiReview={() => handleAiReview(post.postId)}
+            onApprove={() => handleApprove(post.postId)}
+            onReject={() => handleReject(post.postId)}
+            isAiReviewing={actingPostId === post.postId && aiReviewMutation.isPending}
+            isApproving={actingPostId === post.postId && approveMutation.isPending}
+            isRejecting={actingPostId === post.postId && rejectMutation.isPending}
+          />
+        ))
+      )}
+      {hasNextPage && (
+        <button
+          type="button"
+          onClick={() => fetchNextPage()}
+          disabled={isFetchingNextPage}
+          className="w-full rounded-lg border border-gray-200 py-2 text-sm text-gray-500 hover:bg-gray-50"
+        >
+          {isFetchingNextPage ? "불러오는 중..." : "더 보기"}
+        </button>
+      )}
+      {(aiReviewMutation.isError || approveMutation.isError || rejectMutation.isError) && (
+        <ErrorMessage
+          error={aiReviewMutation.error ?? approveMutation.error ?? rejectMutation.error}
+        />
+      )}
+    </div>
+  );
+};
 
 const StatTile = ({ label, value }) => (
   <div className="rounded-xl border border-gray-200 p-4">
@@ -225,6 +701,10 @@ const ChallengeManagePage = ({ challengeId }) => {
           )}
         </div>
       )}
+
+      {tab === "certifications" && <CertificationReviewTab challengeId={challengeId} />}
+
+      {tab === "settings" && <RoomSettingsTab challenge={challenge} challengeId={challengeId} />}
     </div>
   );
 };

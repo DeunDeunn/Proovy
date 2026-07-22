@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- S3 외부 프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Award, Camera, ChevronDown, ChevronUp, Share2 } from "lucide-react";
@@ -34,12 +34,21 @@ const InfoRow = ({ label, value }) => (
 
 const ChallengeDetailPage = ({ challengeId }) => {
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [isDescriptionClampable, setIsDescriptionClampable] = useState(false);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const searchParams = useSearchParams();
+  const descriptionRef = useRef(null);
 
   const { data: me } = useMe();
   const { data: challenge, isLoading, isError, error } = useChallenge(challengeId);
+
+  // 설명이 3줄(line-clamp-3)을 넘겨서 실제로 잘렸을 때만 더보기/접기 버튼을 보여준다
+  useEffect(() => {
+    const el = descriptionRef.current;
+    if (!el) return;
+    setIsDescriptionClampable(el.scrollHeight > el.clientHeight + 1);
+  }, [challenge?.description]);
   const { data: hostProfile } = useUserProfile(challenge?.hostId);
   const { data: wallet, isLoading: isWalletLoading } = useWallet({ enabled: !!me });
   const { data: participants } = useChallengeParticipants(challengeId);
@@ -220,20 +229,23 @@ const ChallengeDetailPage = ({ challengeId }) => {
           <div className="rounded-xl border border-gray-200 p-5">
             <h2 className="text-sm font-bold text-gray-900">챌린지 소개</h2>
             <p
+              ref={descriptionRef}
               className={`mt-2 text-sm text-gray-600 whitespace-pre-line ${
                 showFullDescription ? "" : "line-clamp-3"
               }`}
             >
               {challenge.description}
             </p>
-            <button
-              type="button"
-              onClick={() => setShowFullDescription((prev) => !prev)}
-              className="mt-3 flex w-full items-center justify-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700"
-            >
-              {showFullDescription ? "접기" : "더보기"}
-              {showFullDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
+            {isDescriptionClampable && (
+              <button
+                type="button"
+                onClick={() => setShowFullDescription((prev) => !prev)}
+                className="mt-3 flex w-full items-center justify-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700"
+              >
+                {showFullDescription ? "접기" : "더보기"}
+                {showFullDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            )}
           </div>
         </div>
 

@@ -49,6 +49,9 @@ public class ChallengeService {
     @Transactional
     public ChallengeCreateResponse create(Long hostId, ChallengeCreateRequest request) {
         // 규칙검증
+        if (!request.startDate().isAfter(LocalDate.now())) {
+            throw new ApiException(ErrorCode.START_DATE_TOO_SOON);
+        }
         if (!request.endDate().isAfter(request.startDate())) {
             throw new ApiException(ErrorCode.INVALID_CHALLENGE_PERIOD);
         }
@@ -127,6 +130,10 @@ public class ChallengeService {
         if (!challenge.getHostId().equals(userId)) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
+        // 모집중일 때만 수정 가능 (진행중/종료/취소된 챌린지는 제목/설명조차 수정 불가)
+        if (challenge.getStatus() != ChallengeStatus.RECRUITING) {
+            throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
+        }
         // 참가자(방장 제외)가 있으면 제목/설명 외 핵심 조건은 수정 불가
         if (request.hasCoreChanges()
                 && challengeMapper.countActiveParticipantsExceptHost(challengeId) > 0) {
@@ -183,7 +190,21 @@ public class ChallengeService {
         if (challenge.getStatus() != ChallengeStatus.RECRUITING) {
             throw new ApiException(ErrorCode.CHALLENGE_NOT_RECRUITING);
         }
-        // 참가자 전원의 참가비 홀딩을 해제하고 채팅방에서도 내보낸 뒤 탈퇴 처리하고 챌린지를 취소한다
+        cancelChallenge(challenge);
+    }
+
+    /**
+     * 모집 기간이 끝났는데 방장 혼자(참가자 없음)인 챌린지를 자동 취소한다 (스케줄러 전용).
+     * 사용자가 직접 요청한 취소가 아니라 시스템이 트리거하는 것이라 방장 권한 확인이 필요 없다.
+     */
+    @Transactional
+    public void autoCancelChallenge(Challenge challenge) {
+        cancelChallenge(challenge);
+    }
+
+    // 참가자 전원의 참가비 홀딩을 해제하고 채팅방에서도 내보낸 뒤 탈퇴 처리하고 챌린지를 취소한다
+    private void cancelChallenge(Challenge challenge) {
+        Long challengeId = challenge.getId();
         List<Long> activeUserIds = challengeParticipantMapper.findActiveUserIdsByChallengeId(challengeId);
         Long chatRoomId = chatRoomService.getChatRoomIdByChallengeId(challengeId);
         for (Long participantUserId : activeUserIds) {
@@ -256,6 +277,14 @@ public class ChallengeService {
     @Transactional(readOnly = true)
     public List<Challenge> findChallengesToComplete() {
         return challengeMapper.findChallengesToComplete();
+    }
+
+    /**
+     * 모집 기간이 끝났는데 방장 혼자(참가자 없음)인, 자동 취소 대상 챌린지 목록 (스케줄러 전용).
+     */
+    @Transactional(readOnly = true)
+    public List<Challenge> findChallengesToAutoCancel() {
+        return challengeMapper.findChallengesToAutoCancel();
     }
 
 }

@@ -17,3 +17,7 @@ body {
   background: var(--color-canvas);
   color: #171717;
 }
+
+button:not(:disabled) {
+  cursor: pointer;
+}
