@@ -4,7 +4,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Award, Camera, Check, Pencil, Trash2, X } from "lucide-react";
+import { Award, Camera, Check, ChevronLeft, ChevronRight, Pencil, Trash2, X } from "lucide-react";
 
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
@@ -16,10 +16,11 @@ import {
   useUpdateProfileImage,
 } from "@/features/auth/hooks";
 import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
+import ChallengeCard from "@/features/challenge/ChallengeCard";
 
 import { useMyPage } from "../hooks";
 
-const PREVIEW_SIZE = 3;
+const CHALLENGE_PAGE_SIZE = 5;
 const NICKNAME_MIN = 2;
 const NICKNAME_MAX = 10;
 
@@ -36,16 +37,6 @@ const formatJoinDate = (value) => {
   return `${y}.${m}.${d}`;
 };
 
-const getDayCount = (startDate) => {
-  if (!startDate) return null;
-  const start = new Date(startDate);
-  const today = new Date();
-  start.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
-  return Math.max(diffDays + 1, 1);
-};
-
 const VERIFICATION_STATUS_META = {
   PENDING: { text: "신청 완료 · 심사 중", action: "자세히 보기" },
   APPROVED: { text: "우수 사용자로 인증됐어요", action: "자세히 보기" },
@@ -54,33 +45,72 @@ const VERIFICATION_STATUS_META = {
 };
 const DEFAULT_VERIFICATION_META = { text: "우수 사용자 인증을 신청해보세요", action: "신청하기" };
 
-const ChallengeSummaryCard = ({ title, count, challenges, emptyText, renderRight }) => (
-  <Card>
-    <h2 className="mb-4 text-sm font-semibold text-gray-900">
-      {title} {count}
-    </h2>
+const ChallengeSummarySection = ({ title, count, challenges, emptyText }) => {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(Math.ceil(challenges.length / CHALLENGE_PAGE_SIZE), 1);
+  // 다른 챌린지를 나가는 등으로 목록이 줄어들면 이전에 보던 page 값이 범위를 벗어날 수 있어
+  // (예: 2페이지를 보던 중 목록이 5개 이하로 줄면), 렌더링 시점에 유효한 범위로 보정한다.
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageItems = challenges.slice(
+    currentPage * CHALLENGE_PAGE_SIZE,
+    currentPage * CHALLENGE_PAGE_SIZE + CHALLENGE_PAGE_SIZE
+  );
 
-    {challenges.length === 0 ? (
-      <p className="py-4 text-center text-sm text-gray-400">{emptyText}</p>
-    ) : (
-      <ul className="mb-4 flex flex-col gap-3">
-        {challenges.slice(0, PREVIEW_SIZE).map((challenge) => (
-          <li key={challenge.id} className="flex items-center justify-between text-sm">
-            <span className="truncate text-gray-700">{challenge.title}</span>
-            <span className="shrink-0 text-gray-500">{renderRight(challenge)}</span>
-          </li>
-        ))}
-      </ul>
-    )}
+  const goPrev = () => setPage((p) => Math.max(p - 1, 0));
+  const goNext = () => setPage((p) => Math.min(p + 1, totalPages - 1));
 
-    <Link
-      href="/my-challenges"
-      className="block w-full cursor-pointer rounded-lg border border-gray-300 px-4 py-2 text-center text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-    >
-      전체 보기
-    </Link>
-  </Card>
-);
+  return (
+    <Card>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-gray-900">
+          {title} {count}
+        </h2>
+        <Link
+          href="/my-challenges"
+          className="text-xs font-semibold text-gray-500 hover:text-gray-700 hover:underline"
+        >
+          전체 보기
+        </Link>
+      </div>
+
+      {challenges.length === 0 ? (
+        <p className="py-4 text-center text-sm text-gray-400">{emptyText}</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-5 gap-3">
+            {pageItems.map((challenge) => (
+              <ChallengeCard key={challenge.id} challenge={challenge} />
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={goPrev}
+              disabled={currentPage === 0}
+              aria-label="이전 페이지"
+              className="cursor-pointer rounded-lg p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs text-gray-400">
+              {currentPage + 1} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={currentPage === totalPages - 1}
+              aria-label="다음 페이지"
+              className="cursor-pointer rounded-lg p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </>
+      )}
+    </Card>
+  );
+};
 
 const MyPage = () => {
   const { data: me, isLoading, isError, error } = useMyPage();
@@ -264,23 +294,18 @@ const MyPage = () => {
       {deleteProfileImage.isError && <ErrorMessage error={deleteProfileImage.error} />}
 
       {/* 챌린지 요약 */}
-      <div className="grid grid-cols-2 gap-4">
-        <ChallengeSummaryCard
+      <div className="flex flex-col gap-4">
+        <ChallengeSummarySection
           title="참여 중인 챌린지"
           count={me.participatingChallenges.length}
           challenges={me.participatingChallenges}
           emptyText="참여 중인 챌린지가 없어요"
-          renderRight={(challenge) => {
-            const dayCount = getDayCount(challenge.startDate);
-            return dayCount ? `${dayCount}일차` : null;
-          }}
         />
-        <ChallengeSummaryCard
+        <ChallengeSummarySection
           title="운영 중인 챌린지"
           count={me.hostingChallenges.length}
           challenges={me.hostingChallenges}
           emptyText="운영 중인 챌린지가 없어요"
-          renderRight={(challenge) => `${challenge.currentParticipants ?? 0}명`}
         />
       </div>
 
