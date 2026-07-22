@@ -42,10 +42,10 @@ const CHALLENGE_STATUS_FLOW = [
 
 const StatusFlow = ({ steps, footnote }) => (
   <div className="rounded-2xl bg-gray-50 p-5">
-    <div className="flex items-center justify-center gap-4">
+    <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
       {steps.map((step, index) => (
         <div key={step.label} className="flex items-center gap-4">
-          {index > 0 && <ArrowRight size={16} className="shrink-0 text-gray-300" />}
+          {index > 0 && <ArrowRight size={16} className="hidden shrink-0 text-gray-300 sm:block" />}
           <div className="flex flex-col items-center gap-1.5">
             <span className={`rounded-full px-4 py-1.5 text-sm font-semibold ${step.className}`}>
               {step.label}
