@@ -18,6 +18,8 @@ public interface AiReviewMapper {
 
     List<String> findImageUrlsByPostId(@Param("postId") Long postId);
 
+    List<Long> findPendingParticipantPostIdsByHostId(@Param("hostId") Long hostId);
+
     int insertProcessingAiReviewResult(AiReviewResultVo result);
 
     AiReviewResultVo findReviewResultByPostId(@Param("postId") Long postId);

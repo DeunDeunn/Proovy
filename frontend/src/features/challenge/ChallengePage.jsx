@@ -61,10 +61,8 @@ const FilterChip = ({ label, selected, onClick }) => (
     type="button"
     aria-pressed={selected}
     onClick={onClick}
-    className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
-      selected
-        ? "border-primary bg-primary-light font-semibold text-primary"
-        : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+      selected ? "bg-primary text-white" : "border border-gray-300 text-gray-600 hover:bg-gray-50"
     }`}
   >
     {label}
@@ -196,7 +194,7 @@ const ChallengePageContent = () => {
         </div>
       </div>
 
-      <div className="space-y-3 rounded-xl bg-gray-50 p-4">
+      <div className="space-y-3 rounded-xl bg-surface p-4">
         <div>
           <p className="mb-2 text-sm font-bold text-gray-700">카테고리</p>
           {isCategoriesError ? (

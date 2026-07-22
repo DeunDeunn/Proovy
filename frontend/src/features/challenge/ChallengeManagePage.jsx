@@ -487,9 +487,7 @@ const CertificationReviewTab = ({ challengeId, hostId }) => {
         </button>
       )}
       {(approveMutation.isError || rejectMutation.isError) && (
-        <ErrorMessage
-          error={approveMutation.error ?? rejectMutation.error}
-        />
+        <ErrorMessage error={approveMutation.error ?? rejectMutation.error} />
       )}
     </div>
   );
@@ -505,8 +503,9 @@ const StatTile = ({ label, value }) => (
 const getTotalDays = (startDate, endDate) =>
   Math.round((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
 
-const ChallengeManagePage = ({ challengeId }) => {
-  const [tab, setTab] = useState("participants");
+const ChallengeManagePage = ({ challengeId, initialTab }) => {
+  const isSelectableTab = TABS.some((t) => t.key === initialTab && t.enabled);
+  const [tab, setTab] = useState(isSelectableTab ? initialTab : "participants");
   const { data: me, isLoading: isMeLoading } = useMe();
   const {
     data: challenge,
@@ -575,7 +574,7 @@ const ChallengeManagePage = ({ challengeId }) => {
               {challenge.categoryName}
             </span>
             <span
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold text-white ${statusBadge.className}`}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge.className}`}
             >
               {statusBadge.label}
             </span>
