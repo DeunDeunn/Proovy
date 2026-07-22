@@ -419,12 +419,14 @@ const ChallengeFeedPage = ({ challengeId }) => {
         )}
 
         <div className="flex items-center gap-2" aria-label="피드 정렬">
-          <Link
-            href={`/challenges/${challengeId}/certification-posts/new`}
-            className="inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-hover"
-          >
-            + 인증하기
-          </Link>
+          {!isReviewMode && (
+            <Link
+              href={`/challenges/${challengeId}/certification-posts/new`}
+              className="inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-hover"
+            >
+              + 인증하기
+            </Link>
+          )}
           {canReview && (
             <Button
               type="button"

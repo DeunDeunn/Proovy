@@ -84,7 +84,9 @@ const AuthorName = ({ authorId, nickname, badgeApproved, currentUserId }) => {
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const actionsRef = useRef(null);
   const canOpenActions = currentUserId != null && currentUserId !== authorId;
-  const { data: authorProfile } = useUserProfile(canOpenActions ? authorId : null);
+  const { data: authorProfile } = useUserProfile(
+    canOpenActions && isActionsOpen ? authorId : null,
+  );
   const followMutation = useFollow(canOpenActions ? authorId : null);
   const unfollowMutation = useUnfollow(canOpenActions ? authorId : null);
   const closeActions = useCallback(() => setIsActionsOpen(false), []);
