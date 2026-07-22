@@ -4,6 +4,7 @@ import com.deundeun.ai.dto.AiReviewRuleRequest;
 import com.deundeun.ai.dto.AiReviewRuleResponse;
 import com.deundeun.ai.enums.AiReviewMode;
 import com.deundeun.ai.mapper.AiReviewRuleMapper;
+import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiReviewRuleVo;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AiReviewRuleServiceImpl implements AiReviewRuleService {
 
     private final AiReviewRuleMapper aiReviewRuleMapper;
+    private final AiTicketMapper aiTicketMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -36,6 +38,7 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
         validateRequest(request);
         Long hostId = validateChallengeOwner(userId, challengeId);
         String reviewMode = normalizeReviewMode(request.getReviewMode());
+        validateActiveTicket(hostId);
 
         AiReviewRuleVo aiReviewRuleVo = AiReviewRuleVo.builder()
                 .hostId(hostId)
@@ -45,10 +48,21 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
                 .build();
 
         aiReviewRuleMapper.upsertAiReviewRule(aiReviewRuleVo);
+        aiReviewRuleMapper.updateChallengeAiReviewEnabled(challengeId, true);
 
         AiReviewRuleVo savedRule = aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId);
         validateFound(savedRule);
         return toResponse(savedRule);
+    }
+
+    @Override
+    @Transactional
+    public void deactivateAiReview(Long userId, Long challengeId) {
+        validateIds(userId, challengeId);
+        validateChallengeOwner(userId, challengeId);
+
+        aiReviewRuleMapper.deactivateAiReviewRuleByChallengeId(challengeId);
+        aiReviewRuleMapper.updateChallengeAiReviewEnabled(challengeId, false);
     }
 
     @Override
@@ -102,6 +116,12 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
     private void validateFound(AiReviewRuleVo aiReviewRuleVo) {
         if (aiReviewRuleVo == null) {
             throw new ApiException(ErrorCode.AI_REVIEW_RULE_NOT_FOUND);
+        }
+    }
+
+    private void validateActiveTicket(Long hostId) {
+        if (aiTicketMapper.findActiveSubscriptionByHostId(hostId) == null) {
+            throw new ApiException(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
         }
     }
 

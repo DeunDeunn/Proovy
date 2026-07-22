@@ -18,4 +18,6 @@ public interface AiReviewRuleService {
             Long challengeId,
             String reviewMode
     );
+
+    void deactivateAiReview(Long id, Long challengeId);
 }

@@ -10,7 +10,9 @@ import static org.mockito.Mockito.when;
 import com.deundeun.ai.dto.AiReviewRuleRequest;
 import com.deundeun.ai.dto.AiReviewRuleResponse;
 import com.deundeun.ai.mapper.AiReviewRuleMapper;
+import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiReviewRuleVo;
+import com.deundeun.ai.vo.AiTicketSubscriptionVo;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +31,9 @@ class AiReviewRuleServiceImplTest {
     @Mock
     private AiReviewRuleMapper aiReviewRuleMapper;
 
+    @Mock
+    private AiTicketMapper aiTicketMapper;
+
     @InjectMocks
     private AiReviewRuleServiceImpl aiReviewRuleService;
 
@@ -41,18 +46,54 @@ class AiReviewRuleServiceImplTest {
         AiReviewRuleVo savedRule = rule(100L, hostId, challengeId, "인증 사진 기준을 확인한다.", "AUTO");
 
         when(aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId)).thenReturn(hostId);
+        when(aiTicketMapper.findActiveSubscriptionByHostId(hostId))
+                .thenReturn(AiTicketSubscriptionVo.builder().id(1L).hostId(hostId).build());
         when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(savedRule);
 
         AiReviewRuleResponse response = aiReviewRuleService.upsertAiReviewRule(hostId, challengeId, request);
 
         ArgumentCaptor<AiReviewRuleVo> captor = ArgumentCaptor.forClass(AiReviewRuleVo.class);
         verify(aiReviewRuleMapper).upsertAiReviewRule(captor.capture());
+        verify(aiReviewRuleMapper).updateChallengeAiReviewEnabled(challengeId, true);
         AiReviewRuleVo capturedRule = captor.getValue();
         assertThat(capturedRule.getHostId()).isEqualTo(hostId);
         assertThat(capturedRule.getChallengeId()).isEqualTo(challengeId);
         assertThat(capturedRule.getRuleText()).isEqualTo("인증 사진 기준을 확인한다.");
         assertThat(capturedRule.getReviewMode()).isEqualTo("AUTO");
         assertThat(response.getReviewMode()).isEqualTo("AUTO");
+    }
+
+    @Test
+    @DisplayName("활성 티켓이 없으면 AI 검수를 활성화할 수 없다")
+    void upsertAiReviewRule_withoutActiveTicket_failsBeforeWrite() {
+        Long hostId = 1L;
+        Long challengeId = 10L;
+        AiReviewRuleRequest request = request("AUTO", "인증 사진 기준을 확인한다.");
+
+        when(aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId)).thenReturn(hostId);
+        when(aiTicketMapper.findActiveSubscriptionByHostId(hostId)).thenReturn(null);
+
+        assertThatThrownBy(() -> aiReviewRuleService.upsertAiReviewRule(hostId, challengeId, request))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AI_TICKET_PURCHASE_INVALID_REQUEST);
+
+        verify(aiReviewRuleMapper, never()).upsertAiReviewRule(any());
+        verify(aiReviewRuleMapper, never()).updateChallengeAiReviewEnabled(challengeId, true);
+    }
+
+    @Test
+    @DisplayName("방장은 AI 검수를 비활성화할 수 있다")
+    void deactivateAiReview_host_succeeds() {
+        Long hostId = 1L;
+        Long challengeId = 10L;
+
+        when(aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId)).thenReturn(hostId);
+
+        aiReviewRuleService.deactivateAiReview(hostId, challengeId);
+
+        verify(aiReviewRuleMapper).deactivateAiReviewRuleByChallengeId(challengeId);
+        verify(aiReviewRuleMapper).updateChallengeAiReviewEnabled(challengeId, false);
     }
 
     @Test

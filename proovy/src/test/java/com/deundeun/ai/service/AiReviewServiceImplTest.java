@@ -165,15 +165,15 @@ class AiReviewServiceImplTest {
     }
 
     @Test
-    @DisplayName("low confidence auto decision is saved as NEEDS_REVIEW")
-    void review_autoDecisionBelowThreshold_savesNeedsReview() {
+    @DisplayName("신뢰도가 낮은 AI 판정은 실패로 저장하고 게시물을 반려한다")
+    void review_autoDecisionBelowThreshold_savesRejected() {
         Long hostId = 1L;
         Long postId = 10L;
         Long challengeId = 20L;
         AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
         AiReviewRuleVo rule = rule(hostId, challengeId);
         AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "AI confidence below threshold", 0.84);
-        AiReviewResultVo savedResult = savedResult(300L, context, rule, aiResult, "NEEDS_REVIEW");
+        AiReviewResultVo savedResult = savedResult(300L, context, rule, aiResult, "REJECTED");
         List<String> imageUrls = List.of("https://example.com/thumb.png");
 
         when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
@@ -193,12 +193,12 @@ class AiReviewServiceImplTest {
 
         ArgumentCaptor<AiReviewResultVo> captor = ArgumentCaptor.forClass(AiReviewResultVo.class);
         verify(aiReviewMapper).updateAiReviewResultCompleted(captor.capture());
-        assertThat(captor.getValue().getDecision()).isEqualTo("NEEDS_REVIEW");
+        assertThat(captor.getValue().getDecision()).isEqualTo("REJECTED");
         assertThat(captor.getValue().getReason())
                 .contains("APPROVED")
                 .contains("AI confidence below threshold");
-        assertThat(response.getDecision()).isEqualTo("NEEDS_REVIEW");
-        verify(aiReviewMapper, never()).updateCertificationPostStatus(any(), any());
+        assertThat(response.getDecision()).isEqualTo("REJECTED");
+        verify(aiReviewMapper).updateCertificationPostStatus(postId, "REJECTED");
     }
 
     @Test
@@ -546,11 +546,74 @@ class AiReviewServiceImplTest {
         verify(aiReviewMapper, never()).updateAiReviewResultCompleted(any());
     }
 
+    @Test
+    @DisplayName("방장 인증글은 AI 활성화와 티켓 없이 자동 검수된다")
+    void reviewHostPost_hostPost_reviewsWithoutAiActivationOrTicket() {
+        Long hostId = 1L;
+        Long postId = 601L;
+        Long challengeId = 60L;
+        AiReviewContext context = context(postId, challengeId, hostId, "PENDING");
+        AiReviewAiResult aiResult = aiResult(AiReviewDecision.APPROVED, "인증 방식을 충족했습니다.", 0.95);
+
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(null);
+        when(aiReviewMapper.findImageUrlsByPostId(postId)).thenReturn(List.of());
+        when(aiReviewPromptService.createPrompt(any(), any(), any())).thenReturn("host prompt");
+        when(aiReviewClient.review("host prompt", List.of("https://example.com/thumb.png")))
+                .thenReturn(aiResult);
+        doAnswer(invocation -> {
+            AiReviewResultVo result = invocation.getArgument(0);
+            ReflectionTestUtils.setField(result, "id", 701L);
+            return 1;
+        }).when(aiReviewMapper).insertProcessingAiReviewResult(any());
+        when(aiReviewMapper.updateAiReviewResultCompleted(any())).thenReturn(1);
+        when(aiReviewMapper.findReviewResultById(701L)).thenReturn(
+                AiReviewResultVo.builder()
+                        .id(701L)
+                        .challengeId(challengeId)
+                        .hostId(hostId)
+                        .verificationPostId(postId)
+                        .reviewMode("AUTO")
+                        .decision("APPROVED")
+                        .confidence(BigDecimal.valueOf(0.95))
+                        .reason("인증 방식을 충족했습니다.")
+                        .rawResponse(aiResult.getRawResponse())
+                        .status("COMPLETED")
+                        .previousPostStatus("PENDING")
+                        .newPostStatus("APPROVED")
+                        .build()
+        );
+
+        aiReviewService.reviewHostPost(postId);
+
+        verify(aiReviewMapper).updateCertificationPostStatus(postId, "APPROVED");
+        verify(aiReviewMapper, never()).isAiReviewEnabledByChallengeId(any());
+        verify(aiReviewMapper, never()).existsActiveTicketSubscriptionByHostId(any());
+        verify(aiTicketMapper, never()).findActiveSubscriptionByHostIdForUpdate(any());
+        verify(aiTicketMapper, never()).insertTicketHistory(any());
+    }
+
+    @Test
+    @DisplayName("참가자 인증글 등록 이벤트는 방장 자동 검수에서 제외된다")
+    void reviewHostPost_participantPost_skipsReview() {
+        Long postId = 602L;
+        AiReviewContext context = context(postId, 60L, 1L, "PENDING");
+        ReflectionTestUtils.setField(context, "authorId", 2L);
+        when(aiReviewMapper.findReviewContextByPostId(postId)).thenReturn(context);
+
+        aiReviewService.reviewHostPost(postId);
+
+        verify(aiReviewRuleMapper, never()).findAiReviewRuleByChallengeId(any());
+        verify(aiReviewClient, never()).review(any(), any());
+        verify(aiReviewMapper, never()).insertProcessingAiReviewResult(any());
+    }
+
     private AiReviewContext context(Long postId, Long challengeId, Long hostId, String status) {
         AiReviewContext context = new AiReviewContext();
         ReflectionTestUtils.setField(context, "verificationPostId", postId);
         ReflectionTestUtils.setField(context, "challengeId", challengeId);
         ReflectionTestUtils.setField(context, "hostId", hostId);
+        ReflectionTestUtils.setField(context, "authorId", hostId);
         ReflectionTestUtils.setField(context, "challengeTitle", "아침 운동");
         ReflectionTestUtils.setField(context, "verificationMethod", "운동 사진");
         ReflectionTestUtils.setField(context, "previousPostStatus", status);
@@ -590,7 +653,7 @@ class AiReviewServiceImplTest {
 
     private String expectedDecision(AiReviewDecision decision, double confidence) {
         if (decision == AiReviewDecision.NEEDS_REVIEW || confidence < 0.85) {
-            return "NEEDS_REVIEW";
+            return "REJECTED";
         }
         return decision.name();
     }
