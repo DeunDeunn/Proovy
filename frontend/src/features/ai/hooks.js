@@ -3,14 +3,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { walletKeys } from "@/features/wallet/queryKeys";
+import { challengeKeys } from "@/features/challenge/queryKeys";
 
 import {
   getActiveAiTicket,
   getAiTicketHistory,
   getAiTicketPlans,
+  deactivateAiReview,
+  getAiReviewResults,
+  getAiReviewRule,
   purchaseAiTicket,
+  requestAiReview,
+  updateAiReviewMode,
+  upsertAiReviewRule,
 } from "./api";
-import { aiTicketKeys } from "./queryKeys";
+import { aiReviewKeys, aiTicketKeys } from "./queryKeys";
 
 export const useAiTicketPlans = () =>
   useQuery({ queryKey: aiTicketKeys.plans(), queryFn: getAiTicketPlans });
@@ -33,5 +40,67 @@ export const usePurchaseAiTicket = () => {
       queryClient.invalidateQueries({ queryKey: aiTicketKeys.all });
       queryClient.invalidateQueries({ queryKey: walletKeys.all });
     },
+  });
+};
+
+export const useAiReviewRule = (challengeId, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: aiReviewKeys.rule(challengeId),
+    queryFn: () => getAiReviewRule(challengeId),
+    enabled: Boolean(challengeId) && enabled,
+  });
+
+export const useAiReviewResults = (challengeId, params) =>
+  useQuery({
+    queryKey: aiReviewKeys.resultList(challengeId, params),
+    queryFn: () => getAiReviewResults(challengeId, params),
+    enabled: Boolean(challengeId),
+  });
+
+const invalidateAiReviewSettings = (queryClient, challengeId) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: aiReviewKeys.rule(challengeId) }),
+    queryClient.invalidateQueries({ queryKey: challengeKeys.detail(challengeId) }),
+  ]);
+
+export const useUpsertAiReviewRule = (challengeId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload) => upsertAiReviewRule(challengeId, payload),
+    onSuccess: () => invalidateAiReviewSettings(queryClient, challengeId),
+  });
+};
+
+export const useUpdateAiReviewMode = (challengeId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (reviewMode) => updateAiReviewMode(challengeId, reviewMode),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: aiReviewKeys.rule(challengeId) }),
+  });
+};
+
+export const useDeactivateAiReview = (challengeId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deactivateAiReview(challengeId),
+    onSuccess: () => invalidateAiReviewSettings(queryClient, challengeId),
+  });
+};
+
+export const useRequestAiReview = (challengeId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: requestAiReview,
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: aiReviewKeys.results() }),
+        queryClient.invalidateQueries({ queryKey: ["pending-certifications", challengeId] }),
+        queryClient.invalidateQueries({ queryKey: ["challenge-feed", challengeId] }),
+        queryClient.invalidateQueries({ queryKey: aiTicketKeys.active() }),
+      ]),
   });
 };

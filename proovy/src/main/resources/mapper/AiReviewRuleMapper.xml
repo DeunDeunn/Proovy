@@ -65,4 +65,19 @@
             AND active = true
     </update>
 
+    <update id="deactivateAiReviewRuleByChallengeId">
+        UPDATE ai_review_rules
+        SET active = false,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE challenge_id = #{challengeId}
+            AND active = true
+    </update>
+
+    <update id="updateChallengeAiReviewEnabled">
+        UPDATE challenges
+        SET ai_review_enabled = #{enabled},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{challengeId}
+    </update>
+
 </mapper>

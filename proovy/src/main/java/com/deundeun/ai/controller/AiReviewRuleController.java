@@ -6,6 +6,7 @@ import com.deundeun.ai.service.AiReviewRuleService;
 import com.deundeun.global.common.ApiResponse;
 import com.deundeun.global.common.CurrentUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,5 +53,12 @@ public class AiReviewRuleController {
                 request == null ? null : request.getReviewMode()
         );
         return ApiResponse.success(response);
+    }
+
+    @DeleteMapping
+    public ApiResponse<Void> deactivateAiReview(@PathVariable Long challengeId) {
+        Long userId = CurrentUser.getUserId();
+        aiReviewRuleService.deactivateAiReview(userId, challengeId);
+        return ApiResponse.success(null);
     }
 }
