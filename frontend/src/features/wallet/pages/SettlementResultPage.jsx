@@ -7,6 +7,7 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 
 import { useSettlementResult, useTransactions } from "../hooks";
 import { useChallenge } from "@/features/challenge/hooks";
+import { useMe } from "@/features/auth/hooks";
 import { formatCurrency } from "../format";
 
 const PERCENT = (value) => `${Number(value ?? 0)}%`;
@@ -30,32 +31,44 @@ const SettlementResultPage = ({ challengeId }) => {
     error: settlementError,
   } = useSettlementResult(challengeId);
   const { data: challenge, isLoading: challengeLoading } = useChallenge(challengeId);
+  const { data: me, isLoading: meLoading } = useMe();
 
-  // 정산으로 인해 내 지갑에 반영된 참가비 관련 거래를 찾아 "내 결과"를 판단
-  // (SettlementResultResponse는 참가자 전체 집계만 담고 있어 개인 성공/실패 여부가 없음)
+  // 정산으로 인해 내 지갑에 반영된 참가비/방장 보상 관련 거래를 찾아 "내 결과"를 판단
+  // (SettlementResultResponse는 참가자 전체 집계만 담고 있어 개인 성공/실패/방장 여부가 없음)
+  // referenceId(=challengeId)로 필터링해서, 다른 챌린지의 거래가 많아 페이지네이션에 밀려도 놓치지 않게 한다.
   const {
     data: successTx,
     isLoading: successTxLoading,
     error: successTxError,
-  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_SUCCESS" });
+  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_SUCCESS", referenceId: challengeId });
   const {
     data: failTx,
     isLoading: failTxLoading,
     error: failTxError,
-  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_FAIL" });
+  } = useTransactions({ type: "CHALLENGE_PRINCIPAL_FAIL", referenceId: challengeId });
+  const {
+    data: hostFeeTx,
+    isLoading: hostFeeTxLoading,
+    error: hostFeeTxError,
+  } = useTransactions({ type: "HOST_FEE", referenceId: challengeId });
 
-  const myResultLoading = successTxLoading || failTxLoading;
-  const myResultError = successTxError || failTxError;
+  const myResultLoading = successTxLoading || failTxLoading || hostFeeTxLoading || meLoading;
+  const myResultError = successTxError || failTxError || hostFeeTxError;
 
   if (settlementLoading || challengeLoading) return <Loading label="정산 결과를 불러오는 중..." />;
   if (settlementError) return <ErrorMessage error={settlementError} />;
   if (!settlement) return null;
 
+  const isHost = !!me && !!challenge && me.id === challenge.hostId;
+  const myHostFee = (hostFeeTx?.content ?? []).find(
+    (item) => String(item.referenceId) === String(challengeId)
+  );
   const myResult = [...(successTx?.content ?? []), ...(failTx?.content ?? [])].find(
     (item) => String(item.referenceId) === String(challengeId)
   );
   const isSuccess = myResult?.type === "CHALLENGE_PRINCIPAL_SUCCESS";
   const hasResult = !!myResult;
+  const hasHostFee = !!myHostFee;
   const successRate = settlement.totalParticipantCount
     ? Math.round((settlement.successUserCount / settlement.totalParticipantCount) * 100)
     : 0;
@@ -96,19 +109,29 @@ const SettlementResultPage = ({ challengeId }) => {
             <div className="rounded-lg border border-gray-100 p-4">
               <ErrorMessage error={myResultError} />
             </div>
-          ) : hasResult ? (
+          ) : hasResult || isHost ? (
             <div className="rounded-lg border border-gray-100 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-sm text-gray-500">내 결과</span>
-                <Badge variant={isSuccess ? "success" : "danger"}>
-                  {isSuccess ? "성공" : "실패"}
-                </Badge>
+                {hasResult && (
+                  <Badge variant={isSuccess ? "success" : "danger"}>
+                    {isSuccess ? "성공" : "실패"}
+                  </Badge>
+                )}
+                {isHost && <Badge variant={hasHostFee ? "primary" : "danger"}>방장</Badge>}
               </div>
-              <p className="text-sm text-gray-600">
-                {isSuccess ? "축하해요! 챌린지에 성공했어요." : "아쉽지만 이번엔 성공하지 못했어요."}
-              </p>
-              {isSuccess && (
-                <p className="mt-1 text-sm text-gray-600">{getSuccessRateMessage(successRate)}</p>
+              {hasResult && (
+                <p className="text-sm text-gray-600">
+                  {isSuccess ? "축하해요! 챌린지에 성공했어요." : "아쉽지만 이번엔 성공하지 못했어요."}
+                  {isSuccess && ` ${getSuccessRateMessage(successRate)}`}
+                </p>
+              )}
+              {isHost && (
+                <p className="mt-1 text-sm text-gray-600">
+                  {hasHostFee
+                    ? "방장 보상을 받았어요!"
+                    : "자격 박탈로 이번 정산에서는 방장 보상을 받지 못했어요."}
+                </p>
               )}
             </div>
           ) : (
@@ -121,22 +144,34 @@ const SettlementResultPage = ({ challengeId }) => {
 
           {myResultLoading || myResultError ? (
             <p className="text-sm text-gray-500">내 정산 금액을 확인하는 중이에요.</p>
-          ) : (
+          ) : hasResult || hasHostFee ? (
             <>
               <h3 className="mb-3 text-sm font-semibold text-gray-700">최종 정산 내역</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">참가비 반환</span>
-                  <span className="font-medium text-gray-900">
-                    +{formatCurrency(challenge?.entryFee)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">정산 수익</span>
-                  <span className="font-medium text-gray-900">
-                    +{formatCurrency(settlement.profitPerUser)}
-                  </span>
-                </div>
+                {hasResult && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">참가비 반환</span>
+                      <span className="font-medium text-gray-900">
+                        +{formatCurrency(challenge?.entryFee)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">정산 수익</span>
+                      <span className="font-medium text-gray-900">
+                        +{formatCurrency(settlement.profitPerUser)}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {hasHostFee && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">방장 보상</span>
+                    <span className="font-medium text-gray-900">
+                      +{formatCurrency(settlement.hostFeeAmount)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="my-4 border-t border-gray-100" />
@@ -144,10 +179,15 @@ const SettlementResultPage = ({ challengeId }) => {
               <div className="flex items-center justify-between">
                 <span className="font-medium text-gray-700">정산 후 획득 캐시</span>
                 <span className="text-lg font-bold text-success">
-                  +{formatCurrency((challenge?.entryFee ?? 0) + (settlement.profitPerUser ?? 0))}
+                  +{formatCurrency(
+                    (hasResult ? (challenge?.entryFee ?? 0) + (settlement.profitPerUser ?? 0) : 0) +
+                      (hasHostFee ? settlement.hostFeeAmount ?? 0 : 0)
+                  )}
                 </span>
               </div>
             </>
+          ) : (
+            <p className="text-sm text-gray-500">정산으로 받은 캐시가 없어요.</p>
           )}
         </Card>
 

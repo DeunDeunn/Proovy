@@ -58,7 +58,7 @@ public class AiReviewServiceImpl implements AiReviewService {
     }
 
     @Override
-    public void reviewHostPost(Long postId) {
+    public void reviewSubmittedPost(Long postId) {
         ReservedReview reservedReview = transactionOperations.execute(
                 status -> reserveReview(null, postId, true)
         );
@@ -119,31 +119,35 @@ public class AiReviewServiceImpl implements AiReviewService {
         return AiPageResponse.of(content, safePage, safeSize, totalElements);
     }
 
-    private ReservedReview reserveReview(Long requesterId, Long postId, boolean hostPostReview) {
-        if (postId == null || (!hostPostReview && requesterId == null)) {
+    private ReservedReview reserveReview(Long requesterId, Long postId, boolean automaticReview) {
+        if (postId == null || (!automaticReview && requesterId == null)) {
             throw new ApiException(ErrorCode.AI_REVIEW_INVALID_REQUEST);
         }
 
         AiReviewContext context = aiReviewMapper.findReviewContextByPostId(postId);
         validateContext(context);
-        if (hostPostReview && !context.getHostId().equals(context.getAuthorId())) {
-            return null;
-        }
-        if (!hostPostReview) {
+        boolean hostPost = context.getHostId().equals(context.getAuthorId());
+        if (!automaticReview) {
             validateHost(requesterId, context.getHostId());
         }
         validatePending(context);
-        if (!hostPostReview) {
+        if (automaticReview && !hostPost
+                && !aiReviewMapper.existsActiveTicketSubscriptionByHostId(context.getHostId())) {
+            return null;
+        }
+        if (!automaticReview) {
             validateAiReviewEnabled(context.getChallengeId());
             validateActiveTicketSubscription(requesterId);
         }
 
-        AiReviewRuleVo rule = aiReviewRuleMapper.findAiReviewRuleByChallengeId(context.getChallengeId());
-        if (hostPostReview) {
-            rule = hostAutoRule(context, rule);
+        AiReviewRuleVo rule;
+        if (automaticReview) {
+            rule = verificationMethodAutoRule(context);
         } else {
+            rule = aiReviewRuleMapper.findAiReviewRuleByChallengeId(context.getChallengeId());
             validateRule(rule);
         }
+        boolean ticketUseRequired = automaticReview ? !hostPost : true;
 
         AiReviewResultVo reservation = toProcessingResult(context, rule);
         AiReviewResultVo existingResult = aiReviewMapper.findReviewResultByPostId(postId);
@@ -153,7 +157,7 @@ public class AiReviewServiceImpl implements AiReviewService {
                     || aiReviewMapper.resetFailedAiReviewResultToProcessing(retryReservation) == 0) {
                 throw new ApiException(ErrorCode.AI_REVIEW_RESULT_ALREADY_EXISTS);
             }
-            return new ReservedReview(existingResult.getId(), context, rule, !hostPostReview);
+            return new ReservedReview(existingResult.getId(), context, rule, ticketUseRequired);
         }
         try {
             aiReviewMapper.insertProcessingAiReviewResult(reservation);
@@ -165,7 +169,7 @@ public class AiReviewServiceImpl implements AiReviewService {
             }
             throw e;
         }
-        return new ReservedReview(reservation.getId(), context, rule, !hostPostReview);
+        return new ReservedReview(reservation.getId(), context, rule, ticketUseRequired);
     }
 
     private AiReviewResponse completeReview(
@@ -296,20 +300,15 @@ public class AiReviewServiceImpl implements AiReviewService {
         return toProcessingResult(null, context, rule);
     }
 
-    private AiReviewRuleVo hostAutoRule(AiReviewContext context, AiReviewRuleVo existingRule) {
-        String ruleText = existingRule == null ? null : existingRule.getRuleText();
-        if (ruleText == null || ruleText.isBlank()) {
-            String verificationMethod = context.getVerificationMethod();
-            if (verificationMethod == null || verificationMethod.isBlank()) {
-                verificationMethod = "챌린지에 등록된 인증 방식";
-            }
-            ruleText = DEFAULT_HOST_RULE_FORMAT.formatted(verificationMethod);
+    private AiReviewRuleVo verificationMethodAutoRule(AiReviewContext context) {
+        String verificationMethod = context.getVerificationMethod();
+        if (verificationMethod == null || verificationMethod.isBlank()) {
+            verificationMethod = "챌린지에 등록된 인증 방식";
         }
         return AiReviewRuleVo.builder()
-                .id(existingRule == null ? null : existingRule.getId())
                 .hostId(context.getHostId())
                 .challengeId(context.getChallengeId())
-                .ruleText(ruleText)
+                .ruleText(DEFAULT_HOST_RULE_FORMAT.formatted(verificationMethod))
                 .reviewMode("AUTO")
                 .active(true)
                 .build();

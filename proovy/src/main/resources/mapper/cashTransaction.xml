@@ -71,6 +71,9 @@
         <if test="type != null">
             AND type = #{type}
         </if>
+        <if test="referenceId != null">
+            AND reference_id = #{referenceId}
+        </if>
         ORDER BY created_at DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
@@ -81,6 +84,9 @@
         WHERE wallet_id = #{walletId}
         <if test="type != null">
             AND type = #{type}
+        </if>
+        <if test="referenceId != null">
+            AND reference_id = #{referenceId}
         </if>
     </select>
 

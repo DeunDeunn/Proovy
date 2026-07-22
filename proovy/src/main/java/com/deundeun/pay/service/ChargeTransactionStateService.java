@@ -74,7 +74,10 @@ public class ChargeTransactionStateService {
                 .build();
         chargeLotMapper.insert(chargeLot);
 
-        cashTransactionMapper.completeCharge(transaction.getId(), detail.paymentId(), newChargedBalance);
+        // balanceAfter는 다른 거래 타입들(홀딩/해제/정산)과 동일하게 availableBalance 기준으로 남겨야
+        // 거래 내역 화면에서 잔액이 일관되게 이어진다. 충전은 잠긴 금액에 영향이 없어 amount만큼 그대로 증가.
+        cashTransactionMapper.completeCharge(
+                transaction.getId(), detail.paymentId(), wallet.getAvailableBalance() + transaction.getAmount());
         return true;
     }
 

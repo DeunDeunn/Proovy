@@ -4,8 +4,8 @@ export const getMyWallet = () => api.get("/wallets/me");
 
 export const getWithdrawableAmount = () => api.get("/wallets/withdrawable-amount");
 
-export const getMyTransactions = ({ type, page = 0 } = {}) =>
-  api.get("/wallets/transactions", { params: { type, page } });
+export const getMyTransactions = ({ type, referenceId, page = 0 } = {}) =>
+  api.get("/wallets/transactions", { params: { type, referenceId, page } });
 
 export const requestCharge = (amount) => api.post("/wallets/charge", { amount });
 

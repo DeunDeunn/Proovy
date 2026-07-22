@@ -20,10 +20,10 @@ public class HostCertificationAiReviewListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(VerificationSubmittedEvent event) {
         try {
-            aiReviewService.reviewHostPost(event.verificationPostId());
+            aiReviewService.reviewSubmittedPost(event.verificationPostId());
         } catch (RuntimeException exception) {
             log.error(
-                    "방장 인증글 자동 AI 검수 실패 - verificationPostId={}",
+                    "인증글 자동 AI 검수 실패 - verificationPostId={}",
                     event.verificationPostId(),
                     exception
             );

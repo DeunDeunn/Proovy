@@ -11,6 +11,7 @@ import com.deundeun.certification.dto.PendingCertificationResponse;
 import com.deundeun.certification.dto.PendingPostForAutoApproval;
 import com.deundeun.certification.dto.PostReviewContext;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
+import com.deundeun.certification.dto.TodayCertificationProgressResponse;
 import com.deundeun.certification.enums.ApprovalType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -36,6 +37,9 @@ public interface CertificationMapper {
 
    // 오늘 참가자가 등록한 인증글 수 — 한챌린지당 하루 1개 제한
    int countTodayCertification(Long challengeParticipantId);
+
+   // 홈의 오늘 인증 현황: 진행 중인 챌린지 수와 오늘 인증을 등록한 챌린지 수
+   TodayCertificationProgressResponse findTodayCertificationProgress(Long userId);
 
    // 추가 이미지 여러 장을 한 번에 저장
    void insertPostImages(@Param("postId") Long postId,

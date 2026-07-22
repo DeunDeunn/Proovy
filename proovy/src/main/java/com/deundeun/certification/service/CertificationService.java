@@ -13,6 +13,7 @@ import com.deundeun.certification.dto.ParticipantSuccessCount;
 import com.deundeun.certification.dto.PendingCertificationResponse;
 import com.deundeun.certification.dto.PostReviewContext;
 import com.deundeun.certification.dto.RejectCertificationPostRequest;
+import com.deundeun.certification.dto.TodayCertificationProgressResponse;
 import com.deundeun.certification.dto.UpdateCertificationPostRequest;
 import com.deundeun.certification.enums.ApprovalType;
 import com.deundeun.certification.enums.CertificationStatus;
@@ -560,5 +561,10 @@ public class CertificationService {
             cursor = cursor.minusDays(1);
         }
         return new CertificationStreakResponse(currentStreakDays);
+    }
+
+    // 홈 오늘 인증 현황: 진행 중 챌린지 중 오늘 인증글을 등록한 챌린지 수 / 전체 수.
+    public TodayCertificationProgressResponse getTodayCertificationProgress(Long userId) {
+        return certificationMapper.findTodayCertificationProgress(userId);
     }
 }

@@ -38,6 +38,7 @@ import com.deundeun.certification.dto.ParticipantForCertification;
 import com.deundeun.certification.dto.ParticipantSuccessCount;
 import com.deundeun.certification.dto.PostReviewContext;
 import com.deundeun.certification.dto.RejectCertificationPostRequest;
+import com.deundeun.certification.dto.TodayCertificationProgressResponse;
 import com.deundeun.certification.dto.UpdateCertificationPostRequest;
 import com.deundeun.certification.enums.ApprovalType;
 import com.deundeun.certification.enums.CertificationStatus;
@@ -745,6 +746,24 @@ class CertificationServiceTest {
                     .containsExactly(1L, 2L, 3L);   // 요청 순서 유지
             assertThat(result).extracting(ParticipantSuccessCount::getSuccessCount)
                     .containsExactly(0, 5, 0);      // 없는 참가자는 0
+        }
+    }
+
+    @Nested
+    @DisplayName("getTodayCertificationProgress")
+    class TodayCertificationProgress {
+        @Test
+        @DisplayName("[C-47] 오늘 인증한 진행 중 챌린지 수와 전체 수를 반환한다")
+        void returnsTodayCertificationProgress() {
+            TodayCertificationProgressResponse progress =
+                    new TodayCertificationProgressResponse(2, 3);
+            when(certificationMapper.findTodayCertificationProgress(USER_ID)).thenReturn(progress);
+
+            TodayCertificationProgressResponse result =
+                    certificationService.getTodayCertificationProgress(USER_ID);
+
+            assertThat(result.certifiedChallengeCount()).isEqualTo(2);
+            assertThat(result.inProgressChallengeCount()).isEqualTo(3);
         }
     }
 

@@ -55,6 +55,25 @@
           AND created_at::date = CURRENT_DATE
     </select>
 
+    <!-- 홈 오늘 인증 현황: 진행 중 챌린지 중 오늘 인증글을 등록한 챌린지 수 / 전체 수 -->
+    <select id="findTodayCertificationProgress" resultType="TodayCertificationProgressResponse">
+        SELECT
+            COUNT(*) FILTER (
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM certification_posts p
+                    WHERE p.challenge_participant_id = cp.id
+                      AND p.created_at::date = CURRENT_DATE
+                )
+            ) AS certified_challenge_count,
+            COUNT(*) AS in_progress_challenge_count
+        FROM challenge_participants cp
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE cp.user_id = #{userId}
+          AND cp.status = 'ACTIVE'
+          AND c.status = 'IN_PROGRESS'
+    </select>
+
     <!-- 추가 이미지 여러 장 저장 (목록을 반복해서 여러 줄 INSERT) -->
     <insert id="insertPostImages">
         INSERT INTO certification_post_images (post_id, stored_filename, image_url, sort_order)

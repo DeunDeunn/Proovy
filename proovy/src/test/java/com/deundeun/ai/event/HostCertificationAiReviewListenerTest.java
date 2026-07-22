@@ -28,13 +28,13 @@ class HostCertificationAiReviewListenerTest {
     void handle_requestsHostPostReview() {
         listener.handle(new VerificationSubmittedEvent(1L, 10L));
 
-        verify(aiReviewService).reviewHostPost(10L);
+        verify(aiReviewService).reviewSubmittedPost(10L);
     }
 
     @Test
     @DisplayName("AI 검수 실패가 인증글 등록 이벤트 처리로 전파되지 않는다")
     void handle_reviewFailure_isContained() {
-        doThrow(new IllegalStateException("AI failure")).when(aiReviewService).reviewHostPost(10L);
+        doThrow(new IllegalStateException("AI failure")).when(aiReviewService).reviewSubmittedPost(10L);
 
         assertThatCode(() -> listener.handle(new VerificationSubmittedEvent(1L, 10L)))
                 .doesNotThrowAnyException();

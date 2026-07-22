@@ -22,6 +22,7 @@ const TicketStorePage = () => {
   const [isBalanceDialogOpen, setIsBalanceDialogOpen] = useState(false);
   const dialogRef = useRef(null);
   const balanceDialogRef = useRef(null);
+  const balanceTriggerRef = useRef(null);
   const purchaseTriggerRef = useRef(null);
   const isPurchasePendingRef = useRef(false);
   const { data: plans, isLoading: plansLoading, error: plansError } = useAiTicketPlans();
@@ -31,11 +32,15 @@ const TicketStorePage = () => {
   const purchaseMutation = usePurchaseAiTicket();
 
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
-  const totalBalance = (wallet?.chargedBalance ?? 0) + (wallet?.rewardBalance ?? 0);
+  const availableBalance = Math.max(
+    0,
+    (wallet?.chargedBalance ?? 0) - (wallet?.lockedChargedBalance ?? 0),
+  );
 
   const closeBalanceDialog = useCallback(() => {
     setIsBalanceDialogOpen(false);
-    purchaseTriggerRef.current?.focus();
+    (balanceTriggerRef.current ?? purchaseTriggerRef.current)?.focus();
+    balanceTriggerRef.current = null;
     purchaseTriggerRef.current = null;
   }, []);
 
@@ -140,7 +145,7 @@ const TicketStorePage = () => {
   const openPurchaseDialog = (plan) => {
     purchaseMutation.reset();
     purchaseTriggerRef.current = document.activeElement;
-    if (totalBalance < plan.price) {
+    if (availableBalance < plan.price) {
       setIsBalanceDialogOpen(true);
       return;
     }
@@ -152,6 +157,13 @@ const TicketStorePage = () => {
     if (!selectedPlan) return;
     purchaseMutation.mutate(selectedPlan.id, {
       onSuccess: () => setSelectedPlan(null),
+      onError: (error) => {
+        if (error?.code !== "CG011") return;
+
+        balanceTriggerRef.current = purchaseTriggerRef.current;
+        setSelectedPlan(null);
+        setIsBalanceDialogOpen(true);
+      },
     });
   };
 
@@ -209,7 +221,7 @@ const TicketStorePage = () => {
         )}
       </section>
 
-      {purchaseMutation.error && (
+      {purchaseMutation.error && purchaseMutation.error.code !== "CG011" && (
         <div className="mt-4">
           <ErrorMessage error={purchaseMutation.error} />
         </div>
@@ -222,16 +234,12 @@ const TicketStorePage = () => {
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="balance-dialog-title"
-            aria-describedby="balance-dialog-description"
             tabIndex={-1}
             className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
           >
             <h2 id="balance-dialog-title" className="text-lg font-bold text-gray-900">
-              잔액이 부족합니다
+              사용 가능한 잔액이 부족합니다.
             </h2>
-            <p id="balance-dialog-description" className="mt-2 text-sm text-gray-500">
-              캐시를 충전한 후 다시 구매해주세요.
-            </p>
             <div className="mt-6 flex justify-end">
               <Button onClick={closeBalanceDialog}>확인</Button>
             </div>
