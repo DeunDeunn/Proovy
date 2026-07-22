@@ -125,25 +125,18 @@ const Sidebar = () => {
   const unreadChatCount = useUnreadChatCount();
   const logoutMutation = useLogout();
 
-  const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
-  const dropdownItemsByKey = { wallet: walletMenus, mypage: mypageMenuItems, admin: adminMenus };
-
   const [openDropdown, setOpenDropdown] = useState(null);
   const [prevPathname, setPrevPathname] = useState(pathname);
 
-  // 다른 섹션으로 넘어갔을 때만 접고, 지금 열려있는 드롭다운 소속 메뉴로 이동한 거면 계속 열어둔다
+  // 하위 항목을 클릭해 다른 페이지로 이동했을 때는 항상 접히도록, pathname이 바뀌면 그 자리에서 리셋
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
-    const staysInOpenDropdown = dropdownItemsByKey[openDropdown]?.some(
-      (item) => item.href === pathname
-    );
-    if (!staysInOpenDropdown) {
-      setOpenDropdown(null);
-    }
+    setOpenDropdown(null);
   }
 
   const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
 
+  const mypageMenuItems = [...baseMypageMenus, withdrawMenu];
   const isAdmin = me?.role === "ADMIN";
 
   const handleLogout = () => {
