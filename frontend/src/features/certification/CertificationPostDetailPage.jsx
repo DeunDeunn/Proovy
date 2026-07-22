@@ -25,6 +25,7 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
+import { useFollow, useUnfollow, useUserProfile } from "@/features/users/hooks";
 
 import CertificationPostComments from "./CertificationPostComments";
 import DeleteCertificationPostDialog from "./DeleteCertificationPostDialog";
@@ -151,10 +152,13 @@ const CertificationPostDetailPage = ({ postId }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isAuthorActionsOpen, setIsAuthorActionsOpen] = useState(false);
   const postMenuRef = useRef(null);
   const postMenuButtonRef = useRef(null);
+  const authorActionsRef = useRef(null);
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
+  const { data: authorProfile } = useUserProfile(post?.authorId);
   const {
     startChat,
     isPending: isStartingChat,
@@ -162,9 +166,19 @@ const CertificationPostDetailPage = ({ postId }) => {
   } = useStartDirectChat();
   const deletePostMutation = useDeleteCertificationPost();
   const toggleLikeMutation = useToggleCertificationPostLike(postId);
+  const followMutation = useFollow(post?.authorId);
+  const unfollowMutation = useUnfollow(post?.authorId);
   const closePostMenu = useCallback(() => setIsPostMenuOpen(false), []);
+  const closeAuthorActions = useCallback(() => setIsAuthorActionsOpen(false), []);
+  const isFollowActionPending = followMutation.isPending || unfollowMutation.isPending;
+
+  const toggleFollow = () => {
+    const mutation = authorProfile?.following ? unfollowMutation : followMutation;
+    mutation.mutate();
+  };
 
   useDismissable(isPostMenuOpen, postMenuRef, closePostMenu);
+  useDismissable(isAuthorActionsOpen, authorActionsRef, closeAuthorActions);
 
   if (isLoading) return <Loading label="인증 게시글을 불러오는 중..." />;
   if (error) return <ErrorMessage error={error} />;
@@ -174,6 +188,7 @@ const CertificationPostDetailPage = ({ postId }) => {
   const displayedImageIndex = Math.min(currentImageIndex, Math.max(images.length - 1, 0));
   const currentImageUrl = images[displayedImageIndex];
   const isAuthor = me?.id != null && me.id === post.authorId;
+  const canUseAuthorActions = me?.id != null && !isAuthor;
 
   const deletePost = () => {
     deletePostMutation.mutate(postId, {
@@ -245,11 +260,23 @@ const CertificationPostDetailPage = ({ postId }) => {
                   nickname={post.authorNickname}
                   profileImageUrl={post.authorProfileImageUrl}
                 />
-                <div className="min-w-0">
+                <div ref={authorActionsRef} className="relative min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="truncate text-sm font-semibold text-gray-900">
-                      {post.authorNickname ?? "알 수 없는 사용자"}
-                    </p>
+                    {canUseAuthorActions ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsAuthorActionsOpen((open) => !open)}
+                        aria-expanded={isAuthorActionsOpen}
+                        aria-haspopup="menu"
+                        className="truncate text-sm font-semibold text-gray-900 hover:underline"
+                      >
+                        {post.authorNickname ?? "알 수 없는 사용자"}
+                      </button>
+                    ) : (
+                      <p className="truncate text-sm font-semibold text-gray-900">
+                        {post.authorNickname ?? "알 수 없는 사용자"}
+                      </p>
+                    )}
                     {post.authorBadgeApproved && (
                       <span className="inline-flex text-sky-500" title="인증 회원">
                         <BadgeCheck size={17} aria-hidden="true" />
@@ -257,6 +284,38 @@ const CertificationPostDetailPage = ({ postId }) => {
                       </span>
                     )}
                   </div>
+
+                  {canUseAuthorActions && isAuthorActionsOpen && (
+                    <div
+                      role="menu"
+                      className="absolute left-0 top-7 z-20 flex w-40 flex-col gap-1 rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={toggleFollow}
+                        disabled={!authorProfile || isFollowActionPending}
+                        className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-gray-300 ${authorProfile?.following ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-primary text-white hover:bg-primary-dark"}`}
+                      >
+                        {authorProfile?.following
+                          ? "팔로우 중"
+                          : isFollowActionPending
+                            ? "팔로우 중..."
+                            : "팔로우"}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => router.push(`/users/${post.authorId}`)}
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                      >
+                        상대 피드로 이동
+                      </button>
+                      {(followMutation.isError || unfollowMutation.isError) && (
+                        <ErrorMessage error={followMutation.error ?? unfollowMutation.error} />
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">

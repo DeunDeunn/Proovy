@@ -20,6 +20,7 @@ spring:
             redirect-uri: "{baseUrl}/api/login/oauth2/code/{registrationId}"
             scope:
               - profile_nickname
+              - account_email
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
