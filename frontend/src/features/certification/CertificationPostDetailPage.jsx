@@ -29,6 +29,7 @@ import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 import { useFollow, useUnfollow, useUserProfile } from "@/features/users/hooks";
+import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 
 import CertificationPostComments from "./CertificationPostComments";
 import DeleteCertificationPostDialog from "./DeleteCertificationPostDialog";
@@ -55,8 +56,6 @@ const formatCreatedAt = (value) => {
     minute: "2-digit",
   }).format(date);
 };
-
-const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
 
 const AiReviewPanel = ({ post }) => {
   const review = post.aiReview;
@@ -137,21 +136,13 @@ const AiReviewPanel = ({ post }) => {
   );
 };
 
-const ProfileAvatar = ({ nickname, profileImageUrl }) =>
-  profileImageUrl ? (
-    <img
-      src={profileImageUrl}
-      alt={`${nickname ?? "사용자"} 프로필 이미지`}
-      className="h-10 w-10 shrink-0 rounded-full border border-gray-200 object-cover"
-    />
-  ) : (
-    <span
-      aria-hidden="true"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-light text-sm font-bold text-primary"
-    >
-      {getAvatarInitial(nickname)}
-    </span>
-  );
+const ProfileAvatar = ({ nickname, profileImageUrl }) => (
+  <img
+    src={profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
+    alt={`${nickname ?? "사용자"} 프로필 이미지`}
+    className="h-10 w-10 shrink-0 rounded-full border border-gray-200 object-cover"
+  />
+);
 
 const PostReactionBar = ({
   liked,
