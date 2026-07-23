@@ -11,7 +11,9 @@ import java.util.List;
 @Mapper
 public interface HostWarningMapper {
 
-    List<Long> insertWarningsForPendingChallenges();
+    List<Long> findPendingReviewHostIds();
+
+    List<Long> insertWarningsForPendingChallenges(@Param("hostId") Long hostId);
 
     // 이 유저의 유효(ACTIVE) 경고 수 — 3회 누적 판정용
     int countActiveWarnings(Long userId);
