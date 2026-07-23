@@ -77,7 +77,8 @@ public class ChallengeService {
                 .entryFee(request.entryFee())
                 .verificationMethod(request.verificationMethod())
                 .dailyCertLimit(request.dailyCertLimit())
-                .aiReviewEnabled(request.aiReviewEnabled())
+                // 방별 AI 검수는 챌린지 생성 후 AI 설정 API에서 티켓을 검증한 뒤에만 활성화한다.
+                .aiReviewEnabled(false)
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .maxParticipants(request.maxParticipants())

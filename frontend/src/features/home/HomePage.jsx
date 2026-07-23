@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useChallenges } from "@/features/challenge/hooks";
@@ -137,7 +138,8 @@ const HomePage = () => {
   // 표시 건수와 동일한 today-progress 응답 스냅샷으로 이동 대상을 결정한다.
   // 미검수 인증이 있는 IN_PROGRESS 운영 챌린지가 딱 하나면 백엔드가 그 챌린지 ID를 내려주고
   // (→ 인증 관리로 직행), 여러 개거나 없으면 null(→ 내 챌린지 운영 중 목록에서 직접 고르게).
-  const pendingReviewChallengeId = todayCertificationProgress?.hostedPendingCertificationChallengeId;
+  const pendingReviewChallengeId =
+    todayCertificationProgress?.hostedPendingCertificationChallengeId;
   const pendingReviewHref = pendingReviewChallengeId
     ? `/challenges/${pendingReviewChallengeId}/manage?tab=certifications`
     : "/my-challenges?tab=hosting";
@@ -207,7 +209,11 @@ const HomePage = () => {
                 iconClassName="bg-orange-50 text-orange-500"
                 label="미검수 인증"
                 value={hostedPendingCertificationValue}
-                badge={!isTodayCertificationUnavailable && hostedPendingCertificationCount > 0 ? hostedPendingCertificationCount : null}
+                badge={
+                  !isTodayCertificationUnavailable && hostedPendingCertificationCount > 0
+                    ? hostedPendingCertificationCount
+                    : null
+                }
               />
             </div>
           </section>
@@ -249,7 +255,7 @@ const HomePage = () => {
           )}
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-surface p-4">
+        <section className="flex h-full flex-col rounded-2xl border border-gray-200 bg-surface p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="text-base font-bold text-gray-900">인기 피드</h2>
             <Link
@@ -266,9 +272,12 @@ const HomePage = () => {
           ) : popularFeeds.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-400">인기 피드가 없습니다.</p>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {popularFeeds.map((feed) => (
-                <PopularFeedItem key={feed.postId} feed={feed} />
+            <div className="flex flex-1 flex-col justify-evenly">
+              {popularFeeds.map((feed, index) => (
+                <Fragment key={feed.postId}>
+                  {index > 0 && <div className="border-t border-gray-100" />}
+                  <PopularFeedItem feed={feed} />
+                </Fragment>
               ))}
             </div>
           )}

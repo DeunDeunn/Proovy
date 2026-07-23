@@ -1,20 +1,16 @@
 "use client";
 
 import { ShoppingBag } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import Loading from "@/components/ui/Loading";
-import ActiveTicketCard from "@/features/ai/components/ActiveTicketCard";
 import TicketPlanCard from "@/features/ai/components/TicketPlanCard";
 import { formatAiTicketPlanName, formatAiTicketPrice } from "@/features/ai/format";
-import {
-  useActiveAiTicket,
-  useAiTicketPlans,
-  usePurchaseAiTicket,
-} from "@/features/ai/hooks";
+import { useAiTicketPlans, useHasActiveAiTicket, usePurchaseAiTicket } from "@/features/ai/hooks";
 import { useWallet } from "@/features/wallet/hooks";
 
 const TicketStorePage = () => {
@@ -26,15 +22,17 @@ const TicketStorePage = () => {
   const purchaseTriggerRef = useRef(null);
   const isPurchasePendingRef = useRef(false);
   const { data: plans, isLoading: plansLoading, error: plansError } = useAiTicketPlans();
-  const { data: activeTicket, isLoading: activeLoading, error: activeError } =
-    useActiveAiTicket();
+  const {
+    data: hasActiveTicket,
+    isLoading: activeLoading,
+    error: activeError,
+  } = useHasActiveAiTicket();
   const { data: wallet, isLoading: walletLoading, error: walletError } = useWallet();
   const purchaseMutation = usePurchaseAiTicket();
 
-  const hasActiveTicket = activeTicket?.hasActiveTicket === true;
   const availableBalance = Math.max(
     0,
-    (wallet?.chargedBalance ?? 0) - (wallet?.lockedChargedBalance ?? 0),
+    (wallet?.chargedBalance ?? 0) - (wallet?.lockedChargedBalance ?? 0)
   );
 
   const closeBalanceDialog = useCallback(() => {
@@ -56,7 +54,7 @@ const TicketStorePage = () => {
     const dialog = balanceDialogRef.current;
     const getFocusableElements = () =>
       Array.from(dialog?.querySelectorAll(focusableSelector) ?? []).filter(
-        (element) => element.offsetParent !== null,
+        (element) => element.offsetParent !== null
       );
 
     const focusableElements = getFocusableElements();
@@ -100,7 +98,7 @@ const TicketStorePage = () => {
     const dialog = dialogRef.current;
     const getFocusableElements = () =>
       Array.from(dialog?.querySelectorAll(focusableSelector) ?? []).filter(
-        (element) => element.offsetParent !== null,
+        (element) => element.offsetParent !== null
       );
 
     const focusableElements = getFocusableElements();
@@ -189,15 +187,20 @@ const TicketStorePage = () => {
       </header>
 
       {hasActiveTicket && (
-        <section className="mb-8" aria-labelledby="store-active-ticket-heading">
-          <h2 id="store-active-ticket-heading" className="mb-3 text-sm font-semibold text-gray-900">
-            사용 중인 이용권
-          </h2>
-          <ActiveTicketCard ticket={activeTicket} />
-          <p className="mt-2 text-xs text-gray-500">
-            현재 이용권이 만료된 후 새로운 이용권을 구매할 수 있어요.
-          </p>
-        </section>
+        <Card className="mb-8 flex items-center justify-between gap-4 border-primary/20 bg-primary-light/40">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">현재 새 티켓을 구매할 수 없어요.</p>
+            <p className="mt-1 text-xs text-gray-500">
+              사용 중인 티켓이 만료된 후 새로운 티켓을 구매할 수 있습니다.
+            </p>
+          </div>
+          <Link
+            href="/mypage/tickets"
+            className="shrink-0 text-sm font-semibold text-primary hover:text-primary-hover"
+          >
+            AI 티켓 관리
+          </Link>
+        </Card>
       )}
 
       <section aria-labelledby="store-ticket-plans-heading">
@@ -261,11 +264,9 @@ const TicketStorePage = () => {
               AI 티켓을 구매할까요?
             </h2>
             <p className="mt-2 text-sm leading-6 text-gray-500">
-              <strong className="text-gray-800">
-                {formatAiTicketPlanName(selectedPlan.name)}
-              </strong>
-              을 {" "}
-              {formatAiTicketPrice(selectedPlan.price)}로 구매합니다. 구매 즉시 이용 기간이 시작돼요.
+              <strong className="text-gray-800">{formatAiTicketPlanName(selectedPlan.name)}</strong>
+              을 {formatAiTicketPrice(selectedPlan.price)}로 구매합니다. 구매 즉시 이용 기간이
+              시작돼요.
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <Button

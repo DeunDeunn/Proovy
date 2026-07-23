@@ -4,14 +4,16 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
-// 자동 승인 경고·페널티용 매퍼.
+// 미검수 경고·페널티용 매퍼.
 // ⚠️ 회원 도메인 테이블(user_warnings, users, user_verifications)을 갱신하는 지점을 여기 한곳에 모음.
 @Mapper
 public interface HostWarningMapper {
 
-    // 방장에게 경고 1건 적립 (챌린지당 1건, reason=AUTO_APPROVAL)
-    void insertWarning(@Param("hostId") Long hostId, @Param("challengeId") Long challengeId);
+    List<Long> findPendingReviewHostIds();
+
+    List<Long> insertWarningsForPendingChallenges(@Param("hostId") Long hostId);
 
     // 이 유저의 유효(ACTIVE) 경고 수 — 3회 누적 판정용
     int countActiveWarnings(Long userId);

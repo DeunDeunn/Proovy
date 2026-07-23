@@ -4,11 +4,34 @@
 
 <mapper namespace="com.deundeun.certification.mapper.HostWarningMapper">
 
-    <!-- 방장 경고 1건 적립 (자동 승인 발생 챌린지당 1건) -->
-    <insert id="insertWarning">
+    <!-- 미검수 PENDING 글이 있는 방장 목록. 게시물 상태는 변경하지 않는다. -->
+    <select id="findPendingReviewHostIds" resultType="long">
+        SELECT DISTINCT c.host_id
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE p.certification_status = 'PENDING'
+          AND p.user_id != c.host_id
+          AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 해당 방장의 미검수 챌린지마다 경고 1건 적립. -->
+    <!-- AUTO_APPROVAL은 기존 DB CHECK 제약과의 호환을 위해 유지하는 경고 코드다. -->
+    <select id="insertWarningsForPendingChallenges" resultType="long">
         INSERT INTO user_warnings (user_id, reason, challenge_id, status)
-        VALUES (#{hostId}, 'AUTO_APPROVAL', #{challengeId}, 'ACTIVE')
-    </insert>
+        SELECT pending.host_id, 'AUTO_APPROVAL', pending.challenge_id, 'ACTIVE'
+        FROM (
+            SELECT DISTINCT c.host_id, c.id AS challenge_id
+            FROM certification_posts p
+            JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+            JOIN challenges c ON c.id = cp.challenge_id
+            WHERE p.certification_status = 'PENDING'
+              AND p.user_id != c.host_id
+              AND p.deleted_at IS NULL
+              AND c.host_id = #{hostId}
+        ) pending
+        RETURNING user_id
+    </select>
 
     <!-- 유효(ACTIVE) 경고 수 -->
     <select id="countActiveWarnings" resultType="int">

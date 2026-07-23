@@ -5,7 +5,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bot, Power, ShoppingBag } from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -17,10 +17,22 @@ import {
   usePendingCertifications,
   useRejectCertificationPost,
 } from "@/features/certification/hooks";
-import { useActiveAiTicket } from "@/features/ai/hooks";
-import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
+import {
+  useActiveAiTicket,
+  useDeactivateAiReview,
+  useUpsertAiReviewRule,
+} from "@/features/ai/hooks";
+import { statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import { getMinStartDate } from "./challengeDateRange";
+import { DESCRIPTION_MIN_LENGTH, TITLE_MAX_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
+import { hasMeaningfulContent } from "./textValidation";
+import {
+  isVerificationMethodValid,
+  normalizeVerificationMethod,
+  VERIFICATION_METHOD_MAX_LENGTH,
+  VERIFICATION_METHOD_MIN_LENGTH,
+} from "./verificationMethodRange";
 import DateField from "./DateField";
 import TimeField from "./TimeField";
 import {
@@ -82,7 +94,26 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
     form.certEndTime > form.certStartTime &&
     form.certStartTime >= CERT_TIME_MIN &&
     form.certEndTime <= CERT_TIME_MAX;
-  const isFormValid = isEditable && form.title.trim() !== "" && isPeriodValid && isCertTimeValid;
+
+  // 이 검증 규칙이 생기기 전에 만들어진 챌린지는 제목/설명/인증 방법이 새 기준보다 짧을 수 있다.
+  // 그 필드를 직접 고치지 않는 한(원래 값 그대로면) 다른 항목만 저장하는 것도 막으면 안 되므로,
+  // "새 기준을 만족" 하거나 "애초에 값을 안 건드림" 둘 중 하나면 통과시킨다.
+  const isTitleValid =
+    hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) || form.title === challenge.title;
+  const isDescriptionValid =
+    hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) ||
+    form.description === (challenge.description ?? "");
+  const isVerificationMethodOk =
+    isVerificationMethodValid(form.verificationMethod) ||
+    form.verificationMethod === (challenge.verificationMethod ?? "");
+
+  const isFormValid =
+    isEditable &&
+    isTitleValid &&
+    isDescriptionValid &&
+    isPeriodValid &&
+    isCertTimeValid &&
+    isVerificationMethodOk;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -134,8 +165,14 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               value={form.title}
               onChange={setField("title")}
               disabled={!isEditable}
+              maxLength={TITLE_MAX_LENGTH}
               className={settingsInputClassName}
             />
+            {isEditable && form.title.trim().length > 0 && !isTitleValid && (
+              <p className="mt-1 text-xs text-danger">
+                제목은 {TITLE_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+              </p>
+            )}
           </div>
 
           <div>
@@ -150,6 +187,11 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               disabled={!isEditable}
               className={`${settingsInputClassName} resize-none`}
             />
+            {isEditable && form.description.trim().length > 0 && !isDescriptionValid && (
+              <p className="mt-1 text-xs text-danger">
+                설명은 {DESCRIPTION_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -200,11 +242,21 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
             <input
               id="settings-verification-method"
               type="text"
+              placeholder="예) 러닝 앱 캡처 화면 - 러닝 거리와 시간이 함께 보여야 함"
               value={form.verificationMethod}
               onChange={setField("verificationMethod")}
               disabled={!isEditable}
+              maxLength={VERIFICATION_METHOD_MAX_LENGTH}
               className={settingsInputClassName}
             />
+            {isEditable && !isVerificationMethodOk && (
+              <p className="mt-1 text-xs text-danger">
+                AI 자동검수가 이 문구를 기준으로 판단해요. {VERIFICATION_METHOD_MIN_LENGTH}자 이상
+                구체적으로 적어주세요. (
+                {normalizeVerificationMethod(form.verificationMethod).length}/
+                {VERIFICATION_METHOD_MIN_LENGTH}자)
+              </p>
+            )}
           </div>
 
           <div>
@@ -406,7 +458,7 @@ const PendingCertificationCard = ({
   </div>
 );
 
-const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
+const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled, verificationMethod }) => {
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     usePendingCertifications(challengeId);
   const {
@@ -416,6 +468,8 @@ const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
   } = useActiveAiTicket();
   const approveMutation = useApproveCertificationPost(challengeId);
   const rejectMutation = useRejectCertificationPost(challengeId);
+  const activateAiMutation = useUpsertAiReviewRule(challengeId);
+  const deactivateAiMutation = useDeactivateAiReview(challengeId);
 
   const posts = data?.pages.flat() ?? [];
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
@@ -429,6 +483,24 @@ const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
     const reason = window.prompt("반려 사유를 입력해주세요.");
     if (!reason) return;
     rejectMutation.mutate({ postId, reason });
+  };
+
+  const activateAiReview = () => {
+    if (!hasActiveTicket || activateAiMutation.isPending) return;
+    if (!window.confirm("이 방의 참가자 인증글을 AI가 자동 검수하도록 활성화할까요?")) return;
+
+    activateAiMutation.mutate({
+      ruleText: verificationMethod,
+      reviewMode: "AUTO",
+    });
+  };
+
+  const deactivateAiReview = () => {
+    if (deactivateAiMutation.isPending) return;
+    if (!window.confirm("이 방의 AI 자동검수를 비활성화하고 방장 수동 검수로 전환할까요?")) {
+      return;
+    }
+    deactivateAiMutation.mutate();
   };
 
   if (isError) {
@@ -464,27 +536,56 @@ const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
               : "참가자의 인증 게시물을 방장이 직접 검수합니다."}
           </p>
         </div>
-        {isTicketLoading ? (
-          <span className="text-xs text-gray-400">티켓 확인 중...</span>
-        ) : usesAutomaticReview ? (
-          <span className="shrink-0 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
-            자동 검수 사용 중
-          </span>
-        ) : !hasActiveTicket ? (
-          <Link
-            href="/mypage/tickets/store"
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
-          >
-            티켓 활성화
-          </Link>
-        ) : (
-          <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
-            수동 검수 사용 중
-          </span>
-        )}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {isTicketLoading ? (
+            <span className="text-xs text-gray-400">티켓 확인 중...</span>
+          ) : (
+            <>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  usesAutomaticReview
+                    ? "bg-primary-light text-primary"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {usesAutomaticReview ? "자동 검수 사용 중" : "수동 검수 사용 중"}
+              </span>
+
+              {aiReviewEnabled ? (
+                <Button
+                  variant="outline"
+                  onClick={deactivateAiReview}
+                  disabled={deactivateAiMutation.isPending}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Power size={15} />
+                    {deactivateAiMutation.isPending ? "비활성화 중..." : "AI 검수 비활성화"}
+                  </span>
+                </Button>
+              ) : hasActiveTicket ? (
+                <Button onClick={activateAiReview} disabled={activateAiMutation.isPending}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Bot size={15} />
+                    {activateAiMutation.isPending ? "활성화 중..." : "AI 검수 활성화"}
+                  </span>
+                </Button>
+              ) : (
+                <Link
+                  href="/mypage/tickets/store"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+                >
+                  <ShoppingBag size={15} /> 티켓 구매하기
+                </Link>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {ticketError && <ErrorMessage error={ticketError} />}
+      {(activateAiMutation.error || deactivateAiMutation.error) && (
+        <ErrorMessage error={activateAiMutation.error ?? deactivateAiMutation.error} />
+      )}
 
       {posts.length === 0 ? (
         <div className="rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
@@ -561,7 +662,6 @@ const ChallengeManagePage = ({ challengeId, initialTab }) => {
   }
 
   const statusBadge = statusBadgeMap[challenge.status] ?? statusBadgeMap.RECRUITING;
-  const gradient = getCategoryGradient(challenge.categoryName);
   const totalDays = getTotalDays(challenge.startDate, challenge.endDate);
 
   const totalPending = participants?.reduce((sum, p) => sum + (p.pendingCount ?? 0), 0) ?? 0;
@@ -591,10 +691,14 @@ const ChallengeManagePage = ({ challengeId, initialTab }) => {
 
       <div className="flex flex-wrap items-center gap-4">
         <div
-          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl ${challenge.thumbnailUrl ? "" : `bg-gradient-to-br ${gradient}`}`}
+          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl ${challenge.thumbnailUrl ? "" : "bg-gray-50"}`}
         >
-          {challenge.thumbnailUrl && (
+          {challenge.thumbnailUrl ? (
             <img src={challenge.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <img src="/logo.png" alt="" className="h-5 w-auto opacity-30" />
+            </div>
           )}
         </div>
         <div>
@@ -735,6 +839,7 @@ const ChallengeManagePage = ({ challengeId, initialTab }) => {
           challengeId={challengeId}
           hostId={challenge.hostId}
           aiReviewEnabled={challenge.aiReviewEnabled}
+          verificationMethod={challenge.verificationMethod}
         />
       )}
 

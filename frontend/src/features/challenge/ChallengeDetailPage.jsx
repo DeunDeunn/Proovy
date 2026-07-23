@@ -13,6 +13,8 @@ import {
   Camera,
   ChevronDown,
   ChevronUp,
+  ClipboardCheck,
+  FileText,
   Share2,
   Target,
   Users,
@@ -280,10 +282,15 @@ const ChallengeDetailPage = ({ challengeId }) => {
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-900">챌린지 소개</h2>
+            <h2 className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
+                <FileText size={13} />
+              </span>
+              챌린지 소개
+            </h2>
             <p
               ref={descriptionRef}
-              className={`mt-2 text-sm leading-relaxed text-gray-600 whitespace-pre-line ${
+              className={`mt-1 text-sm leading-relaxed font-semibold text-gray-800 whitespace-pre-line ${
                 showFullDescription ? "" : "line-clamp-3"
               }`}
             >
@@ -298,6 +305,19 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 {showFullDescription ? "접기" : "더보기"}
                 {showFullDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
+            )}
+            {challenge.verificationMethod && (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <p className="flex items-center gap-2 text-xs text-gray-400">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
+                    <ClipboardCheck size={13} />
+                  </span>
+                  인증 방법
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-800">
+                  {challenge.verificationMethod}
+                </p>
+              </div>
             )}
           </div>
         </div>

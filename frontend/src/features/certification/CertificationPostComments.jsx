@@ -23,6 +23,7 @@ import Loading from "@/components/ui/Loading";
 import { useMe } from "@/features/auth/hooks";
 import { useStartDirectChat } from "@/features/chat/hooks/chatHooks";
 import { useFollow, useUnfollow, useUserProfile } from "@/features/users/hooks";
+import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 
 import {
   useComments,
@@ -55,27 +56,21 @@ const CommentMeta = ({ comment }) => (
   </div>
 );
 
-const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
-
 const ProfileAvatar = ({ nickname, profileImageUrl, compact = false }) => {
   const sizeClassName = compact ? "h-7 w-7 text-[11px]" : "h-8 w-8 text-xs";
   const [failedImageUrl, setFailedImageUrl] = useState(null);
-  const showProfileImage = Boolean(profileImageUrl) && failedImageUrl !== profileImageUrl;
+  const imageUrl =
+    profileImageUrl && failedImageUrl !== profileImageUrl
+      ? profileImageUrl
+      : DEFAULT_PROFILE_IMAGE_URL;
 
-  return showProfileImage ? (
+  return (
     <img
-      src={profileImageUrl}
+      src={imageUrl}
       alt={`${nickname ?? "사용자"} 프로필 이미지`}
-      onError={() => setFailedImageUrl(profileImageUrl)}
+      onError={() => profileImageUrl && setFailedImageUrl(profileImageUrl)}
       className={`${sizeClassName} shrink-0 rounded-full border border-gray-200 object-cover`}
     />
-  ) : (
-    <span
-      aria-hidden="true"
-      className={`flex ${sizeClassName} shrink-0 items-center justify-center rounded-full bg-primary-light font-bold text-primary`}
-    >
-      {getAvatarInitial(nickname)}
-    </span>
   );
 };
 
@@ -435,7 +430,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                 <p className="text-sm text-gray-400">삭제된 댓글입니다.</p>
               ) : (
                 <div className="flex items-start gap-2.5">
-                  <div className="-mt-1.5">
+                  <div className="-mt-1">
                     <ProfileAvatar
                       nickname={comment.authorNickname}
                       profileImageUrl={comment.authorProfileImageUrl}
@@ -562,7 +557,7 @@ const CertificationPostComments = ({ postId, status, commentCount, embedded = fa
                         className="mt-0.5 shrink-0 text-gray-400"
                         aria-hidden="true"
                       />
-                      <div className="-mt-1">
+                      <div className="-mt-0.5">
                         <ProfileAvatar
                           nickname={reply.authorNickname}
                           profileImageUrl={reply.authorProfileImageUrl}
