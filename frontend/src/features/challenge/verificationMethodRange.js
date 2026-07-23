@@ -7,4 +7,5 @@ export const VERIFICATION_METHOD_MAX_LENGTH = 200;
 export const normalizeVerificationMethod = normalizeText;
 
 export const isVerificationMethodValid = (value) =>
-  hasMeaningfulContent(value, VERIFICATION_METHOD_MIN_LENGTH);
+  hasMeaningfulContent(value, VERIFICATION_METHOD_MIN_LENGTH) &&
+  value.length <= VERIFICATION_METHOD_MAX_LENGTH;
