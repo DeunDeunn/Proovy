@@ -57,6 +57,12 @@
         WHERE id = #{challengeId}
     </select>
 
+    <select id="isChallengeAiReviewEnabledByChallengeId" resultType="boolean">
+        SELECT ai_review_enabled
+        FROM challenges
+        WHERE id = #{challengeId}
+    </select>
+
     <update id="updateAiReviewModeByChallengeId">
         UPDATE ai_review_rules
         SET review_mode = #{reviewMode},

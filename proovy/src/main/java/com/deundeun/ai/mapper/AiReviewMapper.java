@@ -24,6 +24,11 @@ public interface AiReviewMapper {
             @Param("activatedAt") LocalDateTime activatedAt
     );
 
+    List<Long> findPendingParticipantPostIdsBeforeAiReviewActivation(
+            @Param("challengeId") Long challengeId,
+            @Param("activatedAt") LocalDateTime activatedAt
+    );
+
     int insertProcessingAiReviewResult(AiReviewResultVo result);
 
     AiReviewResultVo findReviewResultByPostId(@Param("postId") Long postId);

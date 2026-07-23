@@ -13,6 +13,8 @@ public interface AiReviewRuleMapper {
 
     Long findChallengeHostIdByChallengeId(@Param("challengeId") Long challengeId);
 
+    boolean isChallengeAiReviewEnabledByChallengeId(@Param("challengeId") Long challengeId);
+
     int updateAiReviewModeByChallengeId(@Param("challengeId") Long challengeId, @Param("reviewMode") String reviewMode);
 
     int deactivateAiReviewRuleByChallengeId(@Param("challengeId") Long challengeId);

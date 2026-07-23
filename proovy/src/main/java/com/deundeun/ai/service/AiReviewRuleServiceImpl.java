@@ -3,14 +3,18 @@ package com.deundeun.ai.service;
 import com.deundeun.ai.dto.AiReviewRuleRequest;
 import com.deundeun.ai.dto.AiReviewRuleResponse;
 import com.deundeun.ai.enums.AiReviewMode;
+import com.deundeun.ai.event.AiReviewActivatedEvent;
 import com.deundeun.ai.mapper.AiReviewRuleMapper;
 import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiReviewRuleVo;
 import com.deundeun.global.exception.ApiException;
 import com.deundeun.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +22,7 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
 
     private final AiReviewRuleMapper aiReviewRuleMapper;
     private final AiTicketMapper aiTicketMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -39,6 +44,9 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
         Long hostId = validateChallengeOwner(userId, challengeId);
         String reviewMode = normalizeReviewMode(request.getReviewMode());
         validateActiveTicket(hostId);
+        boolean wasAiReviewEnabled =
+                aiReviewRuleMapper.isChallengeAiReviewEnabledByChallengeId(challengeId);
+        LocalDateTime activatedAt = LocalDateTime.now();
 
         AiReviewRuleVo aiReviewRuleVo = AiReviewRuleVo.builder()
                 .hostId(hostId)
@@ -49,6 +57,10 @@ public class AiReviewRuleServiceImpl implements AiReviewRuleService {
 
         aiReviewRuleMapper.upsertAiReviewRule(aiReviewRuleVo);
         aiReviewRuleMapper.updateChallengeAiReviewEnabled(challengeId, true);
+        if (!wasAiReviewEnabled) {
+            eventPublisher.publishEvent(
+                    new AiReviewActivatedEvent(hostId, challengeId, activatedAt));
+        }
 
         AiReviewRuleVo savedRule = aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId);
         validateFound(savedRule);

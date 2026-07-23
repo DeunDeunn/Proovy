@@ -123,6 +123,25 @@
         ORDER BY p.created_at ASC, p.id ASC
     </select>
 
+    <select id="findPendingParticipantPostIdsBeforeAiReviewActivation" resultType="java.lang.Long">
+        SELECT p.id
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE c.id = #{challengeId}
+          AND c.ai_review_enabled = true
+          AND p.user_id != c.host_id
+          AND p.certification_status = 'PENDING'
+          AND p.deleted_at IS NULL
+          AND p.created_at &lt; #{activatedAt}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM ai_review_results ar
+              WHERE ar.verification_post_id = p.id
+          )
+        ORDER BY p.created_at ASC, p.id ASC
+    </select>
+
     <update id="resetAiReviewResultToProcessing">
         UPDATE ai_review_results
         SET review_mode = #{reviewMode},
