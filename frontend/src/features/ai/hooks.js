@@ -25,6 +25,13 @@ export const useAiTicketPlans = () =>
 export const useActiveAiTicket = () =>
   useQuery({ queryKey: aiTicketKeys.active(), queryFn: getActiveAiTicket });
 
+export const useHasActiveAiTicket = () =>
+  useQuery({
+    queryKey: aiTicketKeys.active(),
+    queryFn: getActiveAiTicket,
+    select: (ticket) => ticket?.hasActiveTicket === true,
+  });
+
 export const useAiTicketHistory = (params) =>
   useQuery({
     queryKey: aiTicketKeys.history(params),

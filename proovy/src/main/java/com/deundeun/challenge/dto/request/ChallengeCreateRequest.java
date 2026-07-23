@@ -32,9 +32,6 @@ public record ChallengeCreateRequest(
         @Positive(message = "일일 인증 횟수는 0보다 커야 합니다.")
         Integer dailyCertLimit,
 
-        @NotNull(message = "AI 검수 사용 여부는 필수입니다.")
-        Boolean aiReviewEnabled,
-
         @NotNull(message = "시작일은 필수입니다.")
         @FutureOrPresent(message = "시작일은 오늘 이후여야 합니다.")
         LocalDate startDate,
