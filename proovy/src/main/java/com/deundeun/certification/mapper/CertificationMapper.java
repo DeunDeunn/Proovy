@@ -70,7 +70,7 @@ public interface CertificationMapper {
    // 글 반려. 반환=영향받은 행 수
    int rejectPost(@Param("postId") Long postId, @Param("reason") String reason);
 
-   // 자정 자동 승인 대상: 삭제 안 된 PENDING 글 전체 (작성자·챌린지·방장 포함)
+   // 자정 자동 승인 대상: 삭제 안 된 참가자 PENDING 글 (방장 글은 AI 전용이라 제외)
    List<PendingPostForAutoApproval> findAllPendingPostsForAutoApproval();
 
    // 자동 승인: id 목록을 한 번에 APPROVED/AUTO로 갱신. 반환=실제 갱신된 글 id 목록(RETURNING id)

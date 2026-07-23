@@ -104,7 +104,26 @@
         WHERE verification_post_id = #{postId}
     </select>
 
-    <update id="resetFailedAiReviewResultToProcessing">
+    <select id="findPendingParticipantPostIdsBeforeTicketActivation" resultType="java.lang.Long">
+        SELECT p.id
+        FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE c.host_id = #{hostId}
+          AND c.ai_review_enabled = true
+          AND p.user_id != c.host_id
+          AND p.certification_status = 'PENDING'
+          AND p.deleted_at IS NULL
+          AND p.created_at &lt; #{activatedAt}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM ai_review_results ar
+              WHERE ar.verification_post_id = p.id
+          )
+        ORDER BY p.created_at ASC, p.id ASC
+    </select>
+
+    <update id="resetAiReviewResultToProcessing">
         UPDATE ai_review_results
         SET review_mode = #{reviewMode},
             decision = NULL,
@@ -115,7 +134,7 @@
             previous_post_status = #{previousPostStatus},
             new_post_status = #{newPostStatus}
         WHERE id = #{id}
-          AND status = 'FAILED'
+          AND status IN ('FAILED', 'COMPLETED')
     </update>
 
     <update id="updateAiReviewResultFailed">
@@ -125,10 +144,29 @@
           AND status = 'PROCESSING'
     </update>
 
+    <update id="rejectPendingHostPostAfterReviewFailure">
+        UPDATE certification_posts p
+        SET certification_status = 'REJECTED',
+            rejection_reason = #{reason},
+            rejected_at = CURRENT_TIMESTAMP
+        FROM challenge_participants cp
+        JOIN challenges c ON c.id = cp.challenge_id
+        WHERE p.id = #{postId}
+          AND p.challenge_participant_id = cp.id
+          AND p.user_id = c.host_id
+          AND p.certification_status = 'PENDING'
+          AND p.deleted_at IS NULL
+          AND EXISTS (
+              SELECT 1
+              FROM ai_review_results ar
+              WHERE ar.verification_post_id = p.id
+                AND ar.status = 'FAILED'
+          )
+    </update>
+
     <update id="updateCertificationPostStatus">
         UPDATE certification_posts
-        SET certification_status = #{newStatus},
-            updated_at = CURRENT_TIMESTAMP
+        SET certification_status = #{newStatus}
         WHERE id = #{postId}
           AND deleted_at IS NULL
           AND certification_status = 'PENDING'

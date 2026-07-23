@@ -13,7 +13,6 @@ import ChatRoomList from "@/features/chat/components/ChatRoomList";
 import { useChatRoomsSync, useMarkRoomRead } from "@/features/chat/hooks/chatHooks";
 import { useChatStore } from "@/features/chat/store";
 
-const LIST_WIDTH_OPEN_REM = 20;
 const PANEL_TRANSITION_MS = 300;
 
 const ChatPageContent = () => {
@@ -41,7 +40,6 @@ const ChatPageContent = () => {
   const [pendingOpenId, setPendingOpenId] = useState(null);
 
   const panelOpen = selectedRoomId != null;
-  const isRoomMode = panelRoomId != null;
 
   // 닫힌 상태에서 새로 열 때는 먼저 닫힌 위치로 마운트한 뒤 다음 프레임에 열어야 슬라이드인 트랜지션이 재생됨
   useEffect(() => {
@@ -124,34 +122,36 @@ const ChatPageContent = () => {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <h1 className="mx-auto flex w-full max-w-3xl shrink-0 items-center gap-2 text-xl font-bold text-gray-900">
-        <MessageCircle size={22} />
+    <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-[1440px] flex-col">
+      <h1 className="flex shrink-0 items-center gap-2 text-2xl font-bold text-gray-900">
+        <MessageCircle size={24} />
         채팅
       </h1>
 
-      <div className="mt-5 min-h-0 flex-1">
-        <div className="relative h-full overflow-hidden">
-          <div
-            className="h-full transition-[width,margin-left] duration-300 ease-out"
-            style={{
-              width: isRoomMode ? `${LIST_WIDTH_OPEN_REM}rem` : "min(48rem, 100%)",
-              marginLeft: isRoomMode ? "0px" : "max(0px, calc((100% - 48rem) / 2))",
-            }}
-          >
-            <ChatRoomList
-              rooms={rooms}
-              selectedRoomId={selectedRoomId}
-              onSelectRoom={handleSelectRoom}
-            />
-          </div>
+      <div className="mt-5 flex min-h-0 flex-1 gap-4">
+        <div className={`w-full shrink-0 lg:block lg:w-96 ${panelRoom ? "hidden" : "block"}`}>
+          <ChatRoomList
+            rooms={rooms}
+            selectedRoomId={selectedRoomId}
+            onSelectRoom={handleSelectRoom}
+          />
+        </div>
+
+        <div
+          className={`relative min-w-0 flex-1 overflow-hidden lg:block ${panelRoom ? "block" : "hidden"}`}
+        >
+          {!panelRoom && (
+            <div className="flex h-full flex-col items-center justify-center gap-2 rounded-2xl border border-gray-100 bg-surface text-gray-400 shadow-xl shadow-black/5">
+              <MessageCircle size={28} className="text-gray-300" />
+              <p className="text-sm">채팅방을 선택해주세요</p>
+            </div>
+          )}
 
           {panelRoom && (
             <div
-              className={`absolute inset-y-0 right-0 pl-4 transition-transform duration-300 ease-out ${
-                panelOpen ? "translate-x-0" : "translate-x-full"
+              className={`absolute inset-0 transition-[transform,opacity] duration-300 ease-out ${
+                panelOpen ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0"
               }`}
-              style={{ width: `calc(100% - ${LIST_WIDTH_OPEN_REM}rem)` }}
             >
               <ChatConversationPanel
                 key={panelRoom.chatRoomId}

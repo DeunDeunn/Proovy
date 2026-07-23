@@ -2,11 +2,11 @@ import { useRouter } from "next/navigation";
 import { BadgeCheck, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
 
 import ParticipantAvatarMenu from "@/features/chat/components/ParticipantAvatarMenu";
-import { formatChatTime, formatFileSize, getAvatarColor } from "@/features/chat/mockData";
+import ProfileAvatar from "@/components/ui/ProfileAvatar";
+import { formatChatTime, formatFileSize } from "@/features/chat/mockData";
 
 const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, isDeletePending }) => {
   const router = useRouter();
-  const avatarColor = getAvatarColor(message.senderId);
   const time = formatChatTime(message.createdAt);
   const readLabel = isOwn && !isChallenge && message.read ? "읽음" : null;
   const canDelete = isOwn && !message.deletedAt && !!onDelete;
@@ -51,7 +51,7 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
       const attachment = message.attachments?.[0];
       if (!attachment) {
         return (
-          <div className="flex w-64 items-center gap-3 rounded-2xl border border-gray-200 px-3 py-2.5 text-sm text-gray-400">
+          <div className="flex w-64 items-center gap-3 rounded-2xl border border-gray-100 px-3 py-2.5 text-sm text-gray-400">
             <FileText size={20} className="shrink-0" />
             <p>파일 정보를 불러올 수 없습니다.</p>
           </div>
@@ -64,7 +64,7 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
           target="_blank"
           rel="noopener noreferrer"
           className={`flex w-64 items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm hover:bg-gray-50 ${
-            isOwn ? "border-primary/30" : "border-gray-200"
+            isOwn ? "border-primary/30" : "border-gray-100"
           }`}
         >
           <FileText size={20} className="shrink-0 text-gray-400" />
@@ -79,7 +79,7 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
     if (message.messageType === "CERTIFICATION_SHARE" && message.sharedCertification) {
       const cert = message.sharedCertification;
       return (
-        <div className="w-64 rounded-2xl border border-gray-200 bg-surface p-3">
+        <div className="w-64 rounded-2xl border border-gray-100 bg-surface p-3">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
               {cert.authorNickname.slice(0, 1)}
@@ -121,12 +121,17 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
       {!isOwn && (
         <div className="w-8 shrink-0">
           {showSenderInfo && (
-            <ParticipantAvatarMenu userId={message.senderId} canStartChat={isChallenge}>
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${avatarColor.bg} ${avatarColor.text}`}
-              >
-                {message.senderNickname.slice(0, 1)}
-              </div>
+            <ParticipantAvatarMenu
+              userId={message.senderId}
+              nickname={message.senderNickname}
+              profileImageUrl={message.senderProfileImage}
+              canStartChat={isChallenge}
+            >
+              <ProfileAvatar
+                nickname={message.senderNickname}
+                profileImageUrl={message.senderProfileImage}
+                size="h-8 w-8"
+              />
             </ParticipantAvatarMenu>
           )}
         </div>
@@ -160,9 +165,9 @@ const MessageBubble = ({ message, isOwn, showSenderInfo, isChallenge, onDelete, 
           )}
           {renderContent()}
           {readLabel && (
-            <div className="flex shrink-0 flex-col items-end text-[11px] text-gray-400">
-              <span>{readLabel}</span>
-              <span>{time}</span>
+            <div className="flex shrink-0 flex-col items-end text-[11px]">
+              <span className="font-medium text-primary">{readLabel}</span>
+              <span className="text-gray-400">{time}</span>
             </div>
           )}
           {!readLabel && <span className="shrink-0 text-[11px] text-gray-400">{time}</span>}

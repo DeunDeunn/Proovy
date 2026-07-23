@@ -28,6 +28,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.deundeun.certification.dto.CertificationPostDetailResponse;
+import com.deundeun.certification.dto.CertificationAiReviewResponse;
 import com.deundeun.certification.dto.CertificationStreakResponse;
 import com.deundeun.certification.dto.ChallengeForCertification;
 import com.deundeun.certification.dto.CreateCertificationPostRequest;
@@ -69,6 +70,7 @@ class CertificationServiceTest {
     private static final Long CHALLENGE_ID = 10L;
     private static final Long USER_ID = 100L;
     private static final Long HOST_ID = 200L;
+    private static final Long ADMIN_ID = 300L;
 
     private MultipartFile file() {
         return new MockMultipartFile("f", "n.jpg", "image/jpeg", new byte[]{1, 2, 3});
@@ -131,6 +133,12 @@ class CertificationServiceTest {
         ctx.setStatus(status);
         ctx.setHostId(HOST_ID);
         ctx.setAuthorId(USER_ID);
+        return ctx;
+    }
+
+    private PostReviewContext hostReviewCtx(CertificationStatus status) {
+        PostReviewContext ctx = reviewCtx(status);
+        ctx.setAuthorId(HOST_ID);
         return ctx;
     }
 
@@ -284,7 +292,12 @@ class CertificationServiceTest {
         @Test
         @DisplayName("[C-12] 작성자 본인은 미승인 글도 조회할 수 있다")
         void authorReadsPending() {
-            when(certificationMapper.findPostDetail(POST_ID)).thenReturn(detail(USER_ID, CertificationStatus.PENDING));
+            CertificationPostDetailResponse detail = detail(USER_ID, CertificationStatus.PENDING);
+            CertificationAiReviewResponse aiReview = new CertificationAiReviewResponse();
+            aiReview.setStatus("PROCESSING");
+            detail.setAiReviewExpected(true);
+            detail.setAiReview(aiReview);
+            when(certificationMapper.findPostDetail(POST_ID)).thenReturn(detail);
             when(certificationMapper.isAdmin(USER_ID)).thenReturn(0);
             when(certificationMapper.findPostImageUrls(POST_ID)).thenReturn(List.of("a.jpg"));
             when(certificationMapper.existsLike(POST_ID, USER_ID)).thenReturn(true);
@@ -293,6 +306,29 @@ class CertificationServiceTest {
 
             assertThat(res.getImageUrls()).containsExactly("a.jpg");
             assertThat(res.isLiked()).isTrue();
+            assertThat(res.getAiReview()).isSameAs(aiReview);
+            assertThat(res.isAiReviewExpected()).isTrue();
+        }
+
+        @Test
+        @DisplayName("일반 조회자에게는 AI 상세 결과를 노출하지 않는다")
+        void publicViewerCannotReadAiReviewDetails() {
+            CertificationPostDetailResponse detail = detail(999L, CertificationStatus.APPROVED);
+            CertificationAiReviewResponse aiReview = new CertificationAiReviewResponse();
+            aiReview.setDecision("APPROVED");
+            aiReview.setReason("내부 AI 판단 사유");
+            detail.setAiReviewExpected(true);
+            detail.setAiReview(aiReview);
+            when(certificationMapper.findPostDetail(POST_ID)).thenReturn(detail);
+            when(certificationMapper.isAdmin(USER_ID)).thenReturn(0);
+            when(certificationMapper.findChallengeByPostId(POST_ID))
+                    .thenReturn(challengeInRange("IN_PROGRESS"));
+
+            CertificationPostDetailResponse response =
+                    certificationService.getCertificationPostDetail(POST_ID, USER_ID);
+
+            assertThat(response.getAiReview()).isNull();
+            assertThat(response.isAiReviewExpected()).isFalse();
         }
 
         @Test
@@ -460,6 +496,21 @@ class CertificationServiceTest {
         }
 
         @Test
+        @DisplayName("방장 작성 글은 관리자도 수동 승인할 수 없다")
+        void hostPostCannotBeApprovedManually() {
+            when(certificationMapper.findPostReviewContext(POST_ID))
+                    .thenReturn(hostReviewCtx(CertificationStatus.PENDING));
+
+            assertThatThrownBy(() -> certificationService.approveCertificationPost(POST_ID, ADMIN_ID))
+                    .isInstanceOf(ApiException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.HOST_POST_MANUAL_REVIEW_FORBIDDEN);
+
+            verify(certificationMapper, never()).isAdmin(anyLong());
+            verify(certificationMapper, never()).approvePost(anyLong(), any());
+        }
+
+        @Test
         @DisplayName("[C-26] PENDING이 아니면 NOT_PENDING_POST")
         void notPending() {
             when(certificationMapper.findPostReviewContext(POST_ID)).thenReturn(reviewCtx(CertificationStatus.APPROVED));
@@ -523,6 +574,22 @@ class CertificationServiceTest {
             assertThatThrownBy(() -> certificationService.rejectCertificationPost(POST_ID, USER_ID, reason("사유")))
                     .isInstanceOf(ApiException.class)
                     .extracting("errorCode").isEqualTo(ErrorCode.FORBIDDEN);
+        }
+
+        @Test
+        @DisplayName("방장 작성 글은 관리자도 수동 반려할 수 없다")
+        void hostPostCannotBeRejectedManually() {
+            when(certificationMapper.findPostReviewContext(POST_ID))
+                    .thenReturn(hostReviewCtx(CertificationStatus.PENDING));
+
+            assertThatThrownBy(() -> certificationService.rejectCertificationPost(
+                    POST_ID, ADMIN_ID, reason("수동 반려 시도")))
+                    .isInstanceOf(ApiException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.HOST_POST_MANUAL_REVIEW_FORBIDDEN);
+
+            verify(certificationMapper, never()).isAdmin(anyLong());
+            verify(certificationMapper, never()).rejectPost(anyLong(), any());
         }
 
         @Test
@@ -629,6 +696,7 @@ class CertificationServiceTest {
             verify(certificationMapper).updatePost(POST_ID, "수정본", "new.jpg");
             verify(certificationMapper).deletePostImages(POST_ID);
             verify(certificationMapper).insertPostImages(POST_ID, List.of("i1.jpg"));
+            verify(eventPublisher).publishEvent(new VerificationSubmittedEvent(HOST_ID, POST_ID));
         }
     }
 
@@ -753,10 +821,10 @@ class CertificationServiceTest {
     @DisplayName("getTodayCertificationProgress")
     class TodayCertificationProgress {
         @Test
-        @DisplayName("[C-47] 오늘 인증한 진행 중 챌린지 수와 전체 수를 반환한다")
+        @DisplayName("[C-47] 참여 인증 진행도와 운영 챌린지의 오늘 등록·미검수 글 수를 반환한다")
         void returnsTodayCertificationProgress() {
             TodayCertificationProgressResponse progress =
-                    new TodayCertificationProgressResponse(2, 3);
+                    new TodayCertificationProgressResponse(2, 3, 4, 5, 7L);
             when(certificationMapper.findTodayCertificationProgress(USER_ID)).thenReturn(progress);
 
             TodayCertificationProgressResponse result =
@@ -764,6 +832,9 @@ class CertificationServiceTest {
 
             assertThat(result.certifiedChallengeCount()).isEqualTo(2);
             assertThat(result.inProgressChallengeCount()).isEqualTo(3);
+            assertThat(result.hostedTodayCertificationPostCount()).isEqualTo(4);
+            assertThat(result.hostedPendingCertificationPostCount()).isEqualTo(5);
+            assertThat(result.hostedPendingCertificationChallengeId()).isEqualTo(7L);
         }
     }
 

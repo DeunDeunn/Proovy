@@ -321,8 +321,6 @@ const ChallengeFeedPage = ({ challengeId }) => {
     error: challengeError,
     isLoading: isChallengeLoading,
   } = useChallenge(challengeId);
-  const isHost = me?.id != null && challenge?.hostId != null && me.id === challenge.hostId;
-  const canReview = isHost || me?.role === "ADMIN";
   const activeFilter = isReviewMode ? "review" : filter;
   const activeSort = isReviewMode ? "latest" : sort;
   const {
@@ -338,6 +336,9 @@ const ChallengeFeedPage = ({ challengeId }) => {
   const rejectMutation = useRejectCertificationPost(challengeId);
 
   const posts = data?.pages.flat() ?? [];
+  const visiblePosts = isReviewMode
+    ? posts.filter((post) => post.authorId !== challenge?.hostId)
+    : posts;
   const isReviewActionPending = approveMutation.isPending || rejectMutation.isPending;
 
   const resetRejectForm = () => {
@@ -449,17 +450,6 @@ const ChallengeFeedPage = ({ challengeId }) => {
               + 인증하기
             </Link>
           )}
-          {canReview && (
-            <Button
-              type="button"
-              variant={isReviewMode ? "primary" : "outline"}
-              className="!rounded-full"
-              onClick={toggleReviewMode}
-              disabled={isReviewActionPending}
-            >
-              {isReviewMode ? "피드 보기" : "검수 모드"}
-            </Button>
-          )}
           {!isReviewMode && (
             <div className="flex gap-2" role="tablist" aria-label="피드 정렬">
               {sorts.map(({ value, label, icon: Icon }) => {
@@ -496,7 +486,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
           )}
           {isFeedError ? (
             <ErrorMessage error={feedError} />
-          ) : posts.length === 0 ? (
+          ) : visiblePosts.length === 0 ? (
             <Card>
               <p className="py-12 text-center text-sm text-gray-500">
                 승인 대기 인증글이 없습니다.
@@ -505,7 +495,7 @@ const ChallengeFeedPage = ({ challengeId }) => {
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {posts.map((post) => (
+                {visiblePosts.map((post) => (
                   <ReviewCertificationCard
                     key={post.postId}
                     post={post}

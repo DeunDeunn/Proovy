@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Camera, ClipboardCheck, ShieldCheck, Tag } from "lucide-react";
+import { Calendar, Camera, Check, ClipboardCheck, ShieldCheck, Tag } from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -39,8 +39,8 @@ const getMinEndDate = (startDate) => {
 };
 
 const inputClassName =
-  "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary";
-const labelClassName = "mb-1 block text-xs text-gray-500";
+  "w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/10";
+const labelClassName = "mb-1.5 block text-sm font-semibold text-gray-700";
 
 const STEPS = [
   { step: 1, label: "기본 설정" },
@@ -66,9 +66,9 @@ const initialForm = {
 };
 
 const SummaryRow = ({ label, value, highlight }) => (
-  <div className="flex items-center justify-between py-2 text-sm">
+  <div className="flex items-center justify-between py-3 text-sm">
     <span className="text-gray-500">{label}</span>
-    <span className={highlight ? "font-bold text-primary" : "font-medium text-gray-800"}>
+    <span className={highlight ? "text-base font-bold text-primary" : "font-medium text-gray-800"}>
       {value}
     </span>
   </div>
@@ -88,31 +88,41 @@ const SectionHeading = ({ icon: Icon, title, description }) => (
 
 const Stepper = ({ current }) => (
   <div className="flex items-center justify-center">
-    {STEPS.map(({ step, label }, i) => (
-      <div key={step} className="flex items-center">
-        <div className="flex flex-col items-center gap-1">
-          <div
-            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-              current >= step ? "bg-primary text-white" : "border border-gray-300 text-gray-400"
-            }`}
-          >
-            {step}
+    {STEPS.map(({ step, label }, i) => {
+      const isDone = current > step;
+      const isActive = current === step;
+      return (
+        <div key={step} className="flex items-center">
+          <div className="flex flex-col items-center gap-1.5">
+            <div
+              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-all ${
+                isDone
+                  ? "bg-primary text-white"
+                  : isActive
+                    ? "bg-primary text-white ring-4 ring-primary/15"
+                    : "border-2 border-gray-200 text-gray-400"
+              }`}
+            >
+              {isDone ? <Check size={16} strokeWidth={3} /> : step}
+            </div>
+            <span
+              className={`text-xs whitespace-nowrap ${
+                isActive ? "font-semibold text-gray-900" : "text-gray-400"
+              }`}
+            >
+              {label}
+            </span>
           </div>
-          <span
-            className={`text-xs whitespace-nowrap ${
-              current === step ? "font-semibold text-gray-900" : "text-gray-400"
-            }`}
-          >
-            {label}
-          </span>
+          {i < STEPS.length - 1 && (
+            <div
+              className={`mx-2 mb-4 h-1 w-10 rounded-full transition-colors sm:w-16 ${
+                isDone ? "bg-primary" : "bg-gray-200"
+              }`}
+            />
+          )}
         </div>
-        {i < STEPS.length - 1 && (
-          <div
-            className={`mx-2 mb-4 h-px w-10 sm:w-16 ${current > step ? "bg-primary" : "bg-gray-200"}`}
-          />
-        )}
-      </div>
-    ))}
+      );
+    })}
   </div>
 );
 
@@ -220,16 +230,16 @@ const ChallengeCreatePage = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-[640px] space-y-6 pb-2">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">챌린지 개설하기</h1>
+    <form onSubmit={handleSubmit} className="mx-auto max-w-[640px] space-y-8 pb-2">
+      <div className="text-center">
+        <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">챌린지 개설하기</h1>
         <p className="mt-2 text-sm text-gray-500">매력적인 챌린지를 만들어 보세요!</p>
       </div>
 
       <Stepper current={step} />
 
       {step === 1 && (
-        <Card>
+        <Card className="shadow-sm">
           <SectionHeading icon={Tag} title="기본 설정" description="챌린지의 얼굴이 될 정보예요." />
           <div className="space-y-4">
             <div>
@@ -274,9 +284,6 @@ const ChallengeCreatePage = () => {
                 참가비 (1,000원 이상)
               </label>
               <div className="relative">
-                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-gray-400">
-                  ₩
-                </span>
                 <input
                   id="create-entry-fee"
                   type="number"
@@ -284,14 +291,17 @@ const ChallengeCreatePage = () => {
                   step={1000}
                   value={form.entryFee}
                   onChange={setField("entryFee")}
-                  className={`${inputClassName} pl-7`}
+                  className={`${inputClassName} pr-9`}
                 />
+                <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-sm text-gray-400">
+                  원
+                </span>
               </div>
             </div>
 
             <div>
               <label className={labelClassName}>챌린지 사진 (선택)</label>
-              <label className="flex h-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 text-gray-400 hover:bg-gray-50">
+              <label className="group flex h-36 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 text-gray-400 transition-colors hover:border-primary hover:bg-primary-light">
                 {thumbnailPreview ? (
                   <img
                     src={thumbnailPreview}
@@ -299,8 +309,8 @@ const ChallengeCreatePage = () => {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="flex flex-col items-center gap-1 text-xs">
-                    <Camera size={20} />
+                  <span className="flex flex-col items-center gap-1.5 text-xs font-medium transition-colors group-hover:text-primary">
+                    <Camera size={22} />
                     사진 선택
                   </span>
                 )}
@@ -320,7 +330,7 @@ const ChallengeCreatePage = () => {
       )}
 
       {step === 2 && (
-        <Card>
+        <Card className="shadow-sm">
           <SectionHeading
             icon={Calendar}
             title="상세 설정"
@@ -347,27 +357,48 @@ const ChallengeCreatePage = () => {
 
             <div>
               <label className={labelClassName}>진행 기간</label>
-              <div className="flex items-center gap-2">
-                <input
-                  aria-label="시작일"
-                  type="date"
-                  min={getMinStartDate()}
-                  value={form.startDate}
-                  onChange={setField("startDate")}
-                  className={`${inputClassName} min-w-0`}
-                />
-                <span className="shrink-0 text-gray-400">~</span>
-                <input
-                  aria-label="종료일"
-                  type="date"
-                  min={getMinEndDate(form.startDate)}
-                  value={form.endDate}
-                  onChange={setField("endDate")}
-                  className={`${inputClassName} min-w-0`}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="mb-1 text-xs text-gray-400">시작일</p>
+                  <div className="relative">
+                    <Calendar
+                      size={16}
+                      className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
+                    />
+                    <input
+                      aria-label="시작일"
+                      type="date"
+                      min={getMinStartDate()}
+                      value={form.startDate}
+                      onChange={setField("startDate")}
+                      onClick={(e) => e.currentTarget.showPicker?.()}
+                      className={`${inputClassName} cursor-pointer pl-9`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs text-gray-400">종료일</p>
+                  <div className="relative">
+                    <Calendar
+                      size={16}
+                      className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
+                    />
+                    <input
+                      aria-label="종료일"
+                      type="date"
+                      min={getMinEndDate(form.startDate)}
+                      value={form.endDate}
+                      onChange={setField("endDate")}
+                      onClick={(e) => e.currentTarget.showPicker?.()}
+                      className={`${inputClassName} cursor-pointer pl-9`}
+                    />
+                  </div>
+                </div>
               </div>
               {periodDays && (
-                <p className="mt-1 text-xs text-gray-400">총 {periodDays}일간 진행돼요.</p>
+                <p className="mt-2 inline-block rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
+                  총 {periodDays}일간 진행돼요
+                </p>
               )}
               {form.startDate && form.startDate < getMinStartDate() && (
                 <p className="mt-1 text-xs text-danger">시작일은 최소 내일부터 선택할 수 있어요.</p>
@@ -381,21 +412,26 @@ const ChallengeCreatePage = () => {
               <label htmlFor="create-max-participants" className={labelClassName}>
                 모집 정원
               </label>
-              <input
-                id="create-max-participants"
-                type="number"
-                min={1}
-                value={form.maxParticipants}
-                onChange={setField("maxParticipants")}
-                className={inputClassName}
-              />
+              <div className="relative">
+                <input
+                  id="create-max-participants"
+                  type="number"
+                  min={1}
+                  value={form.maxParticipants}
+                  onChange={setField("maxParticipants")}
+                  className={`${inputClassName} pr-9`}
+                />
+                <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-sm text-gray-400">
+                  명
+                </span>
+              </div>
             </div>
           </div>
         </Card>
       )}
 
       {step === 3 && (
-        <Card>
+        <Card className="shadow-sm">
           <SectionHeading
             icon={ShieldCheck}
             title="인증 설정"
@@ -430,7 +466,8 @@ const ChallengeCreatePage = () => {
                     max={CERT_TIME_MAX}
                     value={form.certStartTime}
                     onChange={setField("certStartTime")}
-                    className={`${inputClassName} min-w-0`}
+                    onClick={(e) => e.currentTarget.showPicker?.()}
+                    className={`${inputClassName} min-w-0 cursor-pointer`}
                   />
                   <span className="shrink-0 text-gray-400">~</span>
                   <input
@@ -439,7 +476,8 @@ const ChallengeCreatePage = () => {
                     max={CERT_TIME_MAX}
                     value={form.certEndTime}
                     onChange={setField("certEndTime")}
-                    className={`${inputClassName} min-w-0`}
+                    onClick={(e) => e.currentTarget.showPicker?.()}
+                    className={`${inputClassName} min-w-0 cursor-pointer`}
                   />
                 </div>
               </div>
@@ -477,7 +515,7 @@ const ChallengeCreatePage = () => {
       )}
 
       {step === 4 && (
-        <Card>
+        <Card className="shadow-sm">
           <SectionHeading
             icon={ClipboardCheck}
             title="확인"
@@ -514,18 +552,18 @@ const ChallengeCreatePage = () => {
 
       {createMutation.isError && <ErrorMessage error={createMutation.error} />}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 border-t border-gray-100 pt-6">
         {step === 1 ? (
           <Button
             type="button"
             variant="outline"
-            className="flex-1"
+            className="flex-1 py-3"
             onClick={() => router.push("/challenges")}
           >
             취소
           </Button>
         ) : (
-          <Button type="button" variant="outline" className="flex-1" onClick={goBack}>
+          <Button type="button" variant="outline" className="flex-1 py-3" onClick={goBack}>
             이전 단계
           </Button>
         )}
@@ -533,7 +571,7 @@ const ChallengeCreatePage = () => {
         {step < STEPS.length ? (
           <Button
             type="button"
-            className="flex-1"
+            className="flex-1 py-3"
             disabled={
               justChangedStep ||
               (step === 1 && !isStep1Valid) ||
@@ -547,7 +585,7 @@ const ChallengeCreatePage = () => {
         ) : (
           <Button
             type="submit"
-            className="flex-1"
+            className="flex-1 py-3"
             disabled={justChangedStep || !isFormValid || createMutation.isPending}
           >
             {createMutation.isPending ? "개설하는 중..." : "챌린지 개설하기"}

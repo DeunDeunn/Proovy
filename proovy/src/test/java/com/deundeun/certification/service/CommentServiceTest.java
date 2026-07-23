@@ -235,11 +235,10 @@ class CommentServiceTest {
             commentService.deleteComment(5L, USER_ID);
 
             verify(commentMapper).softDeleteComment(5L);
-            verify(commentMapper).decrementCommentCount(POST_ID);
         }
 
         @Test
-        @DisplayName("[CM-14] 댓글 작성자 본인이면 삭제 + commentCount 감소")
+        @DisplayName("[CM-14] 댓글 작성자 본인이면 삭제 (삭제해도 commentCount는 유지)")
         void commentAuthorDeletes() {
             when(commentMapper.findCommentForAuth(5L)).thenReturn(comment(5, USER_ID, null));
             when(commentMapper.softDeleteComment(5L)).thenReturn(1);
@@ -247,7 +246,6 @@ class CommentServiceTest {
             commentService.deleteComment(5L, USER_ID);
 
             verify(commentMapper).softDeleteComment(5L);
-            verify(commentMapper).decrementCommentCount(POST_ID);
         }
     }
 

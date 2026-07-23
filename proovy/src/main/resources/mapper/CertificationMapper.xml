@@ -3,6 +3,35 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.deundeun.certification.mapper.CertificationMapper">
+
+    <resultMap id="CertificationPostDetailMap" type="CertificationPostDetailResponse">
+        <id property="postId" column="post_id"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorNickname" column="author_nickname"/>
+        <result property="authorProfileImageUrl" column="author_profile_image_url"/>
+        <result property="authorBadgeApproved" column="author_badge_approved"/>
+        <result property="contents" column="contents"/>
+        <result property="thumbnailUrl" column="thumbnail_url"/>
+        <result property="status" column="certification_status"/>
+        <result property="approvalType" column="approval_type"/>
+        <result property="rejectionReason" column="rejection_reason"/>
+        <result property="liked" column="liked"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="aiReviewExpected" column="ai_review_expected"/>
+        <association property="aiReview"
+                     javaType="com.deundeun.certification.dto.CertificationAiReviewResponse"
+                     notNullColumn="ai_review_id">
+            <id property="id" column="ai_review_id"/>
+            <result property="status" column="ai_review_status"/>
+            <result property="reviewMode" column="ai_review_mode"/>
+            <result property="decision" column="ai_review_decision"/>
+            <result property="reason" column="ai_review_reason"/>
+            <result property="criteria" column="ai_review_criteria"/>
+            <result property="requestedAt" column="ai_review_requested_at"/>
+        </association>
+    </resultMap>
     
     <!-- 인증글 1건 저장 (certification_image = URL 끝 파일명, certification_image_url = 전체 URL) -->
     <insert id="createCertificationPost" useGeneratedKeys="true" keyProperty="id">
@@ -55,7 +84,7 @@
           AND created_at::date = CURRENT_DATE
     </select>
 
-    <!-- 홈 오늘 인증 현황: 진행 중 챌린지 중 오늘 인증글을 등록한 챌린지 수 / 전체 수 -->
+    <!-- 홈 오늘 인증 현황: 내 참여 인증 진행도 + 내가 운영 중인 챌린지의 오늘 등록/미검수 글 수 -->
     <select id="findTodayCertificationProgress" resultType="TodayCertificationProgressResponse">
         SELECT
             COUNT(*) FILTER (
@@ -66,7 +95,40 @@
                       AND p.created_at::date = CURRENT_DATE
                 )
             ) AS certified_challenge_count,
-            COUNT(*) AS in_progress_challenge_count
+            COUNT(*) AS in_progress_challenge_count,
+            (
+                SELECT COUNT(*)
+                FROM certification_posts p
+                JOIN challenge_participants hosted_cp ON hosted_cp.id = p.challenge_participant_id
+                JOIN challenges hosted_c ON hosted_c.id = hosted_cp.challenge_id
+                WHERE hosted_c.host_id = #{userId}
+                  AND hosted_c.status = 'IN_PROGRESS'
+                  AND p.deleted_at IS NULL
+                  AND p.created_at &gt;= date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')
+                  AND p.created_at &lt; date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul') + INTERVAL '1 day'
+            ) AS hosted_today_certification_post_count,
+            (
+                SELECT COUNT(*)
+                FROM certification_posts p
+                JOIN challenge_participants hosted_cp ON hosted_cp.id = p.challenge_participant_id
+                JOIN challenges hosted_c ON hosted_c.id = hosted_cp.challenge_id
+                WHERE hosted_c.host_id = #{userId}
+                  AND hosted_c.status = 'IN_PROGRESS'
+                  AND p.certification_status = 'PENDING'
+                  AND p.user_id != hosted_c.host_id
+                  AND p.deleted_at IS NULL
+            ) AS hosted_pending_certification_post_count,
+            (
+                SELECT CASE WHEN COUNT(DISTINCT hosted_c.id) = 1 THEN MIN(hosted_c.id) END
+                FROM certification_posts p
+                JOIN challenge_participants hosted_cp ON hosted_cp.id = p.challenge_participant_id
+                JOIN challenges hosted_c ON hosted_c.id = hosted_cp.challenge_id
+                WHERE hosted_c.host_id = #{userId}
+                  AND hosted_c.status = 'IN_PROGRESS'
+                  AND p.certification_status = 'PENDING'
+                  AND p.user_id != hosted_c.host_id
+                  AND p.deleted_at IS NULL
+            ) AS hosted_pending_certification_challenge_id
         FROM challenge_participants cp
         JOIN challenges c ON c.id = cp.challenge_id
         WHERE cp.user_id = #{userId}
@@ -84,7 +146,7 @@
     </insert>
 
     <!-- 인증글 상세 1건 (삭제된 글 제외) -->
-    <select id="findPostDetail" resultType="CertificationPostDetailResponse">
+    <select id="findPostDetail" resultMap="CertificationPostDetailMap">
         SELECT p.id                                        AS post_id,
                p.user_id                                   AS author_id,
                u.nickname                                  AS author_nickname,
@@ -93,13 +155,30 @@
                                                            AS author_badge_approved,
                p.contents,
                p.certification_image_url                   AS thumbnail_url,
-               p.certification_status                      AS status,
-               p.rejection_reason                           AS rejection_reason,
+               p.certification_status                      AS certification_status,
+               p.approval_type,
+               p.rejection_reason                          AS rejection_reason,
                p.like_count,
                p.comment_count,
-               p.created_at
+               p.created_at,
+               (p.user_id = c.host_id OR c.ai_review_enabled)
+                                                           AS ai_review_expected,
+               ar.id                                       AS ai_review_id,
+               ar.status                                   AS ai_review_status,
+               ar.review_mode                              AS ai_review_mode,
+               ar.decision                                 AS ai_review_decision,
+               ar.reason                                   AS ai_review_reason,
+               COALESCE(configured_ai_rule.rule_text, c.verification_method)
+                                                           AS ai_review_criteria,
+               ar.created_at                               AS ai_review_requested_at
         FROM certification_posts p
+        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
         LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN ai_review_results ar ON ar.verification_post_id = p.id
+        LEFT JOIN ai_review_rules configured_ai_rule
+               ON configured_ai_rule.challenge_id = c.id
+              AND configured_ai_rule.active = true
         LEFT JOIN LATERAL (
             SELECT status
             FROM user_verifications
@@ -171,7 +250,7 @@
           AND certification_status = 'PENDING'
     </update>
 
-    <!-- 자정 자동 승인 대상: 삭제 안 된 PENDING 글 전체 (글→참가자→챌린지 JOIN으로 방장까지) -->
+    <!-- 자정 자동 승인 대상: 삭제 안 된 참가자 PENDING 글 (방장 글은 AI 전용이라 제외) -->
     <select id="findAllPendingPostsForAutoApproval" resultType="PendingPostForAutoApproval">
         SELECT p.id            AS post_id,
                p.user_id       AS author_id,
@@ -181,6 +260,7 @@
         JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
         JOIN challenges c              ON c.id = cp.challenge_id
         WHERE p.certification_status = 'PENDING'
+          AND p.user_id != c.host_id
           AND p.deleted_at IS NULL
     </select>
 
@@ -236,11 +316,15 @@
                p.created_at
         FROM certification_posts p
         JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
+        JOIN challenges c              ON c.id = cp.challenge_id
         JOIN users u                   ON u.id = p.user_id
         <where>
             cp.challenge_id = #{challengeId}
             AND p.certification_status = 'PENDING'
+            AND p.user_id != c.host_id
             AND p.deleted_at IS NULL
+            <!-- 방장 작성 글은 AI 자동 검수 대상이므로 사람 검수 대기 목록에서 제외 -->
+            AND p.user_id &lt;&gt; c.host_id
             <!-- 커서 페이징(오래된 순) -->
             <if test="cursor != null">
                 AND p.id &gt; #{cursor}
@@ -322,6 +406,8 @@
             <choose>
                 <when test="reviewMode">
                     AND p.certification_status = 'PENDING'
+                    <!-- 방장 작성 글은 AI 자동 검수 대상이므로 사람 검수 대기 목록에서 제외 -->
+                    AND p.user_id &lt;&gt; c.host_id
                 </when>
                 <when test="!includeAllStatus">
                     AND p.certification_status = 'APPROVED'

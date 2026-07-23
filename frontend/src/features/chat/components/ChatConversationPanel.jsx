@@ -1,12 +1,14 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- S3 썸네일/프로필 이미지 URL은 현재 next/image 설정 대상이 아니다. */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BadgeCheck, ImagePlus, Plus, Send, Users, X } from "lucide-react";
+import { BadgeCheck, ImagePlus, MessageCircle, Plus, Send, Users, X } from "lucide-react";
 
 import { useMe } from "@/features/auth/hooks";
 import { getSocketClient } from "@/features/chat/api/chatSocket";
 import MessageBubble from "@/features/chat/components/MessageBubble";
 import ParticipantAvatarMenu from "@/features/chat/components/ParticipantAvatarMenu";
+import ProfileAvatar from "@/components/ui/ProfileAvatar";
 import {
   useChatRoomHistory,
   useChatRoomMembers,
@@ -123,13 +125,29 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
   };
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-surface">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-surface shadow-xl shadow-black/5">
       <div className="flex shrink-0 items-center gap-3 border-b border-gray-100 px-5 py-4">
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}
-        >
-          {displayName.slice(0, 1)}
-        </div>
+        {isChallenge ? (
+          room.challengeThumbnailUrl ? (
+            <img
+              src={room.challengeThumbnailUrl}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarColor.bg} ${avatarColor.text}`}
+            >
+              {displayName.slice(0, 1)}
+            </div>
+          )
+        ) : (
+          <ProfileAvatar
+            nickname={displayName}
+            profileImageUrl={room.directChatPartner?.profileImageUrl}
+            size="h-10 w-10"
+          />
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -153,7 +171,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
                 aria-label="참여자 목록"
                 aria-expanded={isMemberListOpen}
                 onClick={() => setIsMemberListOpen((open) => !open)}
-                className="rounded-lg p-2 hover:bg-gray-100"
+                className="rounded-xl p-2 transition-colors hover:bg-gray-100"
               >
                 <Users size={18} />
               </button>
@@ -161,35 +179,44 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               {isMemberListOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-10 z-20 max-h-72 w-56 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                  className="animate-[dropdown-in_120ms_ease-out] absolute right-0 top-10 z-20 max-h-72 w-56 origin-top-right overflow-y-auto rounded-2xl border border-gray-100 bg-white p-1.5 shadow-xl shadow-black/5"
                 >
-                  {!members && (
-                    <p className="px-3 py-2 text-xs text-gray-400">불러오는 중...</p>
-                  )}
+                  {!members && <p className="px-2.5 py-2 text-xs text-gray-400">불러오는 중...</p>}
                   {members?.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-gray-400">참여자가 없습니다.</p>
+                    <p className="px-2.5 py-2 text-xs text-gray-400">참여자가 없습니다.</p>
                   )}
                   {members?.map((member) => {
-                    const memberAvatarColor = getAvatarColor(member.userId);
+                    const isMe = member.userId === me?.id;
                     return (
-                      <div key={member.userId} className="flex items-center gap-2 px-3 py-2">
-                        <ParticipantAvatarMenu userId={member.userId} canStartChat={member.userId !== me?.id}>
-                          <span
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${memberAvatarColor.bg} ${memberAvatarColor.text}`}
-                          >
-                            {member.nickname.slice(0, 1)}
-                          </span>
-                        </ParticipantAvatarMenu>
-                        <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
-                          {member.nickname}
-                        </span>
-                        {member.badgeApproved && (
-                          <BadgeCheck
-                            size={14}
-                            className="shrink-0 fill-primary stroke-white"
-                            aria-label="우수 인증자"
+                      <div
+                        key={member.userId}
+                        className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors ${
+                          isMe ? "bg-primary-light" : "hover:bg-gray-50"
+                        }`}
+                      >
+                        <ParticipantAvatarMenu
+                          userId={member.userId}
+                          nickname={member.nickname}
+                          profileImageUrl={member.profileImageUrl}
+                          canStartChat={!isMe}
+                        >
+                          <ProfileAvatar
+                            nickname={member.nickname}
+                            profileImageUrl={member.profileImageUrl}
+                            size="h-7 w-7"
                           />
-                        )}
+                        </ParticipantAvatarMenu>
+                        <span className="flex min-w-0 flex-1 items-center gap-1">
+                          <span className="truncate text-sm text-gray-700">{member.nickname}</span>
+                          {isMe && <span className="shrink-0 text-xs text-gray-400">(나)</span>}
+                          {member.badgeApproved && (
+                            <BadgeCheck
+                              size={14}
+                              className="shrink-0 fill-primary stroke-white"
+                              aria-label="우수 인증자"
+                            />
+                          )}
+                        </span>
                       </div>
                     );
                   })}
@@ -201,7 +228,7 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
             type="button"
             onClick={onClose}
             aria-label="채팅방 닫기"
-            className="rounded-lg p-2 hover:bg-gray-100"
+            className="rounded-xl p-2 transition-colors hover:bg-gray-100"
           >
             <X size={18} />
           </button>
@@ -215,11 +242,15 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
       )}
 
       {deleteError && (
-        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">{deleteError}</p>
+        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">
+          {deleteError}
+        </p>
       )}
 
       {attachmentError && (
-        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">{attachmentError}</p>
+        <p className="shrink-0 bg-red-50 px-5 py-1.5 text-center text-xs text-red-500">
+          {attachmentError}
+        </p>
       )}
 
       <div
@@ -234,7 +265,10 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
           <p className="py-4 text-center text-xs text-red-500">메시지를 불러오지 못했습니다.</p>
         )}
         {!isLoadingInitial && !error && messages.length === 0 && (
-          <p className="py-4 text-center text-xs text-gray-400">아직 주고받은 메시지가 없습니다.</p>
+          <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-2xl border border-gray-100 bg-surface text-gray-400 shadow-xl shadow-black/5">
+            <MessageCircle size={24} className="text-gray-300" />
+            <p className="text-sm">아직 주고받은 메시지가 없습니다.</p>
+          </div>
         )}
         {isLoadingMore && (
           <p className="py-1 text-center text-xs text-gray-400">이전 메시지 불러오는 중...</p>
@@ -253,7 +287,8 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
               isChallenge={isChallenge}
               onDelete={handleDeleteMessage}
               isDeletePending={
-                deleteMessageMutation.isPending && deleteMessageMutation.variables === message.messageId
+                deleteMessageMutation.isPending &&
+                deleteMessageMutation.variables === message.messageId
               }
             />
           );
@@ -265,7 +300,12 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
         onSubmit={handleSubmit}
         className="flex shrink-0 items-center gap-2 border-t border-gray-100 px-4 py-3"
       >
-        <input ref={fileInputRef} type="file" className="hidden" onChange={handleAttachmentSelected} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleAttachmentSelected}
+        />
         <input
           ref={imageInputRef}
           type="file"
@@ -278,23 +318,25 @@ const ChatConversationPanel = ({ room, messages, onSendMessage, onClose }) => {
           aria-label="파일 첨부"
           disabled={!isConnected || attachmentMutation.isPending}
           onClick={() => fileInputRef.current?.click()}
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={20} />
         </button>
-        <input
-          type="text"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder="메시지 입력..."
-          className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
-        />
+        <div className="flex min-w-0 flex-1 items-center rounded-full bg-gray-50 px-4 py-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="메시지 입력..."
+            className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+          />
+        </div>
         <button
           type="button"
           aria-label="이미지 첨부"
           disabled={!isConnected || attachmentMutation.isPending}
           onClick={() => imageInputRef.current?.click()}
-          className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ImagePlus size={18} />
         </button>

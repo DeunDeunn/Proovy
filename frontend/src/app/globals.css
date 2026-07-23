@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans:
+    var(--font-pretendard), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
   --color-primary: #2563eb; /* 메인 파랑 (버튼, 활성 메뉴, 로고) */
   --color-primary-hover: #1d4ed8; /* 호버 시 진한 파랑 */
   --color-primary-light: #eff6ff; /* 활성 메뉴 배경, 연한 강조 */
@@ -10,7 +14,7 @@
   --color-danger: #dc2626; /* 에러, 회원탈퇴 같은 위험 동작 */
 
   --color-surface: #ffffff; /* 카드, 사이드바 배경 */
-  --color-canvas: #f9fafb; /* 페이지 전체 배경 */
+  --color-canvas: var(--color-surface); /* 페이지 전체 배경 - 사이드바와 동일한 색 */
 }
 
 body {
@@ -19,5 +23,26 @@ body {
 }
 
 button:not(:disabled) {
+  cursor: pointer;
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 날짜 입력의 브라우저 기본 달력 아이콘을 숨긴다 - 커스텀 아이콘을 왼쪽에 따로 두거나,
+   입력창 전체 클릭으로 showPicker()를 여는 곳에서 아이콘이 중복으로 보이지 않게 하기 위함 */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
   cursor: pointer;
 }

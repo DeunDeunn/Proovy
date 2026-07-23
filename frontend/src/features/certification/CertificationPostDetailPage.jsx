@@ -4,8 +4,11 @@
 
 import {
   BadgeCheck,
+  Bot,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock3,
   Flag,
   Heart,
   ImageOff,
@@ -15,6 +18,7 @@ import {
   Pencil,
   Send,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
@@ -53,6 +57,85 @@ const formatCreatedAt = (value) => {
 };
 
 const getAvatarInitial = (nickname) => Array.from(nickname?.trim() || "?")[0];
+
+const AiReviewPanel = ({ post }) => {
+  const review = post.aiReview;
+  const approved = post.status === "APPROVED" && review?.decision === "APPROVED";
+  const rejected = post.status === "REJECTED";
+
+  const state = approved
+    ? {
+        label: "AI 검수 승인",
+        description: "인증 기준을 충족한 게시물이에요.",
+        icon: CheckCircle2,
+        sectionClass: "border-green-100 bg-green-50",
+        iconClass: "text-green-600",
+        titleClass: "text-green-700",
+      }
+    : rejected
+      ? {
+          label: "AI 검수 반려",
+          description: "사유를 확인한 뒤 인증 가능 시간 내에 수정하여 다시 제출할 수 있어요.",
+          icon: XCircle,
+          sectionClass: "border-red-100 bg-red-50",
+          iconClass: "text-red-600",
+          titleClass: "text-red-700",
+        }
+      : {
+          label: review?.status === "FAILED" ? "AI 검수 재시도 대기" : "AI 검수 중",
+          description: "이미지와 내용을 인증 기준에 따라 확인하고 있어요.",
+          icon: Clock3,
+          sectionClass: "border-blue-100 bg-blue-50",
+          iconClass: "text-primary",
+          titleClass: "text-primary",
+        };
+
+  const Icon = state.icon;
+  const reason = review?.reason || post.rejectionReason;
+
+  return (
+    <section
+      className={`shrink-0 border-b px-5 py-4 ${state.sectionClass}`}
+      aria-label="AI 인증 검수 결과"
+    >
+      <div className="flex items-start gap-3">
+        <span className={`mt-0.5 inline-flex ${state.iconClass}`}>
+          <Icon size={20} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className={`text-sm font-semibold ${state.titleClass}`}>{state.label}</p>
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
+              <Bot size={12} aria-hidden="true" /> 자동 검수
+            </span>
+          </div>
+          <p className="mt-1 text-sm leading-5 text-gray-600">{state.description}</p>
+
+          {(reason || review?.criteria) && (
+            <div className="mt-3 space-y-3 rounded-lg bg-white/85 px-3 py-2.5">
+              {reason && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500">AI 판단 사유</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-gray-700">
+                    {reason}
+                  </p>
+                </div>
+              )}
+              {review?.criteria && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500">적용된 인증 기준</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-5 text-gray-700">
+                    {review.criteria}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const ProfileAvatar = ({ nickname, profileImageUrl }) =>
   profileImageUrl ? (
@@ -100,9 +183,7 @@ const PostReactionBar = ({
             fill={liked ? "currentColor" : "none"}
             aria-hidden="true"
           />
-          <span className="text-sm font-semibold">
-            {Number(likeCount ?? 0).toLocaleString()}
-          </span>
+          <span className="text-sm font-semibold">{Number(likeCount ?? 0).toLocaleString()}</span>
           <span className="sr-only">좋아요</span>
         </button>
         <span className="inline-flex items-center gap-1.5" title="댓글">
@@ -154,11 +235,7 @@ const CertificationPostDetailPage = ({ postId }) => {
   const { data: post, error, isLoading } = useCertificationPost(postId);
   const { data: me } = useMe();
   const { data: authorProfile } = useUserProfile(post?.authorId);
-  const {
-    startChat,
-    isPending: isStartingChat,
-    error: startChatError,
-  } = useStartDirectChat();
+  const { startChat, isPending: isStartingChat, error: startChatError } = useStartDirectChat();
   const deletePostMutation = useDeleteCertificationPost();
   const toggleLikeMutation = useToggleCertificationPostLike(postId);
   const followMutation = useFollow(post?.authorId);
@@ -184,6 +261,7 @@ const CertificationPostDetailPage = ({ postId }) => {
   const currentImageUrl = images[displayedImageIndex];
   const isAuthor = me?.id != null && me.id === post.authorId;
   const canUseAuthorActions = me?.id != null && !isAuthor;
+  const showAiReview = Boolean(post.aiReview) || (isAuthor && post.aiReviewExpected === true);
 
   const deletePost = () => {
     deletePostMutation.mutate(postId, {
@@ -398,8 +476,13 @@ const CertificationPostDetailPage = ({ postId }) => {
             </div>
           )}
 
-          {post.status === "REJECTED" && (
-            <section className="shrink-0 border-b border-red-100 bg-red-50 px-5 py-4" aria-label="인증 반려 안내">
+          {showAiReview && <AiReviewPanel post={post} />}
+
+          {post.status === "REJECTED" && !post.aiReview && (
+            <section
+              className="shrink-0 border-b border-red-100 bg-red-50 px-5 py-4"
+              aria-label="인증 반려 안내"
+            >
               <p className="text-sm font-semibold text-red-700">인증이 반려되었어요.</p>
               <p className="mt-1 text-sm leading-5 text-red-600">
                 사유를 확인한 뒤 인증 가능 시간 내에 수정하여 다시 제출할 수 있어요.
@@ -458,7 +541,10 @@ const CertificationPostDetailPage = ({ postId }) => {
         />
       )}
       {isShareDialogOpen && (
-        <ShareToChatDialog certificationId={post.postId} onClose={() => setIsShareDialogOpen(false)} />
+        <ShareToChatDialog
+          certificationId={post.postId}
+          onClose={() => setIsShareDialogOpen(false)}
+        />
       )}
     </div>
   );

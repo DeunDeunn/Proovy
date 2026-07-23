@@ -13,6 +13,7 @@ import com.deundeun.ai.dto.AiTicketActiveResponse;
 import com.deundeun.ai.dto.AiTicketPlanResponse;
 import com.deundeun.ai.dto.AiTicketPurchaseRequest;
 import com.deundeun.ai.dto.AiTicketPurchaseResponse;
+import com.deundeun.ai.event.AiTicketActivatedEvent;
 import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiTicketHistoryVo;
 import com.deundeun.ai.vo.AiTicketPlanVo;
@@ -28,6 +29,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -42,6 +44,9 @@ class AiTicketServiceTest {
 
     @Mock
     private WalletTicketService walletTicketService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private AiTicketService aiTicketService;
@@ -154,6 +159,7 @@ class AiTicketServiceTest {
         verify(aiTicketMapper).insertTicketHistory(historyCaptor.capture());
         assertThat(historyCaptor.getValue().getHostId()).isEqualTo(userId);
         assertThat(historyCaptor.getValue().getSubscriptionId()).isEqualTo(10L);
+        verify(eventPublisher).publishEvent(new AiTicketActivatedEvent(userId, subscription.getStartedAt()));
         assertThat(historyCaptor.getValue().getType()).isEqualTo("PURCHASE");
 
         assertThat(response.getSubscriptionId()).isEqualTo(10L);

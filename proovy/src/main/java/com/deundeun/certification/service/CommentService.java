@@ -118,13 +118,12 @@ public class CommentService {
             throw new ApiException(ErrorCode.NO_COMMENT_PERMISSION);
         }
 
-        // 동시 삭제 방어: 실제로 이 요청이 삭제(1행)했을 때만 comment_count 감소
-        // (양쪽 요청이 조회를 통과해도 softDelete는 하나만 1행 → 중복 감소로 집계 틀어짐 방지)
+        // soft delete (삭제 댓글도 "삭제된 댓글입니다"로 목록·카운트에 남음 → comment_count 감소 안 함)
+        // 동시 삭제 방어: 다른 요청이 이미 삭제했으면 0행 → 성공 응답 막음
         int deleted = commentMapper.softDeleteComment(commentId);
         if (deleted != 1) {
             throw new ApiException(ErrorCode.COMMENT_NOT_FOUND);
         }
-        commentMapper.decrementCommentCount(comment.getPostId());
     }
 
     // 댓글 좋아요 토글 (읽을 수 있는 APPROVED 글의 삭제되지 않은 댓글에만)

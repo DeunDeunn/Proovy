@@ -5,6 +5,7 @@ import com.deundeun.ai.vo.AiReviewResultVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -18,13 +19,23 @@ public interface AiReviewMapper {
 
     List<String> findImageUrlsByPostId(@Param("postId") Long postId);
 
+    List<Long> findPendingParticipantPostIdsBeforeTicketActivation(
+            @Param("hostId") Long hostId,
+            @Param("activatedAt") LocalDateTime activatedAt
+    );
+
     int insertProcessingAiReviewResult(AiReviewResultVo result);
 
     AiReviewResultVo findReviewResultByPostId(@Param("postId") Long postId);
 
-    int resetFailedAiReviewResultToProcessing(AiReviewResultVo result);
+    int resetAiReviewResultToProcessing(AiReviewResultVo result);
 
     int updateAiReviewResultFailed(@Param("id") Long id);
+
+    int rejectPendingHostPostAfterReviewFailure(
+            @Param("postId") Long postId,
+            @Param("reason") String reason
+    );
 
     int updateCertificationPostStatus(
             @Param("postId") Long postId,

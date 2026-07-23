@@ -139,7 +139,12 @@ public class CertificationService {
         }
 
         // 읽기 권한 게이트 (작성자·관리자·방장·공개범위)
-        assertReadable(postId, viewerId, detail);
+        boolean canViewReviewDetails = assertReadable(postId, viewerId, detail);
+
+        if (!canViewReviewDetails) {
+            detail.setAiReview(null);
+            detail.setAiReviewExpected(false);
+        }
 
         // 추가 이미지
         List<String> imageUrls = certificationMapper.findPostImageUrls(postId);
@@ -165,11 +170,11 @@ public class CertificationService {
      * 권한 게이트: 뷰어가 이 글을 읽을 수 있는지 검사
      * 규칙: 작성자 본인 / 관리자 / 그 챌린지 방장 → 상태 무관. 그 외 → APPROVED + 공개범위.
      */
-    private void assertReadable(Long postId, Long viewerId, CertificationPostDetailResponse detail) {
+    private boolean assertReadable(Long postId, Long viewerId, CertificationPostDetailResponse detail) {
         boolean isAuthor = detail.getAuthorId().equals(viewerId);
         boolean isAdmin = certificationMapper.isAdmin(viewerId) > 0;
         if (isAuthor || isAdmin) {
-            return;
+            return true;
         }
         // 챌린지 컨텍스트 조회 (방장 판별 + 공개범위 확인)
         ChallengeForCertification challenge = certificationMapper.findChallengeByPostId(postId);
@@ -178,7 +183,7 @@ public class CertificationService {
         }
         // 그 챌린지 방장이면 자기 챌린지 글은 상태 무관 열람 가능 (검수 목적)
         if (challenge.getHostId().equals(viewerId)) {
-            return;
+            return true;
         }
         // 그 외: 승인된 글만 (미승인글은 존재 숨김)
         if (detail.getStatus() != CertificationStatus.APPROVED) {
@@ -192,6 +197,7 @@ public class CertificationService {
                 throw new ApiException(ErrorCode.POST_NOT_FOUND);
             }
         }
+        return false;
     }
 
     // 좋아요 토글 (읽을 수 있는 APPROVED 글에만). 누르면 등록, 다시 누르면 취소.
@@ -250,6 +256,7 @@ public class CertificationService {
         if (ctx == null) {
             throw new ApiException(ErrorCode.POST_NOT_FOUND);
         }
+        validateNotHostPost(ctx);
         // 권한: 방장 ,관리자
         boolean isHost = ctx.getHostId().equals(userId);
         boolean isAdmin = certificationMapper.isAdmin(userId) > 0;
@@ -280,6 +287,7 @@ public class CertificationService {
         if (ctx == null) {
             throw new ApiException(ErrorCode.POST_NOT_FOUND);
         }
+        validateNotHostPost(ctx);
         // 권한: 방장,관리자
         boolean isHost = ctx.getHostId().equals(userId);
         boolean isAdmin = certificationMapper.isAdmin(userId) > 0;
@@ -299,6 +307,12 @@ public class CertificationService {
         // 작성자에게 반려됐다고 알림
         eventPublisher.publishEvent(new VerificationRejectedEvent(ctx.getAuthorId(), postId));
         // TODO: 반려글 24시간 후 자동삭제 (스케줄러 — 별도)
+    }
+
+    private void validateNotHostPost(PostReviewContext context) {
+        if (context.getHostId().equals(context.getAuthorId())) {
+            throw new ApiException(ErrorCode.HOST_POST_MANUAL_REVIEW_FORBIDDEN);
+        }
     }
 
     // 검수 대기 목록 조회 (그 챌린지 방장 또는 관리자만, 커서 무한스크롤·오래된 순)
@@ -392,6 +406,9 @@ public class CertificationService {
         if (!finalImageUrls.isEmpty()) {
             certificationMapper.insertPostImages(postId, finalImageUrls);
         }
+
+        // 방장 글을 포함한 수정 게시물도 새 내용 기준으로 자동 AI 검수되도록 다시 알린다.
+        eventPublisher.publishEvent(new VerificationSubmittedEvent(challenge.getHostId(), postId));
 
     }
 

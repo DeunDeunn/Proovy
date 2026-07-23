@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- S3 썸네일 URL은 현재 next/image 설정 대상이 아니다. */
+
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Loading from "@/components/ui/Loading";
@@ -83,7 +85,15 @@ const SettlementResultPage = ({ challengeId }) => {
       <div className="grid grid-cols-3 gap-6">
         <Card className="col-span-2">
           <div className="mb-4 flex items-center gap-5">
-            <div className="h-32 w-44 shrink-0 rounded-lg bg-gray-100" />
+            <div className="h-32 w-44 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+              {challenge?.thumbnailUrl && (
+                <img
+                  src={challenge.thumbnailUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              )}
+            </div>
             <div>
               <h2 className="font-semibold text-gray-900">{challenge?.title ?? `챌린지 #${challengeId}`}</h2>
               {challenge?.startDate && challenge?.endDate && (

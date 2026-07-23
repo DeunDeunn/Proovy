@@ -35,11 +35,33 @@ import { DEFAULT_PROFILE_IMAGE_URL } from "@/lib/constants";
 const menus = [
   { name: "홈", href: "/", icon: Home },
   { name: "챌린지", href: "/challenges", icon: Trophy },
-  { name: "인증 피드", href: "/feeds", icon: MessageSquare },
+  {
+    name: "인증 피드",
+    href: "/feeds",
+    icon: MessageSquare,
+    // 인증글 상세는 /certification-posts/{id}로 별도 경로라서 하위 경로 매칭에 같이 포함시킨다
+    matchPrefixes: ["/feeds", "/certification-posts"],
+  },
   { name: "채팅", href: "/chat", icon: MessageCircle },
   { name: "알림", href: "/notifications", icon: Bell },
   { name: "내 챌린지", href: "/my-challenges", icon: Flag },
 ];
+
+// prefix로 시작하되 "/feeds-archive"가 "/feeds"에 걸리는 것처럼 다음 글자가 이어지는 오탐은 막는다
+// (정확히 같거나, prefix 뒤에 "/"가 와야 하위 경로로 인정)
+const matchesPrefix = (pathname, prefix) =>
+  prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`);
+
+// 메뉴의 href(또는 matchPrefixes)로 시작하는 하위 경로에 있어도 계속 활성 표시되게 한다.
+const isMenuActive = (menu, pathname) =>
+  (menu.matchPrefixes ?? [menu.href]).some((prefix) => matchesPrefix(pathname, prefix));
+
+// 형제 항목들의 href가 서로의 접두사인 경우(예: "/wallet"과 "/wallet/settlements")
+// 가장 구체적으로(가장 긴 href로) 일치하는 항목 하나만 활성으로 고른다
+const findActiveHref = (items, pathname) =>
+  items
+    .filter((item) => item.href && matchesPrefix(pathname, item.href))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
 
 const walletMenus = [
   { name: "내 지갑", href: "/wallet" },
@@ -59,11 +81,23 @@ const baseMypageMenus = [
   { name: "내 인증피드", href: "/mypage/feed" },
   { name: "우수 사용자 인증", href: "/mypage/verification" },
   { name: "AI 티켓 관리", href: "/mypage/tickets" },
+  { name: "가이드", href: "/guide" },
 ];
 const withdrawMenu = { name: "회원탈퇴", href: "/mypage/withdraw" };
 
-const SidebarDropdown = ({ icon: Icon, label, items, pathname, open, onToggle, onItemAction }) => {
-  const isActive = items.some((m) => m.href === pathname);
+const SidebarDropdown = ({
+  icon: Icon,
+  label,
+  items,
+  pathname,
+  forceOpen,
+  onToggle,
+  onItemAction,
+}) => {
+  const activeHref = findActiveHref(items, pathname);
+  const isActive = activeHref !== null;
+  // 현재 이 드롭다운 안의 페이지에 있으면(isActive) 다른 메뉴로 이동하기 전까지 계속 펼쳐둔다
+  const open = isActive || forceOpen;
 
   return (
     <div>
@@ -96,7 +130,7 @@ const SidebarDropdown = ({ icon: Icon, label, items, pathname, open, onToggle, o
             );
           }
 
-          const active = pathname === menu.href;
+          const active = menu.href === activeHref;
           return (
             <Link
               key={menu.href}
@@ -128,7 +162,8 @@ const Sidebar = () => {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [prevPathname, setPrevPathname] = useState(pathname);
 
-  // 하위 항목을 클릭해 다른 페이지로 이동했을 때는 항상 접히도록, pathname이 바뀌면 그 자리에서 리셋
+  // 수동으로 펼쳐둔 드롭다운은 다른 페이지로 이동하면 리셋한다.
+  // (그 드롭다운 안의 페이지로 이동한 거면 SidebarDropdown의 isActive가 계속 펼쳐진 상태로 유지시켜준다)
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     setOpenDropdown(null);
@@ -174,7 +209,7 @@ const Sidebar = () => {
             {menus
               .filter((menu) => !isAdmin || menu.href === "/")
               .map((menu) => {
-                const active = pathname === menu.href;
+                const active = isMenuActive(menu, pathname);
                 return (
                   <Link
                     key={menu.href}
@@ -210,7 +245,7 @@ const Sidebar = () => {
                   label="지갑"
                   items={walletMenus}
                   pathname={pathname}
-                  open={openDropdown === "wallet"}
+                  forceOpen={openDropdown === "wallet"}
                   onToggle={() => toggleDropdown("wallet")}
                 />
 
@@ -237,7 +272,7 @@ const Sidebar = () => {
               label="마이페이지"
               items={mypageMenuItems}
               pathname={pathname}
-              open={openDropdown === "mypage"}
+              forceOpen={openDropdown === "mypage"}
               onToggle={() => toggleDropdown("mypage")}
             />
 
@@ -249,7 +284,7 @@ const Sidebar = () => {
                   label="관리자"
                   items={adminMenus}
                   pathname={pathname}
-                  open={openDropdown === "admin"}
+                  forceOpen={openDropdown === "admin"}
                   onToggle={() => toggleDropdown("admin")}
                 />
               </>

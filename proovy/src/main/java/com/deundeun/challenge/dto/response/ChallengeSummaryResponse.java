@@ -23,5 +23,6 @@ public class ChallengeSummaryResponse {
     private LocalDate endDate;
     private ChallengeStatus status;
     private String thumbnailUrl;
+    private long pendingCertificationCount;
 
 }
