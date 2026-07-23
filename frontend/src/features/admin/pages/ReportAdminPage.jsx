@@ -77,9 +77,14 @@ const ReportRow = ({ item, onProcess, onReject, isPending }) => {
 
       {!isConfirming ? (
         <div className="flex gap-2 border-t border-gray-100 pt-3">
-          <Button variant="danger" onClick={() => setIsConfirming(true)} disabled={isPending}>
+          <Button
+            variant="danger"
+            className="!border !border-red-500 !bg-transparent !text-red-500 hover:!bg-red-50"
+            onClick={() => setIsConfirming(true)}
+            disabled={isPending}
+          >
             <Check size={14} className="mr-1 inline" aria-hidden="true" />
-            신고 인정 (대상 삭제)
+            신고 인정
           </Button>
           <Button variant="outline" onClick={() => onReject(item.id)} disabled={isPending}>
             <X size={14} className="mr-1 inline" aria-hidden="true" />
@@ -88,11 +93,14 @@ const ReportRow = ({ item, onProcess, onReject, isPending }) => {
         </div>
       ) : (
         <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
-          <p className="text-sm text-gray-600">
-            대상 콘텐츠가 삭제돼요. 정말 신고를 인정할까요?
-          </p>
+          <p className="text-sm text-gray-600">대상 콘텐츠가 삭제돼요. 정말 신고를 인정할까요?</p>
           <div className="flex gap-2">
-            <Button variant="danger" onClick={handleProcessConfirm} disabled={isPending}>
+            <Button
+              variant="danger"
+              className="!border !border-red-500 !bg-transparent !text-red-500 hover:!bg-red-50"
+              onClick={handleProcessConfirm}
+              disabled={isPending}
+            >
               삭제 확정
             </Button>
             <Button variant="outline" onClick={() => setIsConfirming(false)}>
