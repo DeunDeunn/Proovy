@@ -250,36 +250,6 @@
           AND certification_status = 'PENDING'
     </update>
 
-    <!-- 자정 자동 승인 대상: 삭제 안 된 참가자 PENDING 글 (방장 글은 AI 전용이라 제외) -->
-    <select id="findAllPendingPostsForAutoApproval" resultType="PendingPostForAutoApproval">
-        SELECT p.id            AS post_id,
-               p.user_id       AS author_id,
-               cp.challenge_id AS challenge_id,
-               c.host_id       AS host_id
-        FROM certification_posts p
-        JOIN challenge_participants cp ON cp.id = p.challenge_participant_id
-        JOIN challenges c              ON c.id = cp.challenge_id
-        WHERE p.certification_status = 'PENDING'
-          AND p.user_id != c.host_id
-          AND p.deleted_at IS NULL
-    </select>
-
-    <!-- 자동 승인: 조회해 둔 id 목록만 일괄 APPROVED/AUTO -->
-    <!-- 상태 조건: 동시 요청 방어 — 그 사이 방장이 처리한 글은 건드리지 않음 -->
-    <!-- RETURNING id: 실제로 갱신된 글 id만 돌려줌 → 서비스가 후속 처리(경고·이벤트) 대상을 정확히 좁힘 -->
-    <select id="approvePostsAuto" resultType="long">
-        UPDATE certification_posts
-        SET certification_status = 'APPROVED',
-            approval_type = 'AUTO'
-        WHERE id IN
-        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
-            #{postId}
-        </foreach>
-          AND certification_status = 'PENDING'
-          AND deleted_at IS NULL
-        RETURNING id
-    </select>
-
     <!-- 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용) -->
     <!-- COUNT(DISTINCT 날짜) = '승인 인증한 날 수'. 한번 승인된 실적은 글이 삭제돼도 인정(deleted_at 조건 없음) -->
     <select id="countApprovedDaysByParticipantIds" resultType="ParticipantSuccessCount">

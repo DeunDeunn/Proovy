@@ -8,7 +8,6 @@ import com.deundeun.certification.dto.FeedQuery;
 import com.deundeun.certification.dto.ParticipantForCertification;
 import com.deundeun.certification.dto.ParticipantSuccessCount;
 import com.deundeun.certification.dto.PendingCertificationResponse;
-import com.deundeun.certification.dto.PendingPostForAutoApproval;
 import com.deundeun.certification.dto.PostReviewContext;
 import com.deundeun.certification.dto.chat.SharedCertificationInfo;
 import com.deundeun.certification.dto.TodayCertificationProgressResponse;
@@ -69,12 +68,6 @@ public interface CertificationMapper {
 
    // 글 반려. 반환=영향받은 행 수
    int rejectPost(@Param("postId") Long postId, @Param("reason") String reason);
-
-   // 자정 자동 승인 대상: 삭제 안 된 참가자 PENDING 글 (방장 글은 AI 전용이라 제외)
-   List<PendingPostForAutoApproval> findAllPendingPostsForAutoApproval();
-
-   // 자동 승인: id 목록을 한 번에 APPROVED/AUTO로 갱신. 반환=실제 갱신된 글 id 목록(RETURNING id)
-   List<Long> approvePostsAuto(@Param("postIds") List<Long> postIds);
 
    // 참가자별 APPROVED 인증 일수 집계 (챌린지 도메인 성공판정 제공용). 인증 0건 참가자는 결과에 없음
    List<ParticipantSuccessCount> countApprovedDaysByParticipantIds(@Param("participantIds") List<Long> participantIds);
