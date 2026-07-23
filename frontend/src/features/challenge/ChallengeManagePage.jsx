@@ -20,6 +20,8 @@ import {
 import { useActiveAiTicket } from "@/features/ai/hooks";
 import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
+import DateField from "./DateField";
+import TimeField from "./TimeField";
 import {
   useCancelChallenge,
   useCategories,
@@ -60,10 +62,10 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
     feedVisibility: challenge.feedVisibility,
   });
 
-  // 모집중일 때만 수정 가능 (진행중/종료/취소되면 제목/설명조차 수정 불가)
+  // 모집중이고, 방장 본인 외 활동 중인 참가자가 없을 때만 전체 수정 가능
+  // (참가자가 한 명이라도 생기면 이미 그 조건을 보고 참가한 것이므로 제목/설명 포함 전부 수정 불가)
   const isRecruiting = challenge.status === "RECRUITING";
-  // 모집중이어도 방장 본인 외 활동 중인 참가자가 있으면 참가비/기간/정원/인증방법 등 핵심 조건은 수정 불가
-  const isCoreEditable = isRecruiting && (challenge.currentParticipants ?? 1) <= 1;
+  const isEditable = isRecruiting && (challenge.currentParticipants ?? 1) <= 1;
 
   const setField = (field) => (e) => {
     const { value } = e.target;
@@ -75,10 +77,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
     form.certEndTime > form.certStartTime &&
     form.certStartTime >= CERT_TIME_MIN &&
     form.certEndTime <= CERT_TIME_MAX;
-  const isFormValid =
-    isRecruiting &&
-    form.title.trim() !== "" &&
-    (!isCoreEditable || (isPeriodValid && isCertTimeValid));
+  const isFormValid = isEditable && form.title.trim() !== "" && isPeriodValid && isCertTimeValid;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -87,17 +86,15 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
     updateMutation.mutate({
       title: form.title,
       description: form.description,
-      ...(isCoreEditable && {
-        categoryId: Number(form.categoryId),
-        entryFee: Number(form.entryFee),
-        verificationMethod: form.verificationMethod,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        maxParticipants: Number(form.maxParticipants),
-        certStartTime: form.certStartTime,
-        certEndTime: form.certEndTime,
-        feedVisibility: form.feedVisibility,
-      }),
+      categoryId: Number(form.categoryId),
+      entryFee: Number(form.entryFee),
+      verificationMethod: form.verificationMethod,
+      startDate: form.startDate,
+      endDate: form.endDate,
+      maxParticipants: Number(form.maxParticipants),
+      certStartTime: form.certStartTime,
+      certEndTime: form.certEndTime,
+      feedVisibility: form.feedVisibility,
     });
   };
 
@@ -117,9 +114,9 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
         <p className="mb-4 text-sm text-gray-500">
           {!isRecruiting
             ? "모집이 끝난 챌린지는 수정할 수 없어요."
-            : isCoreEditable
+            : isEditable
               ? "아직 참가자가 없어서 모든 항목을 수정할 수 있어요."
-              : "참가자가 있어 제목/설명만 수정할 수 있어요."}
+              : "참가자가 있어 수정할 수 없어요."}
         </p>
         <div className="space-y-4">
           <div>
@@ -131,7 +128,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               type="text"
               value={form.title}
               onChange={setField("title")}
-              disabled={!isRecruiting}
+              disabled={!isEditable}
               className={settingsInputClassName}
             />
           </div>
@@ -145,7 +142,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               rows={3}
               value={form.description}
               onChange={setField("description")}
-              disabled={!isRecruiting}
+              disabled={!isEditable}
               className={`${settingsInputClassName} resize-none`}
             />
           </div>
@@ -159,7 +156,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
                 id="settings-category"
                 value={form.categoryId}
                 onChange={setField("categoryId")}
-                disabled={!isCoreEditable}
+                disabled={!isEditable}
                 className={settingsInputClassName}
               >
                 {categories?.map((category) => (
@@ -173,16 +170,21 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               <label htmlFor="settings-entry-fee" className={settingsLabelClassName}>
                 참가비
               </label>
-              <input
-                id="settings-entry-fee"
-                type="number"
-                min={1000}
-                step={1000}
-                value={form.entryFee}
-                onChange={setField("entryFee")}
-                disabled={!isCoreEditable}
-                className={settingsInputClassName}
-              />
+              <div className="relative">
+                <input
+                  id="settings-entry-fee"
+                  type="number"
+                  min={1000}
+                  step={1000}
+                  value={form.entryFee}
+                  onChange={setField("entryFee")}
+                  disabled={!isEditable}
+                  className={`${settingsInputClassName} pr-9`}
+                />
+                <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-sm text-gray-400">
+                  원
+                </span>
+              </div>
             </div>
           </div>
 
@@ -195,7 +197,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               type="text"
               value={form.verificationMethod}
               onChange={setField("verificationMethod")}
-              disabled={!isCoreEditable}
+              disabled={!isEditable}
               className={settingsInputClassName}
             />
           </div>
@@ -203,25 +205,26 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
           <div>
             <label className={settingsLabelClassName}>진행 기간</label>
             <div className="flex items-center gap-2">
-              <input
-                aria-label="시작일"
-                type="date"
-                value={form.startDate}
-                onChange={setField("startDate")}
-                disabled={!isCoreEditable}
-                className={`${settingsInputClassName} min-w-0`}
-              />
+              <div className="min-w-0 flex-1">
+                <DateField
+                  ariaLabel="시작일"
+                  value={form.startDate}
+                  onChange={(next) => setForm((prev) => ({ ...prev, startDate: next }))}
+                  disabled={!isEditable}
+                />
+              </div>
               <span className="shrink-0 text-gray-400">~</span>
-              <input
-                aria-label="종료일"
-                type="date"
-                value={form.endDate}
-                onChange={setField("endDate")}
-                disabled={!isCoreEditable}
-                className={`${settingsInputClassName} min-w-0`}
-              />
+              <div className="min-w-0 flex-1">
+                <DateField
+                  ariaLabel="종료일"
+                  min={form.startDate}
+                  value={form.endDate}
+                  onChange={(next) => setForm((prev) => ({ ...prev, endDate: next }))}
+                  disabled={!isEditable}
+                />
+              </div>
             </div>
-            {isCoreEditable && !isPeriodValid && (
+            {isEditable && !isPeriodValid && (
               <p className="mt-1 text-xs text-danger">종료일은 시작일보다 나중이어야 해요.</p>
             )}
           </div>
@@ -231,15 +234,20 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               <label htmlFor="settings-max-participants" className={settingsLabelClassName}>
                 모집 정원
               </label>
-              <input
-                id="settings-max-participants"
-                type="number"
-                min={1}
-                value={form.maxParticipants}
-                onChange={setField("maxParticipants")}
-                disabled={!isCoreEditable}
-                className={settingsInputClassName}
-              />
+              <div className="relative">
+                <input
+                  id="settings-max-participants"
+                  type="number"
+                  min={1}
+                  value={form.maxParticipants}
+                  onChange={setField("maxParticipants")}
+                  disabled={!isEditable}
+                  className={`${settingsInputClassName} pr-9`}
+                />
+                <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-sm text-gray-400">
+                  명
+                </span>
+              </div>
             </div>
             <div>
               <label htmlFor="settings-feed-visibility" className={settingsLabelClassName}>
@@ -249,7 +257,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
                 id="settings-feed-visibility"
                 value={form.feedVisibility}
                 onChange={setField("feedVisibility")}
-                disabled={!isCoreEditable}
+                disabled={!isEditable}
                 className={settingsInputClassName}
               >
                 <option value="PUBLIC">전체 공개</option>
@@ -261,27 +269,29 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
           <div>
             <label className={settingsLabelClassName}>인증 가능 시간</label>
             <div className="flex items-center gap-2">
-              <input
-                type="time"
-                min={CERT_TIME_MIN}
-                max={CERT_TIME_MAX}
-                value={form.certStartTime}
-                onChange={setField("certStartTime")}
-                disabled={!isCoreEditable}
-                className={`${settingsInputClassName} min-w-0`}
-              />
+              <div className="min-w-0 flex-1">
+                <TimeField
+                  ariaLabel="인증 시작 시간"
+                  min={CERT_TIME_MIN}
+                  max={CERT_TIME_MAX}
+                  value={form.certStartTime}
+                  onChange={(next) => setForm((prev) => ({ ...prev, certStartTime: next }))}
+                  disabled={!isEditable}
+                />
+              </div>
               <span className="shrink-0 text-gray-400">~</span>
-              <input
-                type="time"
-                min={CERT_TIME_MIN}
-                max={CERT_TIME_MAX}
-                value={form.certEndTime}
-                onChange={setField("certEndTime")}
-                disabled={!isCoreEditable}
-                className={`${settingsInputClassName} min-w-0`}
-              />
+              <div className="min-w-0 flex-1">
+                <TimeField
+                  ariaLabel="인증 종료 시간"
+                  min={CERT_TIME_MIN}
+                  max={CERT_TIME_MAX}
+                  value={form.certEndTime}
+                  onChange={(next) => setForm((prev) => ({ ...prev, certEndTime: next }))}
+                  disabled={!isEditable}
+                />
+              </div>
             </div>
-            {isCoreEditable && !isCertTimeValid && (
+            {isEditable && !isCertTimeValid && (
               <p className="mt-1 text-xs text-danger">
                 인증 종료 시간은 시작 시간보다 나중이어야 하고, 오전 2시 ~ 오후 11시 사이여야 해요.
               </p>
@@ -342,21 +352,25 @@ const PendingCertificationCard = ({
   canManualReview,
 }) => (
   <div className="flex gap-4 rounded-xl border border-gray-200 p-4">
-    <img
-      src={post.thumbnailUrl}
-      alt=""
-      className="h-24 w-24 shrink-0 rounded-lg bg-gray-100 object-cover"
-    />
-    <div className="min-w-0 flex-1">
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-medium text-gray-800">{post.authorNickname}</p>
-        <span className="shrink-0 text-xs text-gray-400">
-          {post.createdAt?.slice(0, 16).replace("T", " ")}
-        </span>
+    <Link href={`/certification-posts/${post.postId}`} className="flex min-w-0 flex-1 gap-4">
+      <img
+        src={post.thumbnailUrl}
+        alt=""
+        className="h-24 w-24 shrink-0 rounded-lg bg-gray-100 object-cover"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-gray-800 hover:underline">{post.authorNickname}</p>
+          <span className="shrink-0 text-xs text-gray-400">
+            {post.createdAt?.slice(0, 16).replace("T", " ")}
+          </span>
+        </div>
+        <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.contents}</p>
       </div>
-      <p className="mt-1 line-clamp-2 text-sm text-gray-600">{post.contents}</p>
+    </Link>
 
-      <div className="mt-3 flex gap-2">
+    <div className="flex shrink-0 flex-col justify-end">
+      <div className="flex gap-2">
         {canManualReview ? (
           <>
             <button

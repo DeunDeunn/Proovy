@@ -11,6 +11,8 @@ import Card from "@/components/ui/Card";
 import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useCategories, useCreateChallenge, useUpdateChallengeThumbnail } from "./hooks";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
+import DateField from "./DateField";
+import TimeField from "./TimeField";
 
 const DESCRIPTION_MAX_LENGTH = 500;
 
@@ -360,39 +362,21 @@ const ChallengeCreatePage = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="mb-1 text-xs text-gray-400">시작일</p>
-                  <div className="relative">
-                    <Calendar
-                      size={16}
-                      className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
-                    />
-                    <input
-                      aria-label="시작일"
-                      type="date"
-                      min={getMinStartDate()}
-                      value={form.startDate}
-                      onChange={setField("startDate")}
-                      onClick={(e) => e.currentTarget.showPicker?.()}
-                      className={`${inputClassName} cursor-pointer pl-9`}
-                    />
-                  </div>
+                  <DateField
+                    ariaLabel="시작일"
+                    min={getMinStartDate()}
+                    value={form.startDate}
+                    onChange={(next) => setForm((prev) => ({ ...prev, startDate: next }))}
+                  />
                 </div>
                 <div>
                   <p className="mb-1 text-xs text-gray-400">종료일</p>
-                  <div className="relative">
-                    <Calendar
-                      size={16}
-                      className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
-                    />
-                    <input
-                      aria-label="종료일"
-                      type="date"
-                      min={getMinEndDate(form.startDate)}
-                      value={form.endDate}
-                      onChange={setField("endDate")}
-                      onClick={(e) => e.currentTarget.showPicker?.()}
-                      className={`${inputClassName} cursor-pointer pl-9`}
-                    />
-                  </div>
+                  <DateField
+                    ariaLabel="종료일"
+                    min={getMinEndDate(form.startDate)}
+                    value={form.endDate}
+                    onChange={(next) => setForm((prev) => ({ ...prev, endDate: next }))}
+                  />
                 </div>
               </div>
               {periodDays && (
@@ -460,24 +444,20 @@ const ChallengeCreatePage = () => {
               <div>
                 <label className={labelClassName}>인증 가능 시간</label>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="time"
+                  <TimeField
+                    ariaLabel="인증 시작 시간"
                     min={CERT_TIME_MIN}
                     max={CERT_TIME_MAX}
                     value={form.certStartTime}
-                    onChange={setField("certStartTime")}
-                    onClick={(e) => e.currentTarget.showPicker?.()}
-                    className={`${inputClassName} min-w-0 cursor-pointer`}
+                    onChange={(next) => setForm((prev) => ({ ...prev, certStartTime: next }))}
                   />
                   <span className="shrink-0 text-gray-400">~</span>
-                  <input
-                    type="time"
+                  <TimeField
+                    ariaLabel="인증 종료 시간"
                     min={CERT_TIME_MIN}
                     max={CERT_TIME_MAX}
                     value={form.certEndTime}
-                    onChange={setField("certEndTime")}
-                    onClick={(e) => e.currentTarget.showPicker?.()}
-                    className={`${inputClassName} min-w-0 cursor-pointer`}
+                    onChange={(next) => setForm((prev) => ({ ...prev, certEndTime: next }))}
                   />
                 </div>
               </div>
