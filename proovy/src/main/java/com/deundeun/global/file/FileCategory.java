@@ -8,9 +8,9 @@ import java.util.Set;
 @AllArgsConstructor
 public enum FileCategory {
 
-    PROFILE("profile", 10L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp")),
-    CERTIFICATION("certification", 10L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp")),
-    CHALLENGE_THUMBNAIL("challenge", 10L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp")),
+    PROFILE("profile", 20L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp")),
+    CERTIFICATION("certification", 20L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp")),
+    CHALLENGE_THUMBNAIL("challenge", 20L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp")),
     CHAT("chat", 50L * 1024 * 1024, Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif",
             "application/pdf",

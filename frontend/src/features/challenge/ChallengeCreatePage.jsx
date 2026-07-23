@@ -48,7 +48,6 @@ const initialForm = {
   dailyCertLimit: 1,
   certStartTime: "06:00",
   certEndTime: "22:00",
-  aiReviewEnabled: false,
   feedVisibility: "PUBLIC",
 };
 
@@ -196,7 +195,6 @@ const ChallengeCreatePage = () => {
         dailyCertLimit: Number(form.dailyCertLimit),
         certStartTime: form.certStartTime,
         certEndTime: form.certEndTime,
-        aiReviewEnabled: form.aiReviewEnabled,
         feedVisibility: form.feedVisibility,
       },
       {

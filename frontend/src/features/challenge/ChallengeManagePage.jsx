@@ -5,7 +5,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bot, Power, ShoppingBag } from "lucide-react";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -17,7 +17,11 @@ import {
   usePendingCertifications,
   useRejectCertificationPost,
 } from "@/features/certification/hooks";
-import { useActiveAiTicket } from "@/features/ai/hooks";
+import {
+  useActiveAiTicket,
+  useDeactivateAiReview,
+  useUpsertAiReviewRule,
+} from "@/features/ai/hooks";
 import { statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import { getMinStartDate } from "./challengeDateRange";
@@ -444,7 +448,7 @@ const PendingCertificationCard = ({
   </div>
 );
 
-const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
+const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled, verificationMethod }) => {
   const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     usePendingCertifications(challengeId);
   const {
@@ -454,6 +458,8 @@ const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
   } = useActiveAiTicket();
   const approveMutation = useApproveCertificationPost(challengeId);
   const rejectMutation = useRejectCertificationPost(challengeId);
+  const activateAiMutation = useUpsertAiReviewRule(challengeId);
+  const deactivateAiMutation = useDeactivateAiReview(challengeId);
 
   const posts = data?.pages.flat() ?? [];
   const hasActiveTicket = activeTicket?.hasActiveTicket === true;
@@ -467,6 +473,24 @@ const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
     const reason = window.prompt("반려 사유를 입력해주세요.");
     if (!reason) return;
     rejectMutation.mutate({ postId, reason });
+  };
+
+  const activateAiReview = () => {
+    if (!hasActiveTicket || activateAiMutation.isPending) return;
+    if (!window.confirm("이 방의 참가자 인증글을 AI가 자동 검수하도록 활성화할까요?")) return;
+
+    activateAiMutation.mutate({
+      ruleText: verificationMethod,
+      reviewMode: "AUTO",
+    });
+  };
+
+  const deactivateAiReview = () => {
+    if (deactivateAiMutation.isPending) return;
+    if (!window.confirm("이 방의 AI 자동검수를 비활성화하고 방장 수동 검수로 전환할까요?")) {
+      return;
+    }
+    deactivateAiMutation.mutate();
   };
 
   if (isError) {
@@ -502,27 +526,56 @@ const CertificationReviewTab = ({ challengeId, hostId, aiReviewEnabled }) => {
               : "참가자의 인증 게시물을 방장이 직접 검수합니다."}
           </p>
         </div>
-        {isTicketLoading ? (
-          <span className="text-xs text-gray-400">티켓 확인 중...</span>
-        ) : usesAutomaticReview ? (
-          <span className="shrink-0 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary">
-            자동 검수 사용 중
-          </span>
-        ) : !hasActiveTicket ? (
-          <Link
-            href="/mypage/tickets/store"
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
-          >
-            티켓 활성화
-          </Link>
-        ) : (
-          <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
-            수동 검수 사용 중
-          </span>
-        )}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {isTicketLoading ? (
+            <span className="text-xs text-gray-400">티켓 확인 중...</span>
+          ) : (
+            <>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  usesAutomaticReview
+                    ? "bg-primary-light text-primary"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {usesAutomaticReview ? "자동 검수 사용 중" : "수동 검수 사용 중"}
+              </span>
+
+              {aiReviewEnabled ? (
+                <Button
+                  variant="outline"
+                  onClick={deactivateAiReview}
+                  disabled={deactivateAiMutation.isPending}
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Power size={15} />
+                    {deactivateAiMutation.isPending ? "비활성화 중..." : "AI 검수 비활성화"}
+                  </span>
+                </Button>
+              ) : hasActiveTicket ? (
+                <Button onClick={activateAiReview} disabled={activateAiMutation.isPending}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Bot size={15} />
+                    {activateAiMutation.isPending ? "활성화 중..." : "AI 검수 활성화"}
+                  </span>
+                </Button>
+              ) : (
+                <Link
+                  href="/mypage/tickets/store"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover"
+                >
+                  <ShoppingBag size={15} /> 티켓 구매하기
+                </Link>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {ticketError && <ErrorMessage error={ticketError} />}
+      {(activateAiMutation.error || deactivateAiMutation.error) && (
+        <ErrorMessage error={activateAiMutation.error ?? deactivateAiMutation.error} />
+      )}
 
       {posts.length === 0 ? (
         <div className="rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
@@ -776,6 +829,7 @@ const ChallengeManagePage = ({ challengeId, initialTab }) => {
           challengeId={challengeId}
           hostId={challenge.hostId}
           aiReviewEnabled={challenge.aiReviewEnabled}
+          verificationMethod={challenge.verificationMethod}
         />
       )}
 

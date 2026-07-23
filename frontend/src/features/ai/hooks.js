@@ -25,6 +25,13 @@ export const useAiTicketPlans = () =>
 export const useActiveAiTicket = () =>
   useQuery({ queryKey: aiTicketKeys.active(), queryFn: getActiveAiTicket });
 
+export const useHasActiveAiTicket = () =>
+  useQuery({
+    queryKey: aiTicketKeys.active(),
+    queryFn: getActiveAiTicket,
+    select: (ticket) => ticket?.hasActiveTicket === true,
+  });
+
 export const useAiTicketHistory = (params) =>
   useQuery({
     queryKey: aiTicketKeys.history(params),
@@ -57,6 +64,12 @@ export const useAiReviewResults = (challengeId, params) =>
     enabled: Boolean(challengeId),
   });
 
+const syncAiReviewEnabled = (queryClient, challengeId, enabled) => {
+  queryClient.setQueryData(challengeKeys.detail(challengeId), (challenge) =>
+    challenge ? { ...challenge, aiReviewEnabled: enabled } : challenge
+  );
+};
+
 const invalidateAiReviewSettings = (queryClient, challengeId) =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: aiReviewKeys.rule(challengeId) }),
@@ -68,7 +81,11 @@ export const useUpsertAiReviewRule = (challengeId) => {
 
   return useMutation({
     mutationFn: (payload) => upsertAiReviewRule(challengeId, payload),
-    onSuccess: () => invalidateAiReviewSettings(queryClient, challengeId),
+    onSuccess: (savedRule) => {
+      queryClient.setQueryData(aiReviewKeys.rule(challengeId), savedRule);
+      syncAiReviewEnabled(queryClient, challengeId, true);
+      return invalidateAiReviewSettings(queryClient, challengeId);
+    },
   });
 };
 
@@ -86,7 +103,11 @@ export const useDeactivateAiReview = (challengeId) => {
 
   return useMutation({
     mutationFn: () => deactivateAiReview(challengeId),
-    onSuccess: () => invalidateAiReviewSettings(queryClient, challengeId),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: aiReviewKeys.rule(challengeId), exact: true });
+      syncAiReviewEnabled(queryClient, challengeId, false);
+      return invalidateAiReviewSettings(queryClient, challengeId);
+    },
   });
 };
 
