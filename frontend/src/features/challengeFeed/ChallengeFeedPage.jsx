@@ -321,8 +321,6 @@ const ChallengeFeedPage = ({ challengeId }) => {
     error: challengeError,
     isLoading: isChallengeLoading,
   } = useChallenge(challengeId);
-  const isHost = me?.id != null && challenge?.hostId != null && me.id === challenge.hostId;
-  const canReview = isHost || me?.role === "ADMIN";
   const activeFilter = isReviewMode ? "review" : filter;
   const activeSort = isReviewMode ? "latest" : sort;
   const {
@@ -451,17 +449,6 @@ const ChallengeFeedPage = ({ challengeId }) => {
             >
               + 인증하기
             </Link>
-          )}
-          {canReview && (
-            <Button
-              type="button"
-              variant={isReviewMode ? "primary" : "outline"}
-              className="!rounded-full"
-              onClick={toggleReviewMode}
-              disabled={isReviewActionPending}
-            >
-              {isReviewMode ? "피드 보기" : "검수 모드"}
-            </Button>
           )}
           {!isReviewMode && (
             <div className="flex gap-2" role="tablist" aria-label="피드 정렬">

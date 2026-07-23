@@ -81,6 +81,7 @@ const baseMypageMenus = [
   { name: "내 인증피드", href: "/mypage/feed" },
   { name: "우수 사용자 인증", href: "/mypage/verification" },
   { name: "AI 티켓 관리", href: "/mypage/tickets" },
+  { name: "가이드", href: "/guide" },
 ];
 const withdrawMenu = { name: "회원탈퇴", href: "/mypage/withdraw" };
 
