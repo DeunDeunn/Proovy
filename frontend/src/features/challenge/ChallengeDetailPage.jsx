@@ -152,11 +152,11 @@ const ChallengeDetailPage = ({ challengeId }) => {
               </span>
             </div>
 
-            <div className="flex shrink-0 flex-col gap-2">
+            <div className="relative flex shrink-0">
               <button
                 type="button"
                 onClick={handleShare}
-                className={`flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                   linkCopied
                     ? "border-primary bg-primary-light text-primary"
                     : "border-gray-300 text-gray-600 hover:bg-gray-50"
@@ -166,10 +166,10 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 {linkCopied ? "링크가 복사됐어요" : "공유하기"}
               </button>
               {canUseCertification && (
-                <>
+                <div className="absolute top-full right-0 z-10 mt-2 flex w-full flex-col gap-2">
                   <Link
                     href={`/challenges/${challengeId}/feed`}
-                    className="rounded-lg border border-primary px-3 py-2 text-center text-sm font-semibold text-primary hover:bg-primary-light"
+                    className="flex items-center justify-center rounded-lg border border-primary px-3 py-2 text-sm font-semibold text-primary hover:bg-primary-light"
                   >
                     챌린지 피드
                   </Link>
@@ -179,7 +179,7 @@ const ChallengeDetailPage = ({ challengeId }) => {
                   >
                     인증하기
                   </Link>
-                </>
+                </div>
               )}
             </div>
           </div>
