@@ -102,7 +102,11 @@ const ChallengeDetailPage = ({ challengeId }) => {
   const endDate = new Date(challenge.endDate);
   const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
   // eslint-disable-next-line react-hooks/purity -- 남은 일수는 현재 시각 기준 표시용 값이라 렌더마다 달라져도 무방하다
-  const daysLeft = Math.max(0, Math.ceil((endDate - Date.now()) / (1000 * 60 * 60 * 24)));
+  const now = Date.now();
+  const daysLeft = Math.min(
+    totalDays,
+    Math.max(0, Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)))
+  );
   const daysElapsed = Math.min(totalDays, Math.max(0, totalDays - daysLeft));
   const progressPercent = totalDays > 0 ? Math.round((daysElapsed / totalDays) * 100) : 0;
 

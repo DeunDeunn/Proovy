@@ -20,6 +20,7 @@ import {
 import { useActiveAiTicket } from "@/features/ai/hooks";
 import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
+import { getMinStartDate } from "./challengeDateRange";
 import DateField from "./DateField";
 import TimeField from "./TimeField";
 import {
@@ -72,7 +73,11 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const isPeriodValid = form.startDate && form.endDate && form.endDate > form.startDate;
+  const isPeriodValid =
+    form.startDate &&
+    form.startDate >= getMinStartDate() &&
+    form.endDate &&
+    form.endDate > form.startDate;
   const isCertTimeValid =
     form.certEndTime > form.certStartTime &&
     form.certStartTime >= CERT_TIME_MIN &&
@@ -208,6 +213,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               <div className="min-w-0 flex-1">
                 <DateField
                   ariaLabel="시작일"
+                  min={getMinStartDate()}
                   value={form.startDate}
                   onChange={(next) => setForm((prev) => ({ ...prev, startDate: next }))}
                   disabled={!isEditable}

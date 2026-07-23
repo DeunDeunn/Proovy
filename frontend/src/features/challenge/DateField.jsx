@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+
+import { useDismissable } from "./useDismissable";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -31,17 +33,8 @@ const DateField = ({
     value ? Number(value.split("-")[1]) - 1 : new Date().getMonth()
   );
   const containerRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  const closePicker = useCallback(() => setOpen(false), []);
+  useDismissable(open, containerRef, closePicker);
 
   const openPicker = () => {
     if (value) {

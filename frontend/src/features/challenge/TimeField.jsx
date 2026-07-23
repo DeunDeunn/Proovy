@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Clock } from "lucide-react";
+
+import { useDismissable } from "./useDismissable";
 
 // min~max 사이를 30분 단위로 끊은 선택지 목록을 만든다
 const buildOptions = (min, max) => {
@@ -32,17 +34,8 @@ const TimeField = ({ value, onChange, min, max, ariaLabel, disabled = false }) =
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
   const options = buildOptions(min, max);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  const closePicker = useCallback(() => setOpen(false), []);
+  useDismissable(open, containerRef, closePicker);
 
   return (
     <div ref={containerRef} className="relative">
