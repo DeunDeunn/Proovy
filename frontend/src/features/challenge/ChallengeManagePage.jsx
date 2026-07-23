@@ -18,7 +18,7 @@ import {
   useRejectCertificationPost,
 } from "@/features/certification/hooks";
 import { useActiveAiTicket } from "@/features/ai/hooks";
-import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
+import { statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import { getMinStartDate } from "./challengeDateRange";
 import { DESCRIPTION_MIN_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
@@ -599,7 +599,6 @@ const ChallengeManagePage = ({ challengeId, initialTab }) => {
   }
 
   const statusBadge = statusBadgeMap[challenge.status] ?? statusBadgeMap.RECRUITING;
-  const gradient = getCategoryGradient(challenge.categoryName);
   const totalDays = getTotalDays(challenge.startDate, challenge.endDate);
 
   const totalPending = participants?.reduce((sum, p) => sum + (p.pendingCount ?? 0), 0) ?? 0;
@@ -629,10 +628,14 @@ const ChallengeManagePage = ({ challengeId, initialTab }) => {
 
       <div className="flex flex-wrap items-center gap-4">
         <div
-          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl ${challenge.thumbnailUrl ? "" : `bg-gradient-to-br ${gradient}`}`}
+          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl ${challenge.thumbnailUrl ? "" : "bg-gray-50"}`}
         >
-          {challenge.thumbnailUrl && (
+          {challenge.thumbnailUrl ? (
             <img src={challenge.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <img src="/logo.png" alt="" className="h-5 w-auto opacity-30" />
+            </div>
           )}
         </div>
         <div>
