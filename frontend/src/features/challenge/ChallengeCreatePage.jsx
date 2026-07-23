@@ -12,7 +12,7 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useCategories, useCreateChallenge, useUpdateChallengeThumbnail } from "./hooks";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import { getMinEndDate, getMinStartDate } from "./challengeDateRange";
-import { DESCRIPTION_MIN_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
+import { DESCRIPTION_MIN_LENGTH, TITLE_MAX_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
 import { hasMeaningfulContent } from "./textValidation";
 import {
   isVerificationMethodValid,
@@ -240,6 +240,7 @@ const ChallengeCreatePage = () => {
                 placeholder="예) 매일 30분 러닝"
                 value={form.title}
                 onChange={setField("title")}
+                maxLength={TITLE_MAX_LENGTH}
                 className={inputClassName}
               />
               {form.title.trim().length > 0 &&

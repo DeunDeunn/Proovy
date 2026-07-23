@@ -25,7 +25,7 @@ import {
 import { statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import { getMinStartDate } from "./challengeDateRange";
-import { DESCRIPTION_MIN_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
+import { DESCRIPTION_MIN_LENGTH, TITLE_MAX_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
 import { hasMeaningfulContent } from "./textValidation";
 import {
   isVerificationMethodValid,
@@ -94,13 +94,26 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
     form.certEndTime > form.certStartTime &&
     form.certStartTime >= CERT_TIME_MIN &&
     form.certEndTime <= CERT_TIME_MAX;
+
+  // 이 검증 규칙이 생기기 전에 만들어진 챌린지는 제목/설명/인증 방법이 새 기준보다 짧을 수 있다.
+  // 그 필드를 직접 고치지 않는 한(원래 값 그대로면) 다른 항목만 저장하는 것도 막으면 안 되므로,
+  // "새 기준을 만족" 하거나 "애초에 값을 안 건드림" 둘 중 하나면 통과시킨다.
+  const isTitleValid =
+    hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) || form.title === challenge.title;
+  const isDescriptionValid =
+    hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) ||
+    form.description === (challenge.description ?? "");
+  const isVerificationMethodOk =
+    isVerificationMethodValid(form.verificationMethod) ||
+    form.verificationMethod === (challenge.verificationMethod ?? "");
+
   const isFormValid =
     isEditable &&
-    hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) &&
-    hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) &&
+    isTitleValid &&
+    isDescriptionValid &&
     isPeriodValid &&
     isCertTimeValid &&
-    isVerificationMethodValid(form.verificationMethod);
+    isVerificationMethodOk;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -152,15 +165,14 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               value={form.title}
               onChange={setField("title")}
               disabled={!isEditable}
+              maxLength={TITLE_MAX_LENGTH}
               className={settingsInputClassName}
             />
-            {isEditable &&
-              form.title.trim().length > 0 &&
-              !hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) && (
-                <p className="mt-1 text-xs text-danger">
-                  제목은 {TITLE_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
-                </p>
-              )}
+            {isEditable && form.title.trim().length > 0 && !isTitleValid && (
+              <p className="mt-1 text-xs text-danger">
+                제목은 {TITLE_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+              </p>
+            )}
           </div>
 
           <div>
@@ -175,13 +187,11 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               disabled={!isEditable}
               className={`${settingsInputClassName} resize-none`}
             />
-            {isEditable &&
-              form.description.trim().length > 0 &&
-              !hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) && (
-                <p className="mt-1 text-xs text-danger">
-                  설명은 {DESCRIPTION_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
-                </p>
-              )}
+            {isEditable && form.description.trim().length > 0 && !isDescriptionValid && (
+              <p className="mt-1 text-xs text-danger">
+                설명은 {DESCRIPTION_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -239,7 +249,7 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               maxLength={VERIFICATION_METHOD_MAX_LENGTH}
               className={settingsInputClassName}
             />
-            {isEditable && !isVerificationMethodValid(form.verificationMethod) && (
+            {isEditable && !isVerificationMethodOk && (
               <p className="mt-1 text-xs text-danger">
                 AI 자동검수가 이 문구를 기준으로 판단해요. {VERIFICATION_METHOD_MIN_LENGTH}자 이상
                 구체적으로 적어주세요. (
