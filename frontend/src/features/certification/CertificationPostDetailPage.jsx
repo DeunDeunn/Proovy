@@ -136,13 +136,22 @@ const AiReviewPanel = ({ post }) => {
   );
 };
 
-const ProfileAvatar = ({ nickname, profileImageUrl }) => (
-  <img
-    src={profileImageUrl || DEFAULT_PROFILE_IMAGE_URL}
-    alt={`${nickname ?? "사용자"} 프로필 이미지`}
-    className="h-10 w-10 shrink-0 rounded-full border border-gray-200 object-cover"
-  />
-);
+const ProfileAvatar = ({ nickname, profileImageUrl }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState(null);
+  const imageUrl =
+    profileImageUrl && failedImageUrl !== profileImageUrl
+      ? profileImageUrl
+      : DEFAULT_PROFILE_IMAGE_URL;
+
+  return (
+    <img
+      src={imageUrl}
+      alt={`${nickname ?? "사용자"} 프로필 이미지`}
+      onError={() => profileImageUrl && setFailedImageUrl(profileImageUrl)}
+      className="h-10 w-10 shrink-0 rounded-full border border-gray-200 object-cover"
+    />
+  );
+};
 
 const PostReactionBar = ({
   liked,
