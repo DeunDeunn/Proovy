@@ -90,11 +90,13 @@ const SidebarDropdown = ({
   label,
   items,
   pathname,
+  excludePrefixes = [],
   forceOpen,
   onToggle,
   onItemAction,
 }) => {
-  const activeHref = findActiveHref(items, pathname);
+  const isExcluded = excludePrefixes.some((prefix) => matchesPrefix(pathname, prefix));
+  const activeHref = isExcluded ? null : findActiveHref(items, pathname);
   const isActive = activeHref !== null;
   // 현재 이 드롭다운 안의 페이지에 있으면(isActive) 다른 메뉴로 이동하기 전까지 계속 펼쳐둔다
   const open = isActive || forceOpen;
@@ -272,6 +274,7 @@ const Sidebar = () => {
               label="마이페이지"
               items={mypageMenuItems}
               pathname={pathname}
+              excludePrefixes={["/mypage/tickets/store"]}
               forceOpen={openDropdown === "mypage"}
               onToggle={() => toggleDropdown("mypage")}
             />
