@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.deundeun.ai.dto.AiReviewRuleRequest;
 import com.deundeun.ai.dto.AiReviewRuleResponse;
+import com.deundeun.ai.event.AiReviewActivatedEvent;
 import com.deundeun.ai.mapper.AiReviewRuleMapper;
 import com.deundeun.ai.mapper.AiTicketMapper;
 import com.deundeun.ai.vo.AiReviewRuleVo;
@@ -22,7 +23,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.LocalDateTime;
 
 @DisplayName("AiReviewRuleService")
 @ExtendWith(MockitoExtension.class)
@@ -33,6 +37,9 @@ class AiReviewRuleServiceImplTest {
 
     @Mock
     private AiTicketMapper aiTicketMapper;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private AiReviewRuleServiceImpl aiReviewRuleService;
@@ -55,12 +62,56 @@ class AiReviewRuleServiceImplTest {
         ArgumentCaptor<AiReviewRuleVo> captor = ArgumentCaptor.forClass(AiReviewRuleVo.class);
         verify(aiReviewRuleMapper).upsertAiReviewRule(captor.capture());
         verify(aiReviewRuleMapper).updateChallengeAiReviewEnabled(challengeId, true);
+        verify(eventPublisher).publishEvent(any(AiReviewActivatedEvent.class));
         AiReviewRuleVo capturedRule = captor.getValue();
         assertThat(capturedRule.getHostId()).isEqualTo(hostId);
         assertThat(capturedRule.getChallengeId()).isEqualTo(challengeId);
         assertThat(capturedRule.getRuleText()).isEqualTo("인증 사진 기준을 확인한다.");
         assertThat(capturedRule.getReviewMode()).isEqualTo("AUTO");
         assertThat(response.getReviewMode()).isEqualTo("AUTO");
+    }
+
+    @Test
+    @DisplayName("비활성 방을 활성화하면 기존 대기 글 검수 이벤트를 발행한다")
+    void upsertAiReviewRule_disabledChallenge_publishesActivationEvent() {
+        Long hostId = 1L;
+        Long challengeId = 10L;
+        AiReviewRuleRequest request = request("AUTO", "인증 사진 기준을 확인한다.");
+        AiReviewRuleVo savedRule = rule(100L, hostId, challengeId, request.getRuleText(), "AUTO");
+
+        when(aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId)).thenReturn(hostId);
+        when(aiTicketMapper.findActiveSubscriptionByHostId(hostId))
+                .thenReturn(AiTicketSubscriptionVo.builder().id(1L).hostId(hostId).build());
+        when(aiReviewRuleMapper.isChallengeAiReviewEnabledByChallengeId(challengeId)).thenReturn(false);
+        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(savedRule);
+
+        aiReviewRuleService.upsertAiReviewRule(hostId, challengeId, request);
+
+        ArgumentCaptor<AiReviewActivatedEvent> eventCaptor =
+                ArgumentCaptor.forClass(AiReviewActivatedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().hostId()).isEqualTo(hostId);
+        assertThat(eventCaptor.getValue().challengeId()).isEqualTo(challengeId);
+        assertThat(eventCaptor.getValue().activatedAt()).isBeforeOrEqualTo(LocalDateTime.now());
+    }
+
+    @Test
+    @DisplayName("이미 활성화된 방의 기준 수정은 기존 글 검수 이벤트를 다시 발행하지 않는다")
+    void upsertAiReviewRule_enabledChallenge_doesNotRepublishActivationEvent() {
+        Long hostId = 1L;
+        Long challengeId = 10L;
+        AiReviewRuleRequest request = request("AUTO", "변경된 인증 기준");
+        AiReviewRuleVo savedRule = rule(100L, hostId, challengeId, request.getRuleText(), "AUTO");
+
+        when(aiReviewRuleMapper.findChallengeHostIdByChallengeId(challengeId)).thenReturn(hostId);
+        when(aiTicketMapper.findActiveSubscriptionByHostId(hostId))
+                .thenReturn(AiTicketSubscriptionVo.builder().id(1L).hostId(hostId).build());
+        when(aiReviewRuleMapper.isChallengeAiReviewEnabledByChallengeId(challengeId)).thenReturn(true);
+        when(aiReviewRuleMapper.findAiReviewRuleByChallengeId(challengeId)).thenReturn(savedRule);
+
+        aiReviewRuleService.upsertAiReviewRule(hostId, challengeId, request);
+
+        verify(eventPublisher, never()).publishEvent(any(AiReviewActivatedEvent.class));
     }
 
     @Test

@@ -161,7 +161,20 @@
                p.like_count,
                p.comment_count,
                p.created_at,
-               (p.user_id = c.host_id OR c.ai_review_enabled)
+               (
+                   p.user_id = c.host_id
+                   OR (
+                       c.ai_review_enabled
+                       AND EXISTS (
+                           SELECT 1
+                           FROM ai_ticket_subscriptions ats
+                           WHERE ats.host_id = c.host_id
+                             AND ats.status = 'ACTIVE'
+                             AND ats.started_at &lt;= CURRENT_TIMESTAMP
+                             AND ats.expired_at &gt; CURRENT_TIMESTAMP
+                       )
+                   )
+               )
                                                            AS ai_review_expected,
                ar.id                                       AS ai_review_id,
                ar.status                                   AS ai_review_status,
