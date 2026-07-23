@@ -12,6 +12,14 @@ import ErrorMessage from "@/components/ui/ErrorMessage";
 import { useCategories, useCreateChallenge, useUpdateChallengeThumbnail } from "./hooks";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import { getMinEndDate, getMinStartDate } from "./challengeDateRange";
+import { DESCRIPTION_MIN_LENGTH, TITLE_MAX_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
+import { hasMeaningfulContent } from "./textValidation";
+import {
+  isVerificationMethodValid,
+  normalizeVerificationMethod,
+  VERIFICATION_METHOD_MAX_LENGTH,
+  VERIFICATION_METHOD_MIN_LENGTH,
+} from "./verificationMethodRange";
 import DateField from "./DateField";
 import TimeField from "./TimeField";
 
@@ -135,15 +143,18 @@ const ChallengeCreatePage = () => {
   };
 
   const isStep1Valid =
-    form.title.trim() !== "" && form.categoryId !== "" && Number(form.entryFee) >= 1000;
+    hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) &&
+    form.categoryId !== "" &&
+    Number(form.entryFee) >= 1000;
   const isStep2Valid =
+    hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) &&
     form.startDate !== "" &&
     form.startDate >= getMinStartDate() &&
     form.endDate !== "" &&
     form.endDate > form.startDate &&
     Number(form.maxParticipants) > 0;
   const isStep3Valid =
-    form.verificationMethod.trim() !== "" &&
+    isVerificationMethodValid(form.verificationMethod) &&
     form.certEndTime > form.certStartTime &&
     form.certStartTime >= CERT_TIME_MIN &&
     form.certEndTime <= CERT_TIME_MAX;
@@ -229,8 +240,15 @@ const ChallengeCreatePage = () => {
                 placeholder="예) 매일 30분 러닝"
                 value={form.title}
                 onChange={setField("title")}
+                maxLength={TITLE_MAX_LENGTH}
                 className={inputClassName}
               />
+              {form.title.trim().length > 0 &&
+                !hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) && (
+                  <p className="mt-1 text-xs text-danger">
+                    제목은 {TITLE_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+                  </p>
+                )}
             </div>
 
             <div>
@@ -327,9 +345,19 @@ const ChallengeCreatePage = () => {
                 onChange={setField("description")}
                 className={`${inputClassName} resize-none`}
               />
-              <p className="mt-1 text-right text-xs text-gray-400">
-                {form.description.length} / {DESCRIPTION_MAX_LENGTH}
-              </p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                {form.description.trim().length > 0 &&
+                !hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) ? (
+                  <p className="text-xs text-danger">
+                    설명은 {DESCRIPTION_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+                  </p>
+                ) : (
+                  <span />
+                )}
+                <p className="shrink-0 text-xs text-gray-400">
+                  {form.description.length} / {DESCRIPTION_MAX_LENGTH}
+                </p>
+              </div>
             </div>
 
             <div>
@@ -404,11 +432,24 @@ const ChallengeCreatePage = () => {
               <input
                 id="create-verification-method"
                 type="text"
-                placeholder="예) 러닝 앱 캡처 또는 인증 사진"
+                placeholder="예) 러닝 앱 캡처 화면 - 러닝 거리와 시간이 함께 보여야 함"
                 value={form.verificationMethod}
                 onChange={setField("verificationMethod")}
+                maxLength={VERIFICATION_METHOD_MAX_LENGTH}
                 className={inputClassName}
               />
+              <p
+                className={`mt-1 text-xs ${
+                  form.verificationMethod.trim().length > 0 &&
+                  !isVerificationMethodValid(form.verificationMethod)
+                    ? "text-danger"
+                    : "text-gray-400"
+                }`}
+              >
+                AI 자동검수가 이 문구를 기준으로 판단해요. 무엇이 보여야 인증 성공인지 구체적으로
+                적어주세요. ({normalizeVerificationMethod(form.verificationMethod).length}/
+                {VERIFICATION_METHOD_MIN_LENGTH}자 이상)
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
