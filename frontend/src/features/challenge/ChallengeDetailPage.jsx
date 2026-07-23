@@ -13,6 +13,7 @@ import {
   Camera,
   ChevronDown,
   ChevronUp,
+  ClipboardCheck,
   Share2,
   Target,
   Users,
@@ -298,6 +299,13 @@ const ChallengeDetailPage = ({ challengeId }) => {
                 {showFullDescription ? "접기" : "더보기"}
                 {showFullDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
+            )}
+            {challenge.verificationMethod && (
+              <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-600">
+                <ClipboardCheck size={14} className="shrink-0 text-gray-400" />
+                <span className="font-medium text-gray-700">인증 방법</span>
+                <span>{challenge.verificationMethod}</span>
+              </p>
             )}
           </div>
         </div>

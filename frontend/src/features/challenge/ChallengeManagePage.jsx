@@ -21,6 +21,14 @@ import { useActiveAiTicket } from "@/features/ai/hooks";
 import { getCategoryGradient, statusBadgeMap } from "./categoryVisuals";
 import { CERT_TIME_MAX, CERT_TIME_MIN } from "./certTimeRange";
 import { getMinStartDate } from "./challengeDateRange";
+import { DESCRIPTION_MIN_LENGTH, TITLE_MIN_LENGTH } from "./challengeTextRange";
+import { hasMeaningfulContent } from "./textValidation";
+import {
+  isVerificationMethodValid,
+  normalizeVerificationMethod,
+  VERIFICATION_METHOD_MAX_LENGTH,
+  VERIFICATION_METHOD_MIN_LENGTH,
+} from "./verificationMethodRange";
 import DateField from "./DateField";
 import TimeField from "./TimeField";
 import {
@@ -82,7 +90,13 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
     form.certEndTime > form.certStartTime &&
     form.certStartTime >= CERT_TIME_MIN &&
     form.certEndTime <= CERT_TIME_MAX;
-  const isFormValid = isEditable && form.title.trim() !== "" && isPeriodValid && isCertTimeValid;
+  const isFormValid =
+    isEditable &&
+    hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) &&
+    hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) &&
+    isPeriodValid &&
+    isCertTimeValid &&
+    isVerificationMethodValid(form.verificationMethod);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -136,6 +150,13 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               disabled={!isEditable}
               className={settingsInputClassName}
             />
+            {isEditable &&
+              form.title.trim().length > 0 &&
+              !hasMeaningfulContent(form.title, TITLE_MIN_LENGTH) && (
+                <p className="mt-1 text-xs text-danger">
+                  제목은 {TITLE_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+                </p>
+              )}
           </div>
 
           <div>
@@ -150,6 +171,13 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
               disabled={!isEditable}
               className={`${settingsInputClassName} resize-none`}
             />
+            {isEditable &&
+              form.description.trim().length > 0 &&
+              !hasMeaningfulContent(form.description, DESCRIPTION_MIN_LENGTH) && (
+                <p className="mt-1 text-xs text-danger">
+                  설명은 {DESCRIPTION_MIN_LENGTH}자 이상 의미 있는 내용으로 적어주세요.
+                </p>
+              )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -200,11 +228,21 @@ const RoomSettingsTab = ({ challenge, challengeId }) => {
             <input
               id="settings-verification-method"
               type="text"
+              placeholder="예) 러닝 앱 캡처 화면 - 러닝 거리와 시간이 함께 보여야 함"
               value={form.verificationMethod}
               onChange={setField("verificationMethod")}
               disabled={!isEditable}
+              maxLength={VERIFICATION_METHOD_MAX_LENGTH}
               className={settingsInputClassName}
             />
+            {isEditable && !isVerificationMethodValid(form.verificationMethod) && (
+              <p className="mt-1 text-xs text-danger">
+                AI 자동검수가 이 문구를 기준으로 판단해요. {VERIFICATION_METHOD_MIN_LENGTH}자 이상
+                구체적으로 적어주세요. (
+                {normalizeVerificationMethod(form.verificationMethod).length}/
+                {VERIFICATION_METHOD_MIN_LENGTH}자)
+              </p>
+            )}
           </div>
 
           <div>
